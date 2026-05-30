@@ -1,0 +1,19 @@
+{
+  "name": "Here — 원장님 관리",
+  "short_name": "Here 관리",
+  "description": "간호 실습 출결 관리 - 원장님",
+  "start_url": "./admin.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "landscape",
+  "background_color": "#f4f5f7",
+  "theme_color": "#6c63ff",
+  "icons": [
+    {
+      "src": "../assets/icon.png",
+      "sizes": "1024x1024",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

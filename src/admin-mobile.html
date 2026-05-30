@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Here — 원장님 모바일</title>
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-app.js";
+  import { getFirestore, doc, getDoc, setDoc, updateDoc, getDocs, collection, query, where, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-firestore.js";
+  import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-auth.js";
+  const app = initializeApp({
+    apiKey:"AIzaSyBaCpQKykViq6526dCJ8mEYbUZqyg5-NUo",
+    authDomain:"my-attendance-8122d.firebaseapp.com",
+    projectId:"my-attendance-8122d",
+    storageBucket:"my-attendance-8122d.firebasestorage.app",
+    messagingSenderId:"994601190154",
+    appId:"1:994601190154:web:d702adbf20039f73ee70f3"
+  });
+  const db = getFirestore(app);
+  const auth = getAuth(app);
+  window.db = db;
+  window.fsDoc = doc; window.fsGetDoc = getDoc; window.fsSetDoc = setDoc;
+  window.fsUpdateDoc = updateDoc; window.fsGetDocs = getDocs;
+  window.fsCollection = collection; window.fsQuery = query; window.fsWhere = where;
+  window.fsAddDoc = addDoc; window.fsServerTimestamp = serverTimestamp;
+  try { await signInAnonymously(auth); } catch(e) {}
+  window.fsReady = true;
+  window.dispatchEvent(new Event('fsReady'));
+</script>
+<style>
+:root{
+  --green:#5651d5;--accent:#6c63ff;--house:#1E3932;
+  --canvas:#f2f0eb;--card:#ffffff;--text:rgba(0,0,0,0.87);--muted:rgba(0,0,0,0.58);
+  --border:rgba(0,0,0,0.1);--radius:14px;--pill:50px;
+  --shadow:0 0 0.5px rgba(0,0,0,0.14),0 1px 1px rgba(0,0,0,0.24);
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+body{font-family:'Inter',system-ui,sans-serif;background:var(--canvas);color:var(--text);letter-spacing:-0.01em;min-height:100vh;padding-bottom:72px;}
+
+/* ── AUTH ──────────────────────────────────────────────── */
+.auth-wrap{min-height:100vh;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);display:flex;align-items:center;justify-content:center;padding:24px;}
+.auth-card{background:#fff;border-radius:20px;padding:36px 28px;max-width:360px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,0.3);}
+.auth-logo{text-align:center;margin-bottom:24px;}
+.auth-logo-icon{font-size:36px;}
+.auth-logo-title{font-size:20px;font-weight:700;color:var(--green);margin-top:6px;letter-spacing:-0.01em;}
+.auth-logo-sub{font-size:12px;color:var(--muted);margin-top:3px;}
+.auth-label{font-size:11px;font-weight:700;color:var(--muted);display:block;margin-bottom:5px;letter-spacing:0.02em;text-transform:uppercase;}
+.auth-input{width:100%;padding:13px 15px;border:1.5px solid var(--border);border-radius:10px;font-size:15px;color:var(--text);outline:none;margin-bottom:12px;background:#fff;}
+.auth-input:focus{border-color:var(--accent);}
+.auth-btn{width:100%;padding:14px;border-radius:var(--pill);border:none;font-size:15px;font-weight:700;cursor:pointer;letter-spacing:-0.01em;}
+.auth-btn:active{transform:scale(0.97);}
+.auth-btn-primary{background:var(--accent);color:#fff;margin-bottom:10px;}
+.auth-btn-outline{background:transparent;color:var(--accent);border:1.5px solid var(--accent);}
+.auth-error{background:#fee2e2;color:#c82014;border-radius:8px;padding:10px 13px;font-size:13px;margin-bottom:12px;display:none;}
+.otp-row{display:flex;gap:8px;margin-bottom:12px;}
+.otp-row input{flex:1;margin-bottom:0;}
+.otp-row button{padding:0 16px;border-radius:10px;border:1.5px solid var(--accent);background:transparent;color:var(--accent);font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;}
+.steps{display:flex;align-items:center;margin-bottom:20px;gap:4px;}
+.step-dot{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;}
+.step-dot.active{background:var(--accent);color:#fff;}
+.step-dot.done{background:#ede9fe;color:var(--green);}
+.step-dot.inactive{background:#edebe9;color:var(--muted);}
+.step-line{flex:1;height:2px;background:#edebe9;}
+.step-line.done{background:var(--accent);}
+.blocked-card{text-align:center;padding:8px 0;}
+.blocked-icon{font-size:48px;margin-bottom:14px;}
+.blocked-title{font-size:18px;font-weight:700;color:#c82014;margin-bottom:8px;}
+.blocked-desc{font-size:13px;color:var(--muted);line-height:1.6;}
+.pending-icon{font-size:48px;margin-bottom:14px;text-align:center;}
+.pending-title{font-size:18px;font-weight:700;color:var(--green);margin-bottom:8px;text-align:center;}
+.pending-desc{font-size:13px;color:var(--muted);line-height:1.6;text-align:center;}
+
+/* ── APP ───────────────────────────────────────────────── */
+.header{background:var(--house);padding:0 16px;height:56px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;}
+.header-brand{display:flex;align-items:center;gap:8px;}
+.header-logo{font-size:16px;font-weight:700;color:#fff;letter-spacing:-0.01em;}
+.header-sub{font-size:11px;color:rgba(255,255,255,0.6);}
+.bottom-tab{position:fixed;bottom:0;left:0;right:0;background:var(--card);border-top:1px solid var(--border);display:flex;z-index:100;box-shadow:0 -1px 3px rgba(0,0,0,0.08);}
+.tab-btn{flex:1;padding:10px 0;display:flex;flex-direction:column;align-items:center;gap:3px;background:none;border:none;cursor:pointer;color:var(--muted);font-size:10px;font-weight:600;letter-spacing:-0.01em;}
+.tab-btn.active{color:var(--accent);}
+.tab-btn .tab-icon{font-size:20px;line-height:1;}
+.page{display:none;padding:16px;}
+.page.active{display:block;}
+
+/* ── CARDS ─────────────────────────────────────────────── */
+.card{background:var(--card);border-radius:var(--radius);padding:16px;box-shadow:var(--shadow);margin-bottom:14px;}
+.card-title{font-size:14px;font-weight:700;color:var(--green);margin-bottom:12px;letter-spacing:-0.01em;}
+.stat-row{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px;}
+.stat-item{background:var(--card);border-radius:var(--radius);padding:14px 10px;text-align:center;box-shadow:var(--shadow);}
+.stat-num{font-size:26px;font-weight:700;color:var(--accent);}
+.stat-lbl{font-size:10px;color:var(--muted);margin-top:2px;}
+.feature-band{background:var(--house);border-radius:var(--radius);padding:18px;margin-bottom:14px;color:#fff;}
+.feature-band-date{font-size:12px;color:rgba(255,255,255,0.6);margin-bottom:4px;}
+.feature-band-title{font-size:17px;font-weight:700;}
+
+/* ── LIST ──────────────────────────────────────────────── */
+.att-row{display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid rgba(0,0,0,0.05);}
+.att-row:last-child{border-bottom:none;}
+.att-name{font-size:14px;font-weight:600;}
+.att-meta{font-size:11px;color:var(--muted);margin-top:2px;}
+.badge{display:inline-flex;align-items:center;padding:4px 10px;border-radius:var(--pill);font-size:11px;font-weight:700;}
+.badge-green{background:#d4e9e2;color:#006241;}
+.badge-yellow{background:#fef9c3;color:#92400e;}
+.badge-red{background:#fee2e2;color:#c82014;}
+.badge-gray{background:#f1f0ef;color:rgba(0,0,0,0.5);}
+
+/* ── BUTTONS ───────────────────────────────────────────── */
+.btn{padding:12px 20px;border-radius:var(--pill);border:none;cursor:pointer;font-size:14px;font-weight:700;letter-spacing:-0.01em;}
+.btn:active{transform:scale(0.96);}
+.btn-primary{background:var(--accent);color:#fff;}
+.btn-outline{background:transparent;color:var(--accent);border:1.5px solid var(--accent);}
+.btn-sm{padding:8px 16px;font-size:13px;}
+.btn-block{width:100%;margin-top:12px;}
+
+/* ── FORM ──────────────────────────────────────────────── */
+.form-group{margin-bottom:12px;}
+.form-label{font-size:11px;font-weight:700;color:var(--muted);display:block;margin-bottom:5px;text-transform:uppercase;letter-spacing:0.03em;}
+.form-select,.form-input{width:100%;padding:12px 14px;border:1.5px solid var(--border);border-radius:10px;font-size:14px;background:#fff;color:var(--text);outline:none;}
+.form-select:focus,.form-input:focus{border-color:var(--accent);}
+
+/* ── APPROVAL ──────────────────────────────────────────── */
+.approval-card{background:var(--card);border-radius:var(--radius);padding:16px;box-shadow:var(--shadow);margin-bottom:10px;}
+.approval-name{font-size:15px;font-weight:700;margin-bottom:4px;}
+.approval-meta{font-size:12px;color:var(--muted);margin-bottom:12px;}
+.approval-btns{display:flex;gap:8px;}
+
+/* ── UTILS ─────────────────────────────────────────────── */
+.empty-state{text-align:center;padding:40px 20px;color:var(--muted);font-size:13px;}
+.empty-icon{font-size:36px;margin-bottom:8px;}
+#toast-c{position:fixed;bottom:80px;left:16px;right:16px;z-index:9999;display:flex;flex-direction:column;gap:8px;}
+.toast{background:var(--house);color:#fff;padding:12px 16px;border-radius:12px;font-size:13px;transform:translateY(20px);opacity:0;transition:all 0.3s;}
+.toast.show{transform:translateY(0);opacity:1;}
+.toast.t-success{background:var(--green);}
+.toast.t-error{background:#c82014;}
+.toast.t-warning{background:#92400e;}
+.load-overlay{display:none;position:fixed;inset:0;background:rgba(76,67,207,0.6);z-index:9998;align-items:center;justify-content:center;flex-direction:column;gap:10px;}
+.load-overlay.show{display:flex;}
+.spinner{width:36px;height:36px;border:3px solid rgba(255,255,255,0.3);border-top-color:#fff;border-radius:50%;animation:spin 0.7s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+</style>
+</head>
+<body>
+
+<!-- ── AUTH WRAP ────────────────────────────────────────── -->
+<div class="auth-wrap" id="auth-wrap" style="display:none;">
+
+  <!-- 로그인 -->
+  <div class="auth-card" id="screen-login">
+    <div class="auth-logo">
+      <div class="auth-logo-icon" style="font-size:0;width:48px;height:48px;background:#6c63ff;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:800;color:#fff;margin:0 auto 8px;">H</div>
+      <div class="auth-logo-title">Here 원장님</div>
+      <div class="auth-logo-sub">모바일 빠른 확인</div>
+    </div>
+    <div class="auth-error" id="login-error"></div>
+    <label class="auth-label">휴대폰 번호</label>
+    <input class="auth-input" id="login-phone" type="tel" placeholder="010-0000-0000" inputmode="numeric">
+    <label class="auth-label">비밀번호</label>
+    <input class="auth-input" id="login-pw" type="password" placeholder="비밀번호" onkeydown="if(event.key==='Enter')doLogin()">
+    <button class="auth-btn auth-btn-primary" onclick="doLogin()">로그인</button>
+    <button class="auth-btn auth-btn-outline" onclick="showScreen('register-step1')">처음이신가요? 가입하기</button>
+  </div>
+
+  <!-- 가입 1단계: 전화번호 + OTP -->
+  <div class="auth-card" id="screen-register-step1" style="display:none;">
+    <div class="steps">
+      <div class="step-dot active">1</div>
+      <div class="step-line"></div>
+      <div class="step-dot inactive">2</div>
+    </div>
+    <div class="auth-logo">
+      <div class="auth-logo-title">원장님 가입</div>
+      <div class="auth-logo-sub">휴대폰 인증</div>
+    </div>
+    <label class="auth-label">휴대폰 번호</label>
+    <div class="otp-row">
+      <input class="auth-input" id="reg-phone" type="tel" placeholder="010-0000-0000" inputmode="numeric">
+      <button onclick="sendOTP()">인증번호</button>
+    </div>
+    <div id="reg-otp-area" style="display:none;">
+      <label class="auth-label">인증번호</label>
+      <div class="otp-row">
+        <input class="auth-input" id="reg-otp" type="text" placeholder="6자리" inputmode="numeric" maxlength="6">
+        <button onclick="verifyOTP()">확인</button>
+      </div>
+    </div>
+    <button class="auth-btn auth-btn-outline" onclick="showScreen('login')">← 로그인으로</button>
+  </div>
+
+  <!-- 가입 2단계: 이름·학원명·비밀번호 -->
+  <div class="auth-card" id="screen-register-step2" style="display:none;">
+    <div class="steps">
+      <div class="step-dot done">✓</div>
+      <div class="step-line done"></div>
+      <div class="step-dot active">2</div>
+    </div>
+    <div class="auth-logo">
+      <div class="auth-logo-title">원장님 가입</div>
+      <div class="auth-logo-sub">학원 정보 입력</div>
+    </div>
+    <div class="auth-error" id="reg2-error"></div>
+    <label class="auth-label">원장님 성함</label>
+    <input class="auth-input" id="reg-name" type="text" placeholder="홍길동">
+    <label class="auth-label">학원명</label>
+    <input class="auth-input" id="reg-academy" type="text" placeholder="○○ 간호학원">
+    <label class="auth-label">비밀번호 (8자 이상)</label>
+    <input class="auth-input" id="reg-pw" type="password" placeholder="비밀번호">
+    <label class="auth-label">비밀번호 확인</label>
+    <input class="auth-input" id="reg-pw2" type="password" placeholder="비밀번호 재입력">
+    <button class="auth-btn auth-btn-primary" onclick="doRegister()">가입 신청</button>
+  </div>
+
+  <!-- 승인 대기 -->
+  <div class="auth-card" id="screen-pending" style="display:none;">
+    <div class="pending-icon">⏳</div>
+    <div class="pending-title">승인 대기 중</div>
+    <div class="pending-desc">가입 신청이 완료되었습니다.<br>관리자 승인 후 이용하실 수 있습니다.<br>승인은 보통 1~2 영업일 내에 처리됩니다.</div>
+    <button class="auth-btn auth-btn-outline" style="margin-top:20px;" onclick="showScreen('login')">← 돌아가기</button>
+  </div>
+
+  <!-- 결제 차단 -->
+  <div class="auth-card" id="screen-payment-blocked" style="display:none;">
+    <div class="blocked-card">
+      <div class="blocked-icon">🔒</div>
+      <div class="blocked-title">서비스 이용 정지</div>
+      <div class="blocked-desc">미납된 이용료가 있어 서비스가 정지되었습니다.<br>PC 버전에서 결제 후 이용해 주세요.</div>
+    </div>
+    <button class="auth-btn auth-btn-outline" style="margin-top:20px;" onclick="showScreen('login')">← 다시 로그인</button>
+  </div>
+</div>
+
+<!-- ── APP ──────────────────────────────────────────────── -->
+<div id="app" style="display:none;">
+  <div class="header">
+    <div class="header-brand">
+      <div style="width:28px;height:28px;background:#00754A;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;color:#fff;">H</div>
+      <div>
+        <div class="header-logo" id="header-academy-name">Here</div>
+        <div class="header-sub">모바일 버전</div>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;">
+      <button onclick="switchToPC()" style="background:transparent;border:1px solid rgba(255,255,255,0.3);color:rgba(255,255,255,0.75);padding:6px 12px;border-radius:var(--pill);cursor:pointer;font-size:11px;font-weight:600;">🖥️ PC</button>
+      <button onclick="adminLogout()" style="background:transparent;border:1px solid rgba(255,255,255,0.3);color:rgba(255,255,255,0.75);padding:6px 12px;border-radius:var(--pill);cursor:pointer;font-size:11px;font-weight:600;">로그아웃</button>
+    </div>
+  </div>
+
+  <!-- 오늘 현황 -->
+  <div class="page active" id="page-today">
+    <div class="feature-band">
+      <div class="feature-band-date" id="today-date-display"></div>
+      <div class="feature-band-title">오늘 출결 현황</div>
+    </div>
+    <div class="stat-row">
+      <div class="stat-item"><div class="stat-num" id="s-checkin">-</div><div class="stat-lbl">출근</div></div>
+      <div class="stat-item"><div class="stat-num" id="s-late" style="color:#92400e;">-</div><div class="stat-lbl">지각</div></div>
+      <div class="stat-item"><div class="stat-num" id="s-absent" style="color:#c82014;">-</div><div class="stat-lbl">미출근</div></div>
+    </div>
+    <div class="card">
+      <div class="card-title">학생별 현황</div>
+      <div id="today-list"><div class="empty-state"><div class="empty-icon">📋</div>불러오는 중...</div></div>
+    </div>
+  </div>
+
+  <!-- 서류 승인 -->
+  <div class="page" id="page-approvals">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+      <div style="font-size:18px;font-weight:700;color:var(--green);">서류 승인</div>
+      <button class="btn btn-outline btn-sm" onclick="loadApprovals()">새로고침</button>
+    </div>
+    <div id="approvals-list"><div class="empty-state"><div class="empty-icon">✅</div>불러오는 중...</div></div>
+  </div>
+
+  <!-- 병원 변경 -->
+  <div class="page" id="page-hospital">
+    <div style="font-size:18px;font-weight:700;color:var(--green);margin-bottom:14px;">병원 변경</div>
+    <div class="card">
+      <div class="form-group">
+        <label class="form-label">반 필터</label>
+        <select id="hchg-cls" class="form-select" onchange="filterHospitalStudents()"><option value="">전체 학생</option></select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">학생 선택</label>
+        <select id="hchg-stu" class="form-select"><option value="">학생을 선택해주세요</option></select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">변경할 병원</label>
+        <select id="hchg-hosp" class="form-select"><option value="">병원을 선택해주세요</option></select>
+      </div>
+      <button class="btn btn-primary btn-block" onclick="doChangeHospital()">병원 변경</button>
+    </div>
+  </div>
+
+  <div class="bottom-tab">
+    <button class="tab-btn active" id="tab-today"     onclick="showTab('today',this)"><span class="tab-icon">📋</span>오늘현황</button>
+    <button class="tab-btn"        id="tab-approvals" onclick="showTab('approvals',this)"><span class="tab-icon">✅</span>서류승인</button>
+    <button class="tab-btn"        id="tab-hospital"  onclick="showTab('hospital',this)"><span class="tab-icon">🏥</span>병원변경</button>
+  </div>
+</div>
+
+<div class="load-overlay" id="loading"><div class="spinner"></div></div>
+<div id="toast-c"></div>
+
+<script>
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbzOGDthNKozJV9j3RIRqgsipHfvYhj_YJ3YZG42RRIdSPRAv51F-pDTu2VHhC2qSMY25Q/exec';
+
+const HOSPITALS = [
+    {name:'사하제일병원',lat:35.092400,lon:128.974900},
+    {name:'명지병원',lat:35.098765,lon:128.909123},
+    {name:'좋은강안병원',lat:35.110040,lon:128.988510},
+    {name:'더탄탄',lat:35.098480,lon:128.993575},
+    {name:'갑을녹산',lat:35.090565,lon:128.853299},
+    {name:'강동병원',lat:35.089700,lon:128.977952},
+    {name:'조이효요양',lat:35.090557,lon:128.998752},
+];
+
+let directorData = null;
+let directorDocId = null;
+let regPhone = '';
+let studentsList = [];
+let classesList = [];
+let todayRecords = [];
+
+function todayKST(){
+    const kst = new Date(Date.now() + 9*60*60*1000);
+    return kst.getUTCFullYear() + '-' + String(kst.getUTCMonth()+1).padStart(2,'0') + '-' + String(kst.getUTCDate()).padStart(2,'0');
+}
+
+function showLoader(v){ document.getElementById('loading').classList.toggle('show', v); }
+function showToast(msg, type='info'){
+    const c = document.getElementById('toast-c');
+    const t = document.createElement('div');
+    t.className = 'toast t-'+type; t.textContent = msg; c.appendChild(t);
+    requestAnimationFrame(()=>t.classList.add('show'));
+    setTimeout(()=>{ t.classList.remove('show'); setTimeout(()=>t.remove(), 300); }, 3000);
+}
+
+// ── SHA-256 ──────────────────────────────────────────────
+async function hashPw(pw) {
+    const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(pw));
+    return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+
+// ── Screen helpers ────────────────────────────────────────
+function showScreen(id) {
+    ['login','register-step1','register-step2','pending','payment-blocked'].forEach(s=>{
+        const el = document.getElementById('screen-'+s);
+        if (el) el.style.display = (s===id) ? 'block' : 'none';
+    });
+}
+
+// ── Init ──────────────────────────────────────────────────
+async function init() {
+    if (!window.fsReady) await new Promise(r=>window.addEventListener('fsReady',r,{once:true}));
+
+    const saved = sessionStorage.getItem('directorSession');
+    if (saved) {
+        try {
+            const s = JSON.parse(saved);
+            directorData = s.data; directorDocId = s.docId;
+            if (directorData.status === 'approved' && directorData.paymentStatus !== 'overdue') {
+                showApp(); await loadAll(); return;
+            }
+        } catch(e) {}
+    }
+    document.getElementById('auth-wrap').style.display = 'flex';
+    showScreen('login');
+}
+
+async function doLogin() {
+    const phone = document.getElementById('login-phone').value.trim().replace(/-/g,'');
+    const pw    = document.getElementById('login-pw').value;
+    const errEl = document.getElementById('login-error');
+    errEl.style.display = 'none';
+
+    if (!phone || !pw) { errEl.textContent='휴대폰 번호와 비밀번호를 입력해주세요.'; errEl.style.display='block'; return; }
+    showLoader(true);
+    try {
+        const hash = await hashPw(pw);
+        const q = window.fsQuery(window.fsCollection(window.db,'directors'), window.fsWhere('phone','==',phone));
+        const snap = await window.fsGetDocs(q);
+        if (snap.empty) { errEl.textContent='가입되지 않은 번호입니다.'; errEl.style.display='block'; showLoader(false); return; }
+
+        let found = null, foundId = null;
+        snap.forEach(d => { if (d.data().passwordHash === hash) { found=d.data(); foundId=d.id; } });
+        if (!found) { errEl.textContent='비밀번호가 일치하지 않습니다.'; errEl.style.display='block'; showLoader(false); return; }
+
+        directorData = found; directorDocId = foundId;
+
+        if (found.status === 'pending')       { showLoader(false); showScreen('pending'); return; }
+        if (found.paymentStatus === 'overdue') { showLoader(false); showScreen('payment-blocked'); return; }
+        if (found.status !== 'approved')      { errEl.textContent='승인되지 않은 계정입니다.'; errEl.style.display='block'; showLoader(false); return; }
+
+        sessionStorage.setItem('directorSession', JSON.stringify({data:found, docId:foundId}));
+        showApp();
+        await loadAll();
+    } catch(e) { errEl.textContent='오류: '+e.message; errEl.style.display='block'; }
+    showLoader(false);
+}
+
+// ── Registration ──────────────────────────────────────────
+async function sendOTP() {
+    regPhone = document.getElementById('reg-phone').value.trim().replace(/-/g,'');
+    if (!regPhone || regPhone.length < 10) { showToast('올바른 번호를 입력해주세요.','info'); return; }
+    showLoader(true);
+    try {
+        const res = await fetch(GAS_URL, {method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action:'requestOTP',phone:regPhone,kakaoId:'director_reg',name:'원장님가입'})});
+        const data = await res.json();
+        if (data.status === 'success') { document.getElementById('reg-otp-area').style.display='block'; showToast('인증번호가 발송되었습니다','success'); }
+        else showToast('발송 실패: '+(data.message||''), 'error');
+    } catch(e) { showToast('오류: '+e.message,'error'); }
+    showLoader(false);
+}
+
+async function verifyOTP() {
+    const otp = document.getElementById('reg-otp').value.trim();
+    showLoader(true);
+    try {
+        const res = await fetch(GAS_URL, {method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action:'verifyOTP',otp,phone:regPhone})});
+        const data = await res.json();
+        if (data.verified) showScreen('register-step2');
+        else showToast('인증 실패. 번호를 확인해주세요.','error');
+    } catch(e) { showToast('오류: '+e.message,'error'); }
+    showLoader(false);
+}
+
+async function doRegister() {
+    const name    = document.getElementById('reg-name').value.trim();
+    const academy = document.getElementById('reg-academy').value.trim();
+    const pw      = document.getElementById('reg-pw').value;
+    const pw2     = document.getElementById('reg-pw2').value;
+    const errEl   = document.getElementById('reg2-error');
+    errEl.style.display = 'none';
+
+    if (!name||!academy||!pw) { errEl.textContent='모든 항목을 입력해주세요.'; errEl.style.display='block'; return; }
+    if (pw.length < 8)        { errEl.textContent='비밀번호는 8자리 이상이어야 합니다.'; errEl.style.display='block'; return; }
+    if (pw !== pw2)           { errEl.textContent='비밀번호가 일치하지 않습니다.'; errEl.style.display='block'; return; }
+    showLoader(true);
+    try {
+        const hash = await hashPw(pw);
+        const academyId = 'academy_'+Date.now();
+        await window.fsAddDoc(window.fsCollection(window.db,'directors'),{
+            phone: regPhone, passwordHash: hash, name, academyName: academy,
+            academyId, status:'pending', paymentStatus:'none',
+            billingKey: null, cardInfo: null,
+            createdAt: window.fsServerTimestamp()
+        });
+        showScreen('pending');
+    } catch(e) { errEl.textContent='가입 실패: '+e.message; errEl.style.display='block'; }
+    showLoader(false);
+}
+
+function adminLogout() {
+    sessionStorage.removeItem('directorSession');
+    localStorage.removeItem('adminVersion');
+    directorData = null; directorDocId = null;
+    document.getElementById('app').style.display = 'none';
+    document.getElementById('auth-wrap').style.display = 'flex';
+    showScreen('login');
+}
+
+function showApp() {
+    document.getElementById('auth-wrap').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    if (directorData) {
+        document.getElementById('header-academy-name').textContent = directorData.academyName || 'Here';
+    }
+    setTodayDisplay();
+}
+
+function switchToPC(){
+    localStorage.setItem('adminVersion','pc');
+    window.location.href='admin.html';
+}
+
+function setTodayDisplay(){
+    const t = todayKST();
+    const d = new Date(t+'T00:00:00');
+    const days = ['일','월','화','수','목','금','토'];
+    document.getElementById('today-date-display').textContent =
+        `${t.replace(/-/g,'.')} (${days[d.getDay()]})`;
+}
+
+// ── Navigation ─────────────────────────────────────────────
+function showTab(id, btn){
+    document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+    document.getElementById('page-'+id).classList.add('active');
+    btn.classList.add('active');
+    if (id === 'approvals') loadApprovals();
+}
+
+// ── Data ───────────────────────────────────────────────────
+async function loadAll(){
+    showLoader(true);
+    try {
+        await Promise.all([loadStudents(), loadClasses(), loadTodayAttendance()]);
+        renderTodayPage();
+        populateHospitalTab();
+    } catch(e) { showToast('데이터 로드 실패','error'); }
+    showLoader(false);
+}
+
+async function loadStudents(){
+    const academyId = directorData?.academyId;
+    let q;
+    if (academyId) {
+        q = window.fsQuery(window.fsCollection(window.db,'students'), window.fsWhere('academyId','==',academyId));
+    } else {
+        q = window.fsCollection(window.db,'students');
+    }
+    const snap = await window.fsGetDocs(q);
+    studentsList = [];
+    snap.forEach(d=>{
+        const data = d.data();
+        if (data.status !== 'pending') studentsList.push({kakaoId:d.id,...data});
+    });
+    studentsList.sort((a,b)=>(a.name||'').localeCompare(b.name||'','ko'));
+}
+
+async function loadClasses(){
+    const academyId = directorData?.academyId;
+    let q;
+    if (academyId) {
+        q = window.fsQuery(window.fsCollection(window.db,'classes'), window.fsWhere('academyId','==',academyId));
+    } else {
+        q = window.fsCollection(window.db,'classes');
+    }
+    const snap = await window.fsGetDocs(q);
+    classesList = [];
+    snap.forEach(d=>classesList.push({id:d.id,...d.data()}));
+    classesList.sort((a,b)=>(a.name||'').localeCompare(b.name||'','ko'));
+}
+
+async function loadTodayAttendance(){
+    const today = todayKST();
+    const q = window.fsQuery(window.fsCollection(window.db,'attendance'), window.fsWhere('date','==',today));
+    const snap = await window.fsGetDocs(q);
+    todayRecords = [];
+    snap.forEach(d=>todayRecords.push({id:d.id,...d.data()}));
+}
+
+async function loadApprovals(){
+    const el = document.getElementById('approvals-list');
+    el.innerHTML = '<div class="empty-state"><div class="empty-icon">⏳</div>불러오는 중...</div>';
+    try {
+        const res = await fetch(GAS_URL, {method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action:'getPendingApprovals'})});
+        const data = await res.json();
+        renderApprovals(data.records||[]);
+    } catch(e) { el.innerHTML = '<div class="empty-state"><div class="empty-icon">⚠️</div>불러오기 실패</div>'; }
+}
+
+// ── Render ─────────────────────────────────────────────────
+function renderTodayPage(){
+    let checkin=0, late=0, absent=0;
+    const rows = studentsList.map(s=>{
+        const rec = todayRecords.find(r=>String(r.kakaoId)===String(s.kakaoId));
+        let badgeHtml, bg='';
+        if (!rec) { absent++; badgeHtml='<span class="badge badge-red">미출근</span>'; }
+        else {
+            const [h,m] = (rec.inTime||'09:00').split(':').map(Number);
+            if (h*60+m > 540) { late++; badgeHtml='<span class="badge badge-yellow">지각</span>'; bg='background:#fefce8;'; }
+            else { checkin++; badgeHtml = rec.outTime ? '<span class="badge badge-green">퇴근</span>' : '<span class="badge badge-green">출근중</span>'; }
+        }
+        const cls = classesList.find(c=>c.id===s.classId);
+        return `<div class="att-row" style="${bg}"><div>
+          <div class="att-name">${s.name||s.kakaoId}</div>
+          <div class="att-meta">${cls?.name||'-'} · ${s.hospital||'-'}</div>
+        </div><div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
+          ${badgeHtml}
+          ${rec ? `<span style="font-size:11px;color:var(--muted);">${rec.inTime||''}${rec.outTime?' → '+rec.outTime:''}</span>` : ''}
+        </div></div>`;
+    }).join('');
+    document.getElementById('s-checkin').textContent = checkin;
+    document.getElementById('s-late').textContent = late;
+    document.getElementById('s-absent').textContent = absent;
+    document.getElementById('today-list').innerHTML = rows || '<div class="empty-state"><div class="empty-icon">👤</div>학생 없음</div>';
+}
+
+function renderApprovals(records){
+    const el = document.getElementById('approvals-list');
+    if (!records.length) {
+        el.innerHTML = '<div class="empty-state"><div class="empty-icon">✅</div>승인 대기 중인 서류가 없습니다</div>';
+        return;
+    }
+    el.innerHTML = records.map((r,i)=>`
+      <div class="approval-card">
+        <div class="approval-name">${r.name||'-'}</div>
+        <div class="approval-meta">${r.date||'-'} · ${r.type||'-'} · ${r.inTime||'-'}~${r.outTime||'-'}</div>
+        <div class="approval-btns">
+          <button class="btn btn-primary btn-sm" style="flex:1;" onclick="approveDoc(${i},true,'${r.recordId||''}','${r.type||''}','${r.inTime||''}','${r.outTime||''}','${r.row||''}')">승인</button>
+          <button class="btn btn-sm" style="flex:1;background:#f1f0ef;color:var(--text);" onclick="approveDoc(${i},false,'${r.recordId||''}','${r.type||''}','${r.inTime||''}','${r.outTime||''}','${r.row||''}')">반려</button>
+        </div>
+      </div>`).join('');
+}
+
+// ── Hospital change ────────────────────────────────────────
+function populateHospitalTab(){
+    const clsOpts = ['<option value="">전체 학생</option>',...classesList.map(c=>`<option value="${c.id}">${c.name}</option>`)].join('');
+    document.getElementById('hchg-cls').innerHTML = clsOpts;
+    const hOpts = ['<option value="">병원을 선택해주세요</option>',...HOSPITALS.map(h=>`<option value="${h.name}" data-lat="${h.lat}" data-lon="${h.lon}">${h.name}</option>`)].join('');
+    document.getElementById('hchg-hosp').innerHTML = hOpts;
+    filterHospitalStudents();
+}
+
+function filterHospitalStudents(){
+    const cls = document.getElementById('hchg-cls').value;
+    const list = cls ? studentsList.filter(s=>s.classId===cls) : studentsList;
+    document.getElementById('hchg-stu').innerHTML = ['<option value="">학생을 선택해주세요</option>',...list.map(s=>`<option value="${s.kakaoId}">${s.name||s.kakaoId} (${s.hospital||'-'})</option>`)].join('');
+}
+
+async function doChangeHospital(){
+    const studentId = document.getElementById('hchg-stu').value;
+    const sel = document.getElementById('hchg-hosp');
+    const opt = sel.options[sel.selectedIndex];
+    if (!studentId || !sel.value) { showToast('학생과 병원을 선택해주세요','info'); return; }
+    showLoader(true);
+    try {
+        await window.fsUpdateDoc(window.fsDoc(window.db,'students',String(studentId)),{
+            hospital: opt.text, hospitalLat: parseFloat(opt.dataset.lat), hospitalLon: parseFloat(opt.dataset.lon)
+        });
+        showToast('병원 변경 완료','success');
+        await loadAll();
+    } catch(e) { showToast('변경 실패: '+e.message,'error'); }
+    showLoader(false);
+}
+
+async function approveDoc(idx, approved, recordId, type, inTime, outTime, row){
+    showLoader(true);
+    try {
+        await fetch(GAS_URL, {method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action:'approveMissingAttendance',approved,recordId,type,inTime,outTime,row})});
+        showToast(approved ? '승인 완료' : '반려 완료', approved ? 'success' : 'info');
+        await loadApprovals();
+    } catch(e) { showToast('처리 실패','error'); }
+    showLoader(false);
+}
+
+init();
+</script>
+</body>
+</html>

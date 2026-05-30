@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Here 출결관리 설치</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#764ba2">
+    <style>
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+        }
+        .card {
+            background: rgba(255,255,255,0.95);
+            border-radius: 24px;
+            padding: 40px 28px 32px;
+            max-width: 340px;
+            width: 100%;
+            text-align: center;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.15);
+        }
+        .logo { font-size: 28px; font-weight: 700; color: #6c63ff; margin-bottom: 4px; }
+        .sub  { font-size: 13px; color: #888; margin-bottom: 32px; }
+        .big-btn {
+            width: 100%;
+            padding: 18px;
+            font-size: 17px;
+            font-weight: 700;
+            border: none;
+            border-radius: 14px;
+            cursor: pointer;
+            background: #6c63ff;
+            color: #fff;
+        }
+        .big-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+        .steps {
+            display: none;
+            background: #f8fafc;
+            border-radius: 14px;
+            padding: 20px 18px;
+            margin-top: 20px;
+            text-align: left;
+        }
+        .steps-title {
+            font-size: 14px;
+            font-weight: 700;
+            color: #6c63ff;
+            margin-bottom: 14px;
+            text-align: center;
+        }
+        .step {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            margin-bottom: 12px;
+            font-size: 14px;
+            color: #334155;
+            line-height: 1.5;
+        }
+        .step:last-child { margin-bottom: 0; }
+        .step-num {
+            background: #6c63ff;
+            color: #fff;
+            border-radius: 50%;
+            width: 22px;
+            height: 22px;
+            font-size: 12px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            margin-top: 1px;
+        }
+        .warn-box {
+            display: none;
+            background: #fff7ed;
+            border: 1.5px solid #fed7aa;
+            border-radius: 14px;
+            padding: 16px;
+            margin-top: 20px;
+            font-size: 14px;
+            color: #9a3412;
+            line-height: 1.7;
+        }
+        .note { font-size: 13px; color: #aaa; margin-top: 14px; }
+    </style>
+</head>
+<body>
+<div class="card">
+    <div class="logo">Here</div>
+    <div class="sub">실습 출결관리 · 홈화면 추가</div>
+
+    <button class="big-btn" id="main-btn" onclick="doInstall()">
+        📲 홈화면에 추가하기
+    </button>
+
+    <!-- iOS 안내 -->
+    <div class="steps" id="ios-steps">
+        <div class="steps-title">아래 순서대로 해주세요</div>
+        <div class="step">
+            <div class="step-num">1</div>
+            <div><b>설정 앱</b>을 열어주세요</div>
+        </div>
+        <div class="step">
+            <div class="step-num">2</div>
+            <div>맨 위에 <b>"프로필 다운로드됨"</b>을 탭해주세요</div>
+        </div>
+        <div class="step">
+            <div class="step-num">3</div>
+            <div>오른쪽 위 <b>"설치"</b>를 탭해주세요</div>
+        </div>
+        <div class="step">
+            <div class="step-num">4</div>
+            <div>홈화면에서 <b>Here</b> 아이콘을 찾아보세요 🎉</div>
+        </div>
+    </div>
+
+    <!-- 인앱브라우저 경고 -->
+    <div class="warn-box" id="inapp-warn">
+        카카오톡 안에서는 설치할 수 없어요.<br>
+        <b>Safari</b>로 열어주세요.
+    </div>
+
+    <div class="note" id="note"></div>
+</div>
+
+<script>
+    const APP_URL  = 'https://knadlg1.github.io/sahanurse-attendance/';
+    const FUNC_URL = 'https://us-central1-my-attendance-8122d.cloudfunctions.net';
+
+    const ua          = navigator.userAgent;
+    const isIOS       = /iPhone|iPad|iPod/i.test(ua);
+    const isInApp     = /KAKAOTALK|NAVER/i.test(ua);
+    const isInstalled = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+
+    let deferredPrompt = null;
+
+    if (isInstalled) location.href = APP_URL;
+
+    if (isInApp) {
+        document.getElementById('main-btn').disabled = true;
+        document.getElementById('inapp-warn').style.display = 'block';
+    }
+
+    window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        deferredPrompt = e;
+    });
+
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('sw.js').catch(() => {});
+    }
+
+    async function doInstall() {
+        const btn = document.getElementById('main-btn');
+
+        if (isIOS) {
+            location.href = FUNC_URL + '/iosInstall';
+            setTimeout(() => {
+                btn.textContent = '✅ 프로필 다운로드됨';
+                btn.style.background = '#10b981';
+                document.getElementById('ios-steps').style.display = 'block';
+            }, 800);
+
+        } else if (deferredPrompt) {
+            deferredPrompt.prompt();
+            const { outcome } = await deferredPrompt.userChoice;
+            deferredPrompt = null;
+            if (outcome === 'accepted') {
+                btn.textContent = '🎉 설치 완료!';
+                btn.style.background = '#10b981';
+                document.getElementById('note').textContent = '홈화면에서 Here 아이콘을 찾아보세요!';
+            }
+
+        } else {
+            document.getElementById('note').textContent = '이미 설치됐거나 지원되지 않는 브라우저예요.';
+            setTimeout(() => { location.href = APP_URL; }, 1500);
+        }
+    }
+</script>
+</body>
+</html>

@@ -1,0 +1,1496 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Here — 최고관리자</title>
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-app.js";
+  import { getFirestore, doc, getDoc, setDoc, updateDoc, getDocs, collection, query, where, orderBy, addDoc, deleteDoc, writeBatch } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-firestore.js";
+  import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-auth.js";
+  const app = initializeApp({
+    apiKey:"AIzaSyBaCpQKykViq6526dCJ8mEYbUZqyg5-NUo",
+    authDomain:"my-attendance-8122d.firebaseapp.com",
+    projectId:"my-attendance-8122d",
+    storageBucket:"my-attendance-8122d.firebasestorage.app",
+    messagingSenderId:"994601190154",
+    appId:"1:994601190154:web:d702adbf20039f73ee70f3"
+  });
+  const db = getFirestore(app);
+  const auth = getAuth(app);
+  window.db = db;
+  window.fsDoc = doc; window.fsGetDoc = getDoc; window.fsSetDoc = setDoc;
+  window.fsUpdateDoc = updateDoc; window.fsGetDocs = getDocs;
+  window.fsCollection = collection; window.fsQuery = query;
+  window.fsWhere = where; window.fsOrderBy = orderBy;
+  window.fsAddDoc = addDoc; window.fsDeleteDoc = deleteDoc; window.fsWriteBatch = writeBatch;
+  try { await signInAnonymously(auth); } catch(e) {}
+  window.fsReady = true;
+  window.dispatchEvent(new Event('fsReady'));
+</script>
+<style>
+:root{
+  --green:#5651d5; --accent:#6c63ff; --house:#1E3932; --uplift:#2b5148;
+  --canvas:#f2f0eb; --ceramic:#edebe9; --card:#fff;
+  --text:rgba(0,0,0,0.87); --muted:rgba(0,0,0,0.58);
+  --border:rgba(0,0,0,0.1); --radius:12px; --pill:50px;
+  --shadow:0 0 0.5px rgba(0,0,0,0.14),0 1px 1px rgba(0,0,0,0.24);
+  --nav-shadow:0 1px 3px rgba(0,0,0,0.1),0 2px 2px rgba(0,0,0,0.06),0 0 2px rgba(0,0,0,0.07);
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Inter',system-ui,sans-serif;background:var(--canvas);color:var(--text);letter-spacing:-0.01em;min-height:100vh;}
+
+/* ── AUTH ────────────────────────────────────────────── */
+.auth-wrap{min-height:100vh;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);display:flex;align-items:center;justify-content:center;padding:24px;}
+.auth-card{background:var(--card);border-radius:20px;padding:44px 40px;width:100%;max-width:380px;box-shadow:0 20px 60px rgba(0,0,0,0.35);}
+.auth-logo{text-align:center;margin-bottom:32px;}
+.auth-logo-icon{font-size:44px;}
+.auth-logo-title{font-size:22px;font-weight:700;color:var(--green);margin-top:10px;letter-spacing:-0.01em;}
+.auth-logo-sub{font-size:13px;color:var(--muted);margin-top:4px;}
+.auth-label{font-size:12px;font-weight:700;color:var(--muted);display:block;margin-bottom:6px;letter-spacing:0.02em;text-transform:uppercase;}
+.auth-input{width:100%;padding:14px 16px;border:1.5px solid var(--border);border-radius:10px;font-size:15px;color:var(--text);outline:none;margin-bottom:14px;background:#fff;}
+.auth-input:focus{border-color:var(--accent);}
+.auth-btn{width:100%;padding:15px;border-radius:var(--pill);border:none;font-size:15px;font-weight:700;cursor:pointer;letter-spacing:-0.01em;}
+.auth-btn:active{transform:scale(0.97);}
+.auth-btn-primary{background:var(--accent);color:#fff;}
+.auth-error{background:#fee2e2;color:#c82014;border-radius:8px;padding:10px 14px;font-size:13px;margin-bottom:14px;display:none;}
+
+/* ── APP LAYOUT ──────────────────────────────────────── */
+.app{display:flex;flex-direction:column;height:100vh;}
+.topbar{background:var(--house);color:#fff;padding:0 28px;height:64px;display:flex;align-items:center;justify-content:space-between;box-shadow:var(--nav-shadow);flex-shrink:0;z-index:100;}
+.topbar-brand{display:flex;align-items:center;gap:10px;}
+.topbar-logo{font-size:19px;font-weight:700;color:#fff;letter-spacing:-0.01em;}
+.topbar-badge{background:rgba(255,255,255,0.15);border-radius:6px;padding:3px 10px;font-size:11px;color:rgba(255,255,255,0.85);font-weight:600;letter-spacing:0.02em;}
+.btn-logout{background:transparent;border:1px solid rgba(255,255,255,0.4);color:rgba(255,255,255,0.85);padding:7px 18px;border-radius:var(--pill);cursor:pointer;font-size:13px;font-weight:600;letter-spacing:-0.01em;}
+.btn-logout:hover{background:rgba(255,255,255,0.1);}
+.body-wrap{display:flex;flex:1;overflow:hidden;}
+
+/* ── SIDEBAR ─────────────────────────────────────────── */
+.sidebar{width:220px;background:var(--house);display:flex;flex-direction:column;padding:24px 12px;gap:4px;overflow-y:auto;flex-shrink:0;}
+.nav-item{display:flex;align-items:center;gap:10px;padding:11px 14px;border-radius:8px;cursor:pointer;font-size:14px;color:rgba(255,255,255,0.65);font-weight:500;transition:all 0.15s;border:none;background:none;width:100%;text-align:left;}
+.nav-item:hover{background:rgba(255,255,255,0.08);color:#fff;}
+.nav-item.active{background:var(--accent);color:#fff;font-weight:700;}
+.nav-icon{font-size:16px;flex-shrink:0;}
+.sidebar-section-label{font-size:10px;font-weight:700;color:rgba(255,255,255,0.3);letter-spacing:0.06em;text-transform:uppercase;padding:14px 14px 4px;}
+.nav-version{margin-top:auto;padding:12px 14px;font-size:11px;color:rgba(255,255,255,0.3);text-align:center;}
+
+/* ── MAIN ────────────────────────────────────────────── */
+.main{flex:1;overflow-y:auto;padding:32px;}
+.page{display:none;}
+.page.active{display:block;}
+.section-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;}
+.section-title{font-size:22px;font-weight:700;color:var(--green);letter-spacing:-0.01em;}
+.section-subtitle{font-size:13px;color:var(--muted);margin-top:3px;}
+
+/* ── CARDS ───────────────────────────────────────────── */
+.card{background:var(--card);border-radius:var(--radius);padding:24px;box-shadow:var(--shadow);margin-bottom:20px;}
+.card-title{font-size:15px;font-weight:700;color:var(--green);margin-bottom:16px;letter-spacing:-0.01em;}
+.stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:16px;margin-bottom:24px;}
+.stat-card{background:var(--card);border-radius:var(--radius);padding:20px;box-shadow:var(--shadow);text-align:center;}
+.stat-num{font-size:32px;font-weight:700;color:var(--accent);letter-spacing:-0.02em;}
+.stat-lbl{font-size:12px;color:var(--muted);margin-top:4px;}
+
+/* ── BUTTONS ─────────────────────────────────────────── */
+.btn{padding:10px 20px;border-radius:var(--pill);border:none;cursor:pointer;font-size:13px;font-weight:700;letter-spacing:-0.01em;transition:all 0.15s;}
+.btn:active{transform:scale(0.95);}
+.btn-primary{background:var(--accent);color:#fff;}
+.btn-outline{background:transparent;color:var(--accent);border:1.5px solid var(--accent);}
+.btn-danger{background:#c82014;color:#fff;}
+.btn-sm{padding:7px 16px;font-size:12px;}
+.btn-warn{background:#92400e;color:#fff;}
+
+/* ── TABLE ───────────────────────────────────────────── */
+.tbl{width:100%;border-collapse:collapse;font-size:13px;}
+.tbl th{background:#f8f7f5;padding:10px 14px;text-align:left;font-weight:700;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:0.03em;border-bottom:1px solid var(--border);}
+.tbl td{padding:12px 14px;border-bottom:1px solid rgba(0,0,0,0.05);color:var(--text);vertical-align:middle;}
+.tbl tr:last-child td{border-bottom:none;}
+.tbl tr:hover td{background:rgba(0,0,0,0.015);}
+
+/* ── BADGE ───────────────────────────────────────────── */
+.badge{display:inline-block;padding:3px 10px;border-radius:var(--pill);font-size:11px;font-weight:700;}
+.badge-green{background:#ede9fe;color:#5651d5;}
+.badge-yellow{background:#fef9c3;color:#92400e;}
+.badge-red{background:#fee2e2;color:#c82014;}
+.badge-gray{background:#f1f0ef;color:rgba(0,0,0,0.5);}
+.badge-blue{background:#dbeafe;color:#1d4ed8;}
+
+/* ── FORM ────────────────────────────────────────────── */
+.form-row{display:flex;gap:12px;margin-bottom:14px;align-items:flex-end;}
+.form-group{flex:1;}
+.form-label{font-size:12px;font-weight:600;color:var(--muted);display:block;margin-bottom:6px;letter-spacing:-0.01em;}
+.form-input,.form-select{width:100%;padding:10px 14px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;background:#fff;color:var(--text);outline:none;}
+.form-input:focus,.form-select:focus{border-color:var(--accent);}
+
+/* ── DIRECTOR CARD ───────────────────────────────────── */
+.director-card{background:var(--card);border-radius:var(--radius);padding:20px;box-shadow:var(--shadow);margin-bottom:14px;display:flex;align-items:flex-start;gap:16px;}
+.director-avatar{width:48px;height:48px;border-radius:50%;background:var(--house);color:#fff;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;flex-shrink:0;}
+.director-info{flex:1;}
+.director-name{font-size:16px;font-weight:700;margin-bottom:3px;}
+.director-meta{font-size:12px;color:var(--muted);}
+.director-actions{display:flex;gap:8px;align-items:center;}
+
+/* ── EMPTY ───────────────────────────────────────────── */
+.empty-state{text-align:center;padding:60px 20px;color:var(--muted);}
+.empty-icon{font-size:40px;margin-bottom:10px;}
+.empty-text{font-size:14px;}
+
+/* ── UTILS ───────────────────────────────────────────── */
+#toast-c{position:fixed;bottom:24px;right:24px;z-index:9999;display:flex;flex-direction:column;gap:8px;max-width:320px;}
+.toast{background:var(--house);color:#fff;padding:12px 18px;border-radius:12px;font-size:13px;transform:translateY(10px);opacity:0;transition:all 0.3s;box-shadow:0 4px 16px rgba(0,0,0,0.25);}
+.toast.show{transform:translateY(0);opacity:1;}
+.toast.t-success{background:var(--green);}
+.toast.t-error{background:#c82014;}
+.load-overlay{display:none;position:fixed;inset:0;background:rgba(30,57,50,0.55);z-index:9998;align-items:center;justify-content:center;}
+.load-overlay.show{display:flex;}
+.spinner{width:40px;height:40px;border:3px solid rgba(255,255,255,0.3);border-top-color:#fff;border-radius:50%;animation:spin 0.7s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+/* ── MODAL ───────────────────────────────────────────── */
+.modal-backdrop{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9990;align-items:center;justify-content:center;padding:24px;}
+.modal-backdrop.show{display:flex;}
+.modal{background:var(--card);border-radius:16px;padding:28px;width:100%;max-width:560px;max-height:80vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.3);}
+.modal-title{font-size:18px;font-weight:700;color:var(--green);margin-bottom:20px;}
+.modal-close{float:right;background:none;border:none;font-size:20px;cursor:pointer;color:var(--muted);margin-top:-4px;}
+</style>
+</head>
+<body>
+
+<!-- ── AUTH ───────────────────────────────────────────── -->
+<div class="auth-wrap" id="auth-wrap">
+  <div class="auth-card">
+    <div class="auth-logo">
+      <div class="auth-logo-icon">🛡️</div>
+      <div class="auth-logo-title">최고관리자</div>
+      <div class="auth-logo-sub">Here 시스템 관리</div>
+    </div>
+    <div class="auth-error" id="login-error"></div>
+    <label class="auth-label">관리자 비밀번호</label>
+    <input class="auth-input" id="sa-pw" type="password" placeholder="비밀번호" onkeydown="if(event.key==='Enter')doLogin()">
+    <button class="auth-btn auth-btn-primary" onclick="doLogin()">로그인</button>
+  </div>
+</div>
+
+<!-- ── APP ────────────────────────────────────────────── -->
+<div class="app" id="app" style="display:none;">
+  <div class="topbar">
+    <div class="topbar-brand">
+      <div style="width:32px;height:32px;background:#6c63ff;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:800;color:#fff;flex-shrink:0;">H</div>
+      <div>
+        <div class="topbar-logo">Here 최고관리자</div>
+      </div>
+      <span class="topbar-badge">SUPERADMIN</span>
+    </div>
+    <button class="btn-logout" onclick="doLogout()">로그아웃</button>
+  </div>
+
+  <div class="body-wrap">
+    <div class="sidebar">
+      <div class="sidebar-section-label">관리</div>
+      <button class="nav-item active" id="nav-directors" onclick="showPage('directors',this)">
+        <span class="nav-icon">👤</span>원장님 승인
+        <span id="pending-badge" style="margin-left:auto;background:#c82014;color:#fff;border-radius:10px;padding:1px 7px;font-size:11px;display:none;"></span>
+      </button>
+      <button class="nav-item" id="nav-academies" onclick="showPage('academies',this)">
+        <span class="nav-icon">🏛️</span>학원 관리
+      </button>
+      <button class="nav-item" id="nav-data" onclick="showPage('data',this)">
+        <span class="nav-icon">🔍</span>학원 데이터 조회
+      </button>
+      <button class="nav-item" id="nav-students" onclick="showPage('students',this);loadAllStudents()">
+        <span class="nav-icon">🎓</span>학생 관리
+      </button>
+      <button class="nav-item" id="nav-payment" onclick="showPage('payment',this)">
+        <span class="nav-icon">💳</span>결제 현황
+      </button>
+      <div class="nav-version">v1.0 · 최고관리자</div>
+    </div>
+
+    <div class="main">
+
+      <!-- 학원 관리 -->
+      <div class="page" id="page-academies">
+        <div class="section-header">
+          <div>
+            <div class="section-title">학원 관리</div>
+            <div class="section-subtitle">학원을 추가하고 초대코드 및 실습병원을 관리하세요</div>
+          </div>
+          <button class="btn btn-primary" onclick="openAddAcademyModal()">+ 학원 추가</button>
+        </div>
+        <div id="academies-list"></div>
+      </div>
+
+      <!-- 원장님 승인 -->
+      <div class="page active" id="page-directors">
+        <div class="section-header">
+          <div>
+            <div class="section-title">원장님 승인 관리</div>
+            <div class="section-subtitle">가입 신청한 원장님 계정을 검토하고 승인하세요</div>
+          </div>
+          <button class="btn btn-outline btn-sm" onclick="loadDirectors()">새로고침</button>
+        </div>
+        <div id="directors-pending-section">
+          <div class="card-title" style="font-size:14px;margin-bottom:12px;">대기 중 <span id="pending-count" style="color:var(--muted);">(0)</span></div>
+          <div id="directors-pending-list"></div>
+        </div>
+        <div style="margin-top:28px;">
+          <div class="card-title" style="font-size:14px;margin-bottom:12px;">전체 원장님 목록</div>
+          <div class="card" style="padding:0;overflow:hidden;">
+            <table class="tbl">
+              <thead><tr>
+                <th>이름</th><th>학원명</th><th>휴대폰</th><th>가입일</th><th>상태</th><th>결제</th><th>관리</th>
+              </tr></thead>
+              <tbody id="directors-all-list"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- 학원 데이터 조회 -->
+      <div class="page" id="page-data">
+        <div class="section-header">
+          <div>
+            <div class="section-title">학원 데이터 조회</div>
+            <div class="section-subtitle">학원·반·날짜를 선택하면 출퇴근 기록이 모두 표시됩니다</div>
+          </div>
+          <button class="btn btn-primary" onclick="openAttInputModal()">+ 출결 추가</button>
+        </div>
+        <div class="card">
+          <div class="form-row" style="flex-wrap:wrap;gap:12px;align-items:flex-end;">
+            <div class="form-group" style="min-width:150px;">
+              <label class="form-label">학원 선택</label>
+              <select id="data-academy-select" class="form-select" onchange="onDataAcademyChange()">
+                <option value="">학원을 선택해주세요</option>
+              </select>
+            </div>
+            <div class="form-group" style="min-width:120px;">
+              <label class="form-label">반 선택</label>
+              <select id="data-class-select" class="form-select" disabled onchange="onDataClassChange()">
+                <option value="">전체 반</option>
+              </select>
+            </div>
+            <div class="form-group" style="min-width:160px;">
+              <label class="form-label">학생 검색/선택</label>
+              <input class="form-input" id="data-student-search" placeholder="이름 검색..." oninput="filterDataStudents()" disabled style="margin-bottom:6px;">
+              <select id="data-student-select" class="form-select" disabled>
+                <option value="">전체 학생</option>
+              </select>
+            </div>
+            <div class="form-group" style="min-width:130px;">
+              <label class="form-label">날짜</label>
+              <input type="date" id="data-date-input" class="form-input">
+            </div>
+            <div>
+              <button class="btn btn-primary" onclick="loadAttendanceByFilter()">조회</button>
+            </div>
+          </div>
+        </div>
+        <div id="data-result"></div>
+      </div>
+
+      <!-- 학생 관리 -->
+      <div class="page" id="page-students">
+        <div class="section-header">
+          <div>
+            <div class="section-title">학생 관리</div>
+            <div class="section-subtitle">전체 학생 조회 및 학원 배정</div>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <select id="stu-filter" class="form-select" style="width:140px;" onchange="renderAllStudents()">
+              <option value="all">전체</option>
+              <option value="unassigned">미배정만</option>
+              <option value="unapproved">미승인만</option>
+            </select>
+            <button class="btn btn-primary btn-sm" onclick="batchApproveAll()">전체 승인</button>
+            <button class="btn btn-outline btn-sm" onclick="loadAllStudents()">새로고침</button>
+          </div>
+        </div>
+        <div id="all-students-result"></div>
+      </div>
+
+      <!-- 결제 현황 -->
+      <div class="page" id="page-payment">
+        <div class="section-header">
+          <div>
+            <div class="section-title">결제 현황</div>
+            <div class="section-subtitle">원장님별 결제 상태를 관리하세요</div>
+          </div>
+          <button class="btn btn-outline btn-sm" onclick="loadPayments()">새로고침</button>
+        </div>
+        <div class="stat-grid" id="payment-stats"></div>
+        <div class="card" style="padding:0;overflow:hidden;">
+          <table class="tbl">
+            <thead><tr>
+              <th>학원명</th><th>원장님</th><th>결제 상태</th><th>마지막 결제</th><th>카드 등록</th><th>관리</th>
+            </tr></thead>
+            <tbody id="payment-list"></tbody>
+          </table>
+        </div>
+      </div>
+
+    </div><!-- .main -->
+  </div><!-- .body-wrap -->
+</div><!-- .app -->
+
+<!-- 원장 추가 모달 (기존 학원에) -->
+<div class="modal-backdrop" id="add-director-modal">
+  <div class="modal" style="max-width:400px;">
+    <button class="modal-close" onclick="closeModal('add-director-modal')">✕</button>
+    <div class="modal-title">원장 추가</div>
+    <div id="add-director-academy-label" style="font-size:13px;color:var(--muted);margin-bottom:16px;"></div>
+    <input type="hidden" id="add-director-academy-id">
+    <div class="form-group" style="margin-bottom:12px;">
+      <label class="form-label">원장 이름</label>
+      <input class="form-input" id="dir-modal-name" placeholder="홍길동">
+    </div>
+    <div class="form-group" style="margin-bottom:12px;">
+      <label class="form-label">휴대폰 번호 (로그인 ID)</label>
+      <input class="form-input" id="dir-modal-phone" type="tel" placeholder="01012345678">
+    </div>
+    <div class="form-group" style="margin-bottom:20px;">
+      <label class="form-label">초기 비밀번호</label>
+      <input class="form-input" id="dir-modal-password" type="password" placeholder="원장 초기 로그인 비밀번호" onkeydown="if(event.key==='Enter')saveNewDirector()">
+    </div>
+    <button class="btn btn-primary" onclick="saveNewDirector()" style="width:100%;padding:14px;">원장 계정 생성</button>
+  </div>
+</div>
+
+<!-- 출결 직접 입력 모달 -->
+<div class="modal-backdrop" id="att-input-modal">
+  <div class="modal" style="max-width:440px;">
+    <button class="modal-close" onclick="closeModal('att-input-modal')">✕</button>
+    <div class="modal-title">출결 직접 입력</div>
+    <div class="form-group" style="margin-bottom:12px;">
+      <label class="form-label">학원 선택</label>
+      <select class="form-select" id="att-academy-select" onchange="onAttAcademyChange()">
+        <option value="">학원을 선택하세요</option>
+      </select>
+    </div>
+    <div class="form-group" style="margin-bottom:4px;">
+      <label class="form-label">학생 검색</label>
+      <input class="form-input" id="att-student-search" placeholder="이름 입력..." oninput="filterAttStudents()" style="margin-bottom:6px;" disabled>
+      <select class="form-select" id="att-student-select" disabled></select>
+    </div>
+    <div class="form-group" style="margin-bottom:12px;margin-top:12px;">
+      <label class="form-label">날짜</label>
+      <input class="form-input" id="att-date-input" type="date">
+    </div>
+    <div style="display:flex;gap:12px;margin-bottom:12px;">
+      <div class="form-group" style="flex:1;">
+        <label class="form-label">출근 시간</label>
+        <input class="form-input" id="att-in-input" type="time" step="1">
+      </div>
+      <div class="form-group" style="flex:1;">
+        <label class="form-label">퇴근 시간 <span style="color:var(--muted);font-weight:400;">(선택)</span></label>
+        <input class="form-input" id="att-out-input" type="time" step="1">
+      </div>
+    </div>
+    <div class="form-group" style="margin-bottom:20px;">
+      <label class="form-label">병원명 <span style="color:var(--muted);font-weight:400;">(선택)</span></label>
+      <input class="form-input" id="att-hospital-input" placeholder="예: 부산대학교병원">
+    </div>
+    <button class="btn btn-primary" onclick="saveAttRecord()" style="width:100%;padding:14px;">저장</button>
+  </div>
+</div>
+
+<!-- 출결 수정 모달 -->
+<div class="modal-backdrop" id="att-edit-modal">
+  <div class="modal" style="max-width:440px;">
+    <button class="modal-close" onclick="closeModal('att-edit-modal')">✕</button>
+    <div class="modal-title">출결 수정</div>
+    <input type="hidden" id="edit-att-doc-id">
+    <div class="form-group" style="margin-bottom:12px;">
+      <label class="form-label">학생</label>
+      <input class="form-input" id="edit-att-name" disabled style="background:#f8f7f5;color:var(--muted);">
+    </div>
+    <div class="form-group" style="margin-bottom:12px;">
+      <label class="form-label">날짜</label>
+      <input class="form-input" id="edit-att-date" type="date">
+    </div>
+    <div style="display:flex;gap:12px;margin-bottom:12px;">
+      <div class="form-group" style="flex:1;">
+        <label class="form-label">출근 시간</label>
+        <input class="form-input" id="edit-att-in" type="time" step="1">
+      </div>
+      <div class="form-group" style="flex:1;">
+        <label class="form-label">퇴근 시간 <span style="color:var(--muted);font-weight:400;">(선택)</span></label>
+        <input class="form-input" id="edit-att-out" type="time" step="1">
+      </div>
+    </div>
+    <div class="form-group" style="margin-bottom:20px;">
+      <label class="form-label">병원명 <span style="color:var(--muted);font-weight:400;">(선택)</span></label>
+      <input class="form-input" id="edit-att-hospital" placeholder="예: 부산대학교병원">
+    </div>
+    <button class="btn btn-primary" onclick="saveEditAttRecord()" style="width:100%;padding:14px;">수정 저장</button>
+  </div>
+</div>
+
+<div class="load-overlay" id="loading"><div class="spinner"></div></div>
+<div id="toast-c"></div>
+
+<!-- 학원 추가 모달 -->
+<div class="modal-backdrop" id="add-academy-modal">
+  <div class="modal" style="max-width:440px;">
+    <button class="modal-close" onclick="closeModal('add-academy-modal')">✕</button>
+    <div class="modal-title">학원 추가</div>
+    <div class="form-group" style="margin-bottom:14px;">
+      <label class="form-label">학원명</label>
+      <input class="form-input" id="new-academy-name" placeholder="예: 사하간호학원" onkeydown="if(event.key==='Enter')document.getElementById('new-academy-code').focus()">
+    </div>
+    <div class="form-group" style="margin-bottom:14px;">
+      <label class="form-label">초대코드 <span style="color:var(--muted);font-weight:400;">(학생 가입 시 입력할 코드 — 대소문자 무관)</span></label>
+      <input class="form-input" id="new-academy-code" placeholder="예: SAHA" style="font-family:monospace;font-weight:700;font-size:16px;letter-spacing:0.05em;" onkeydown="if(event.key==='Enter')document.getElementById('new-dir-name').focus()">
+    </div>
+    <div style="border-top:1px solid var(--border);margin:8px 0 14px;padding-top:14px;">
+      <div style="font-size:12px;font-weight:700;color:var(--muted);margin-bottom:12px;">원장 계정 정보</div>
+      <div class="form-group" style="margin-bottom:12px;">
+        <label class="form-label">원장 이름</label>
+        <input class="form-input" id="new-dir-name" placeholder="예: 홍길동" onkeydown="if(event.key==='Enter')document.getElementById('new-dir-phone').focus()">
+      </div>
+      <div class="form-group" style="margin-bottom:12px;">
+        <label class="form-label">원장 휴대폰</label>
+        <input class="form-input" id="new-dir-phone" placeholder="예: 01012345678" onkeydown="if(event.key==='Enter')document.getElementById('new-dir-password').focus()">
+      </div>
+      <div class="form-group" style="margin-bottom:20px;">
+        <label class="form-label">초기 비밀번호</label>
+        <input class="form-input" id="new-dir-password" type="password" placeholder="원장 초기 로그인 비밀번호" onkeydown="if(event.key==='Enter')saveNewAcademy()">
+      </div>
+    </div>
+    <button class="btn btn-primary" onclick="saveNewAcademy()" style="width:100%;padding:14px;font-size:15px;">추가</button>
+  </div>
+</div>
+
+<!-- 병원 관리 모달 -->
+<div class="modal-backdrop" id="hospital-modal">
+  <div class="modal" style="max-width:580px;">
+    <button class="modal-close" onclick="closeModal('hospital-modal')">✕</button>
+    <div class="modal-title" id="hospital-modal-title">병원 관리</div>
+    <div id="hospital-list" style="margin-bottom:20px;max-height:280px;overflow-y:auto;"></div>
+    <div style="border-top:1px solid var(--border);padding-top:20px;">
+      <div style="font-size:13px;font-weight:700;color:var(--muted);margin-bottom:10px;text-transform:uppercase;letter-spacing:0.04em;">병원 추가</div>
+      <div class="form-row" style="align-items:flex-end;">
+        <div class="form-group">
+          <label class="form-label">병원명 또는 주소</label>
+          <input class="form-input" id="hosp-search" placeholder="예: 사하제일병원" onkeydown="if(event.key==='Enter')searchHospital()">
+        </div>
+        <button class="btn btn-outline" onclick="searchHospital()" style="white-space:nowrap;flex-shrink:0;">카카오맵 검색</button>
+      </div>
+      <div id="hosp-search-results" style="margin-bottom:12px;max-height:200px;overflow-y:auto;"></div>
+      <div id="hosp-selected" style="display:none;margin-bottom:14px;"></div>
+      <button class="btn btn-primary" onclick="addSelectedHospital()" id="hosp-add-btn" disabled style="width:100%;padding:13px;font-size:14px;">병원 등록</button>
+    </div>
+    <div style="border-top:1px solid var(--border);padding-top:20px;margin-top:4px;">
+      <div style="font-size:13px;font-weight:700;color:var(--muted);margin-bottom:10px;text-transform:uppercase;letter-spacing:0.04em;">좌표 직접 입력</div>
+      <div class="form-group" style="margin-bottom:10px;">
+        <label class="form-label">병원명</label>
+        <input class="form-input" id="hosp-manual-name" placeholder="예: 부산대학교병원">
+      </div>
+      <div style="display:flex;gap:10px;margin-bottom:14px;">
+        <div class="form-group" style="flex:1;">
+          <label class="form-label">위도 (latitude)</label>
+          <input class="form-input" id="hosp-manual-lat" type="number" step="any" placeholder="예: 35.179554">
+        </div>
+        <div class="form-group" style="flex:1;">
+          <label class="form-label">경도 (longitude)</label>
+          <input class="form-input" id="hosp-manual-lon" type="number" step="any" placeholder="예: 129.075642">
+        </div>
+      </div>
+      <button class="btn btn-primary" onclick="addManualHospital()" style="width:100%;padding:13px;font-size:14px;">직접 등록</button>
+    </div>
+  </div>
+</div>
+
+<!-- 비고 모달 -->
+<div class="modal-backdrop" id="note-modal">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('note-modal')">✕</button>
+    <div class="modal-title" id="note-modal-title">메모</div>
+    <div id="note-modal-content"></div>
+  </div>
+</div>
+
+<script>
+// ── Kakao REST API 키 설정 ─────────────────────────────────
+// Kakao Developers(developers.kakao.com)에서 앱 생성 후 REST API 키 입력
+const KAKAO_REST_KEY = 'YOUR_KAKAO_REST_API_KEY';
+
+let allDirectors = [];
+let allAcademies = [];
+let dataStudentsAll = [];
+let currentHospitalAcademyId = null;
+let selectedHospital = null;
+let hospSearchResults = [];
+
+function todayKST(){
+    const kst = new Date(Date.now() + 9*60*60*1000);
+    return kst.getUTCFullYear()+'-'+String(kst.getUTCMonth()+1).padStart(2,'0')+'-'+String(kst.getUTCDate()).padStart(2,'0');
+}
+
+function showLoader(v){ document.getElementById('loading').classList.toggle('show', v); }
+function showToast(msg, type='info'){
+    const c = document.getElementById('toast-c');
+    const t = document.createElement('div');
+    t.className='toast t-'+type; t.textContent=msg; c.appendChild(t);
+    requestAnimationFrame(()=>t.classList.add('show'));
+    setTimeout(()=>{ t.classList.remove('show'); setTimeout(()=>t.remove(),300); }, 3000);
+}
+function closeModal(id){ document.getElementById(id).classList.remove('show'); }
+
+// ── SHA-256 ──────────────────────────────────────────────
+async function hashPw(pw){
+    const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(pw));
+    return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+
+function escHtml(s){return (s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+// ── Auth ──────────────────────────────────────────────────
+async function init(){
+    if (!window.fsReady) await new Promise(r=>window.addEventListener('fsReady',r,{once:true}));
+    if (sessionStorage.getItem('saSession') === 'ok'){
+        try{
+            const snap = await window.fsGetDoc(window.fsDoc(window.db,'superadmin','config'));
+            if(snap.exists()){ showApp(); return; }
+        }catch(e){}
+        sessionStorage.removeItem('saSession');
+    }
+    document.getElementById('auth-wrap').style.display = 'flex';
+}
+
+async function doLogin(){
+    const pw = document.getElementById('sa-pw').value;
+    const errEl = document.getElementById('login-error');
+    errEl.style.display = 'none';
+    if (!pw){ errEl.textContent='비밀번호를 입력해주세요.'; errEl.style.display='block'; return; }
+    showLoader(true);
+    try {
+        const hash = await hashPw(pw);
+        const snap = await window.fsGetDoc(window.fsDoc(window.db,'superadmin','config'));
+        if (!snap.exists()){ errEl.textContent='관리자 계정이 설정되지 않았습니다.'; errEl.style.display='block'; showLoader(false); return; }
+        if (snap.data().passwordHash !== hash){ errEl.textContent='비밀번호가 일치하지 않습니다.'; errEl.style.display='block'; showLoader(false); return; }
+        sessionStorage.setItem('saSession','ok');
+        showApp();
+    } catch(e){ errEl.textContent='오류: '+e.message; errEl.style.display='block'; }
+    showLoader(false);
+}
+
+function doLogout(){
+    sessionStorage.removeItem('saSession');
+    document.getElementById('app').style.display = 'none';
+    document.getElementById('auth-wrap').style.display = 'flex';
+    document.getElementById('sa-pw').value = '';
+}
+
+function showApp(){
+    document.getElementById('auth-wrap').style.display = 'none';
+    document.getElementById('app').style.display = 'flex';
+    loadDirectors();
+}
+
+// ── Navigation ─────────────────────────────────────────────
+function showPage(id, btn){
+    document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+    document.querySelectorAll('.nav-item').forEach(b=>b.classList.remove('active'));
+    document.getElementById('page-'+id).classList.add('active');
+    if (btn) btn.classList.add('active');
+    if (id==='directors') loadDirectors();
+    if (id==='payment')   loadPayments();
+    if (id==='data')      initDataPage();
+    if (id==='academies') loadAcademies();
+}
+
+// ── Directors ──────────────────────────────────────────────
+async function loadDirectors(){
+    showLoader(true);
+    try {
+        const snap = await window.fsGetDocs(window.fsCollection(window.db,'directors'));
+        allDirectors = [];
+        snap.forEach(d=>allDirectors.push({id:d.id,...d.data()}));
+        allDirectors.sort((a,b)=>(a.createdAt?.seconds||0)-(b.createdAt?.seconds||0));
+        renderDirectors();
+    } catch(e){ showToast('불러오기 실패: '+e.message,'error'); }
+    showLoader(false);
+}
+
+function renderDirectors(){
+    const pending = allDirectors.filter(d=>d.status==='pending');
+    const badge = document.getElementById('pending-badge');
+    if (pending.length > 0){ badge.textContent=pending.length; badge.style.display='inline'; }
+    else badge.style.display='none';
+    document.getElementById('pending-count').textContent = '('+pending.length+')';
+
+    const pendingHtml = pending.length === 0
+        ? '<div class="empty-state"><div class="empty-icon">✅</div><div class="empty-text">대기 중인 신청이 없습니다</div></div>'
+        : pending.map(d=>`
+          <div class="director-card">
+            <div class="director-avatar">${escHtml((d.name||'?')[0])}</div>
+            <div class="director-info">
+              <div class="director-name">${escHtml(d.name||'-')}</div>
+              <div class="director-meta">${escHtml(d.academyName||'-')} · ${escHtml(d.phone||'-')}</div>
+              <div class="director-meta" style="margin-top:3px;">${formatDate(d.createdAt)} 가입 신청</div>
+            </div>
+            <div class="director-actions">
+              <button class="btn btn-primary btn-sm" onclick="approveDirector('${d.id}',true)">승인</button>
+              <button class="btn btn-danger btn-sm" onclick="approveDirector('${d.id}',false)">거절</button>
+            </div>
+          </div>`).join('');
+    document.getElementById('directors-pending-list').innerHTML = pendingHtml;
+
+    const statusBadge = s => {
+        if (s==='approved') return '<span class="badge badge-green">승인</span>';
+        if (s==='pending')  return '<span class="badge badge-yellow">대기</span>';
+        return '<span class="badge badge-red">거절</span>';
+    };
+    const payBadge = p => {
+        if (!p||p==='none') return '<span class="badge badge-gray">미등록</span>';
+        if (p==='active')   return '<span class="badge badge-green">정상</span>';
+        if (p==='overdue')  return '<span class="badge badge-red">연체</span>';
+        return '<span class="badge badge-gray">'+p+'</span>';
+    };
+
+    const rows = allDirectors.map(d=>`
+      <tr>
+        <td style="font-weight:600;">${escHtml(d.name||'-')}</td>
+        <td>${escHtml(d.academyName||'-')}</td>
+        <td>${escHtml(d.phone||'-')}</td>
+        <td style="color:var(--muted);font-size:12px;">${formatDate(d.createdAt)}</td>
+        <td>${statusBadge(d.status)}</td>
+        <td>${payBadge(d.paymentStatus)}</td>
+        <td>
+          ${d.status==='pending'
+            ? `<button class="btn btn-primary btn-sm" onclick="approveDirector('${d.id}',true)">승인</button>`
+            : d.status==='approved'
+              ? `<button class="btn btn-outline btn-sm" onclick="revokeDirector('${d.id}')">취소</button>`
+              : ''}
+        </td>
+      </tr>`).join('');
+    document.getElementById('directors-all-list').innerHTML = rows || '<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--muted);">원장님이 없습니다</td></tr>';
+}
+
+async function approveDirector(id, approve){
+    if (!confirm(approve ? '승인하시겠습니까?' : '거절하시겠습니까?')) return;
+    showLoader(true);
+    try {
+        await window.fsUpdateDoc(window.fsDoc(window.db,'directors',id),{status: approve ? 'approved' : 'rejected'});
+        showToast(approve ? '승인 완료' : '거절 완료', approve ? 'success' : 'info');
+        await loadDirectors();
+    } catch(e){ showToast('실패: '+e.message,'error'); }
+    showLoader(false);
+}
+
+async function revokeDirector(id){
+    if (!confirm('승인을 취소하고 대기 상태로 변경하시겠습니까?')) return;
+    showLoader(true);
+    try {
+        await window.fsUpdateDoc(window.fsDoc(window.db,'directors',id),{status:'pending'});
+        showToast('승인 취소됨','info');
+        await loadDirectors();
+    } catch(e){ showToast('실패: '+e.message,'error'); }
+    showLoader(false);
+}
+
+// ── Academies CRUD ────────────────────────────────────────────
+async function loadAcademies(){
+    showLoader(true);
+    try {
+        const snap = await window.fsGetDocs(window.fsCollection(window.db,'academies'));
+        allAcademies = [];
+        snap.forEach(d => allAcademies.push({id:d.id,...d.data()}));
+        allAcademies.sort((a,b)=>(a.createdAt||0)-(b.createdAt||0));
+        renderAcademies();
+    } catch(e){ showToast('불러오기 실패: '+e.message,'error'); }
+    showLoader(false);
+}
+
+function renderAcademies(){
+    const el = document.getElementById('academies-list');
+    if (!allAcademies.length){
+        el.innerHTML='<div class="empty-state"><div class="empty-icon">🏛️</div><div class="empty-text">등록된 학원이 없습니다<br><br><small>위의 [학원 추가] 버튼으로 첫 학원을 등록하세요</small></div></div>';
+        return;
+    }
+    el.innerHTML = allAcademies.map(a=>`
+      <div class="card" style="margin-bottom:16px;">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:20px;flex-wrap:wrap;">
+          <div style="flex:1;min-width:280px;">
+            <div style="font-size:20px;font-weight:700;color:var(--green);margin-bottom:12px;">${a.name||'(이름 없음)'}</div>
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap;">
+              <span style="font-size:12px;color:var(--muted);font-weight:600;white-space:nowrap;">초대코드</span>
+              <input type="text" id="code-${a.id}" value="${a.inviteCode||''}" placeholder="코드 미설정"
+                style="padding:7px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:15px;font-weight:700;font-family:monospace;letter-spacing:0.08em;width:160px;outline:none;background:#fafaf9;"
+                onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'">
+              <button class="btn btn-outline btn-sm" onclick="updateInviteCode('${a.id}')">저장</button>
+            </div>
+            <div style="font-size:13px;color:var(--muted);">등록 병원 <strong style="color:var(--text);">${(a.hospitals||[]).length}개</strong></div>
+          </div>
+          <div style="display:flex;gap:8px;align-items:flex-start;flex-shrink:0;flex-wrap:wrap;">
+            <button class="btn btn-outline btn-sm" onclick="openAddDirectorModal('${a.id}')">👤 원장 추가</button>
+            <button class="btn btn-outline btn-sm" onclick="openHospitalModal('${a.id}')">🏥 병원 관리</button>
+            <button class="btn btn-danger btn-sm" onclick="deleteAcademy('${a.id}')">삭제</button>
+          </div>
+        </div>
+      </div>`).join('');
+}
+
+function openAddAcademyModal(){
+    document.getElementById('new-academy-name').value='';
+    document.getElementById('new-academy-code').value='';
+    document.getElementById('new-dir-name').value='';
+    document.getElementById('new-dir-phone').value='';
+    document.getElementById('new-dir-password').value='';
+    document.getElementById('add-academy-modal').classList.add('show');
+    setTimeout(()=>document.getElementById('new-academy-name').focus(),100);
+}
+
+async function saveNewAcademy(){
+    const name      = document.getElementById('new-academy-name').value.trim();
+    const raw       = document.getElementById('new-academy-code').value.trim();
+    const code      = raw.toUpperCase();
+    const dirName   = document.getElementById('new-dir-name').value.trim();
+    const dirPhone  = document.getElementById('new-dir-phone').value.trim();
+    const dirPw     = document.getElementById('new-dir-password').value;
+    if (!name)    { showToast('학원명을 입력해주세요','error'); return; }
+    if (!code)    { showToast('초대코드를 입력해주세요','error'); return; }
+    if (!dirName) { showToast('원장 이름을 입력해주세요','error'); return; }
+    if (!dirPhone){ showToast('원장 휴대폰을 입력해주세요','error'); return; }
+    if (!dirPw)   { showToast('초기 비밀번호를 입력해주세요','error'); return; }
+    showLoader(true);
+    try {
+        const passwordHash = await hashPw(dirPw);
+        const batch = window.fsWriteBatch(window.db);
+        const academyRef = window.fsDoc(window.fsCollection(window.db,'academies'));
+        const dirRef = window.fsDoc(window.fsCollection(window.db,'directors'));
+        batch.set(academyRef,{name, inviteCode:code, hospitals:[], createdAt:Date.now()});
+        batch.set(dirRef,{
+            name:dirName, phone:dirPhone, passwordHash,
+            academyName:name, academyId:academyRef.id,
+            status:'approved', paymentStatus:'none',
+            billingKey:null, cardInfo:null, createdAt:Date.now()
+        });
+        await batch.commit();
+        closeModal('add-academy-modal');
+        showToast(name+' 추가 완료 (원장 계정 생성됨)','success');
+        await loadAcademies();
+    } catch(e){ showToast('실패: '+e.message,'error'); }
+    showLoader(false);
+}
+
+async function deleteAcademy(id){
+    const a = allAcademies.find(x=>x.id===id);
+    if (!confirm(`"${a?.name||id}" 학원을 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.\n\n⚠️ 원장·학생·출결 데이터는 삭제되지 않습니다.\n삭제 후 별도로 정리가 필요합니다.`)) return;
+    showLoader(true);
+    try {
+        await window.fsDeleteDoc(window.fsDoc(window.db,'academies',id));
+        showToast('삭제 완료','success');
+        await loadAcademies();
+    } catch(e){ showToast('실패: '+e.message,'error'); }
+    showLoader(false);
+}
+
+async function updateInviteCode(id){
+    const raw  = document.getElementById('code-'+id).value.trim();
+    const code = raw.toUpperCase();
+    if (!code){ showToast('코드를 입력해주세요','error'); return; }
+    showLoader(true);
+    try {
+        await window.fsUpdateDoc(window.fsDoc(window.db,'academies',id),{inviteCode:code});
+        showToast('초대코드 저장 완료','success');
+        await loadAcademies();
+    } catch(e){ showToast('실패: '+e.message,'error'); }
+    showLoader(false);
+}
+
+// ── Hospital Management ─────────────────────────────────────
+function openHospitalModal(academyId){
+    currentHospitalAcademyId = academyId;
+    selectedHospital = null;
+    hospSearchResults = [];
+    const a = allAcademies.find(x=>x.id===academyId);
+    document.getElementById('hospital-modal-title').textContent = '병원 관리 — '+(a?.name||'');
+    document.getElementById('hosp-search').value = '';
+    document.getElementById('hosp-search-results').innerHTML = '';
+    document.getElementById('hosp-selected').style.display = 'none';
+    document.getElementById('hosp-add-btn').disabled = true;
+    renderHospitalList(a?.hospitals||[]);
+    document.getElementById('hospital-modal').classList.add('show');
+}
+
+function renderHospitalList(hospitals){
+    const el = document.getElementById('hospital-list');
+    if (!hospitals.length){
+        el.innerHTML='<div style="color:var(--muted);font-size:14px;text-align:center;padding:20px;">등록된 병원이 없습니다</div>';
+        return;
+    }
+    el.innerHTML = hospitals.map((h,i)=>`
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px;background:#f8f7f5;border-radius:10px;margin-bottom:8px;">
+        <div>
+          <div style="font-size:15px;font-weight:700;">${escHtml(h.name)}</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:2px;">위도 ${h.lat?.toFixed(6)} / 경도 ${h.lon?.toFixed(6)}</div>
+        </div>
+        <button class="btn btn-danger btn-sm" data-hosp-name="${escHtml(h.name)}" onclick="removeHospital(this.dataset.hospName)">삭제</button>
+      </div>`).join('');
+}
+
+async function searchHospital(){
+    const q = document.getElementById('hosp-search').value.trim();
+    if (!q){ showToast('검색어를 입력해주세요','error'); return; }
+    if (KAKAO_REST_KEY === 'YOUR_KAKAO_REST_API_KEY'){
+        showToast('KAKAO_REST_KEY를 설정해주세요 (코드 상단)','error'); return;
+    }
+    showLoader(true);
+    try {
+        // 병원 카테고리(HP8) 우선 검색
+        let url = `https://dapi.kakao.com/v2/local/search/keyword.json?query=${encodeURIComponent(q)}&category_group_code=HP8&size=5`;
+        let res = await fetch(url,{headers:{'Authorization':'KakaoAK '+KAKAO_REST_KEY}});
+        let data = await res.json();
+        let places = data.documents||[];
+        // 결과 없으면 카테고리 없이 재검색
+        if (!places.length){
+            url = `https://dapi.kakao.com/v2/local/search/keyword.json?query=${encodeURIComponent(q)}&size=5`;
+            res = await fetch(url,{headers:{'Authorization':'KakaoAK '+KAKAO_REST_KEY}});
+            data = await res.json();
+            places = data.documents||[];
+        }
+        hospSearchResults = places;
+        renderHospSearchResults(places);
+    } catch(e){ showToast('검색 실패: '+e.message,'error'); }
+    showLoader(false);
+}
+
+function renderHospSearchResults(places){
+    const el = document.getElementById('hosp-search-results');
+    if (!places.length){
+        el.innerHTML='<div style="font-size:13px;color:var(--muted);padding:10px;">검색 결과가 없습니다. 더 자세한 검색어를 입력해보세요.</div>';
+        return;
+    }
+    el.innerHTML = places.map((p,i)=>`
+      <div onclick="selectHospital(${i})"
+        style="padding:11px 14px;border-radius:9px;border:1.5px solid var(--border);margin-bottom:6px;cursor:pointer;transition:all 0.15s;background:#fff;"
+        onmouseover="this.style.borderColor='var(--accent)';this.style.background='#f0faf5'"
+        onmouseout="this.style.borderColor='var(--border)';this.style.background='#fff'">
+        <div style="font-size:14px;font-weight:700;">${p.place_name}</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:2px;">${p.address_name}</div>
+      </div>`).join('');
+}
+
+function selectHospital(index){
+    const p = hospSearchResults[index];
+    selectedHospital = {name:p.place_name, lat:parseFloat(p.y), lon:parseFloat(p.x)};
+    document.getElementById('hosp-selected').style.display = 'block';
+    document.getElementById('hosp-selected').innerHTML = `
+      <div style="padding:12px 14px;background:#d4e9e2;border-radius:10px;display:flex;justify-content:space-between;align-items:center;">
+        <div>
+          <div style="font-size:14px;font-weight:700;color:var(--green);">✓ ${selectedHospital.name}</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:2px;">위도 ${selectedHospital.lat.toFixed(6)} / 경도 ${selectedHospital.lon.toFixed(6)}</div>
+        </div>
+        <button class="btn btn-sm" style="background:rgba(0,0,0,0.08);color:var(--text);" onclick="clearHospitalSelection()">변경</button>
+      </div>`;
+    document.getElementById('hosp-add-btn').disabled = false;
+    document.getElementById('hosp-search-results').innerHTML = '';
+}
+
+function clearHospitalSelection(){
+    selectedHospital = null;
+    document.getElementById('hosp-selected').style.display = 'none';
+    document.getElementById('hosp-add-btn').disabled = true;
+}
+
+async function addSelectedHospital(){
+    if (!selectedHospital||!currentHospitalAcademyId) return;
+    showLoader(true);
+    try {
+        const a = allAcademies.find(x=>x.id===currentHospitalAcademyId);
+        const hospitals = [...(a?.hospitals||[]), selectedHospital];
+        await window.fsUpdateDoc(window.fsDoc(window.db,'academies',currentHospitalAcademyId),{hospitals});
+        showToast(selectedHospital.name+' 등록 완료','success');
+        await loadAcademies();
+        const updated = allAcademies.find(x=>x.id===currentHospitalAcademyId);
+        renderHospitalList(updated?.hospitals||[]);
+        clearHospitalSelection();
+        document.getElementById('hosp-search').value = '';
+    } catch(e){ showToast('실패: '+e.message,'error'); }
+    showLoader(false);
+}
+
+async function addManualHospital(){
+    if (!currentHospitalAcademyId) return;
+    const name = document.getElementById('hosp-manual-name').value.trim();
+    const lat  = parseFloat(document.getElementById('hosp-manual-lat').value);
+    const lon  = parseFloat(document.getElementById('hosp-manual-lon').value);
+    if (!name){ showToast('병원명을 입력해주세요','error'); return; }
+    if (isNaN(lat)||lat<-90||lat>90){ showToast('유효한 위도를 입력해주세요 (-90 ~ 90)','error'); return; }
+    if (isNaN(lon)||lon<-180||lon>180){ showToast('유효한 경도를 입력해주세요 (-180 ~ 180)','error'); return; }
+    showLoader(true);
+    try {
+        const a = allAcademies.find(x=>x.id===currentHospitalAcademyId);
+        const hospitals = [...(a?.hospitals||[]), {name, lat, lon}];
+        await window.fsUpdateDoc(window.fsDoc(window.db,'academies',currentHospitalAcademyId),{hospitals});
+        showToast(name+' 등록 완료','success');
+        await loadAcademies();
+        const updated = allAcademies.find(x=>x.id===currentHospitalAcademyId);
+        renderHospitalList(updated?.hospitals||[]);
+        document.getElementById('hosp-manual-name').value = '';
+        document.getElementById('hosp-manual-lat').value = '';
+        document.getElementById('hosp-manual-lon').value = '';
+    } catch(e){ showToast('실패: '+e.message,'error'); }
+    showLoader(false);
+}
+
+async function removeHospital(name){
+    if (!confirm(`"${name}" 병원을 삭제하시겠습니까?`)) return;
+    showLoader(true);
+    try {
+        const a = allAcademies.find(x=>x.id===currentHospitalAcademyId);
+        const hospitals = (a?.hospitals||[]).filter(h=>h.name!==name);
+        await window.fsUpdateDoc(window.fsDoc(window.db,'academies',currentHospitalAcademyId),{hospitals});
+        showToast('삭제 완료','success');
+        await loadAcademies();
+        const updated = allAcademies.find(x=>x.id===currentHospitalAcademyId);
+        renderHospitalList(updated?.hospitals||[]);
+    } catch(e){ showToast('실패: '+e.message,'error'); }
+    showLoader(false);
+}
+
+// ── Academy Data ───────────────────────────────────────────
+async function initDataPage(){
+    const dateEl = document.getElementById('data-date-input');
+    if (!dateEl.value) dateEl.value = todayKST();
+    if (!allAcademies.length) await loadAcademies();
+    populateDataAcademySelect();
+    document.getElementById('data-result').innerHTML = '';
+}
+
+function populateDataAcademySelect(){
+    const sel = document.getElementById('data-academy-select');
+    const prev = sel.value;
+    const opts = ['<option value="">학원을 선택해주세요</option>',
+        ...allAcademies.map(a=>`<option value="${a.id}">${a.name}</option>`)
+    ].join('');
+    sel.innerHTML = opts;
+    if (prev) sel.value = prev;
+    document.getElementById('data-class-select').innerHTML = '<option value="">전체 반</option>';
+    document.getElementById('data-class-select').disabled = true;
+    document.getElementById('data-student-select').innerHTML = '<option value="">전체 학생</option>';
+    document.getElementById('data-student-select').disabled = true;
+    document.getElementById('data-student-search').value = '';
+    document.getElementById('data-student-search').disabled = true;
+    dataStudentsAll = [];
+}
+
+async function onDataAcademyChange(){
+    const academyId = document.getElementById('data-academy-select').value;
+    const classSel  = document.getElementById('data-class-select');
+    const stuSel    = document.getElementById('data-student-select');
+    const stuSearch = document.getElementById('data-student-search');
+    classSel.innerHTML = '<option value="">전체 반</option>';
+    stuSel.innerHTML = '<option value="">전체 학생</option>';
+    stuSel.disabled = true;
+    stuSearch.value = '';
+    stuSearch.disabled = true;
+    dataStudentsAll = [];
+    if (!academyId){ classSel.disabled = true; return; }
+    try {
+        const [classSnap, stuSnap] = await Promise.all([
+            window.fsGetDocs(window.fsQuery(window.fsCollection(window.db,'classes'), window.fsWhere('academyId','==',academyId))),
+            window.fsGetDocs(window.fsQuery(window.fsCollection(window.db,'students'),  window.fsWhere('academyId','==',academyId)))
+        ]);
+        const classOpts = ['<option value="">전체 반</option>'];
+        classSnap.forEach(d => classOpts.push(`<option value="${d.id}">${d.data().name||d.id}</option>`));
+        classSel.innerHTML = classOpts.join('');
+        classSel.disabled = classSnap.empty;
+
+        stuSnap.forEach(d => dataStudentsAll.push({id:d.id,...d.data()}));
+        dataStudentsAll.sort((a,b)=>(a.name||'').localeCompare(b.name||'','ko'));
+        renderDataStudentOptions(dataStudentsAll);
+        stuSel.disabled = false;
+        stuSearch.disabled = false;
+    } catch(e){ classSel.disabled = true; }
+}
+
+function onDataClassChange(){
+    const classId = document.getElementById('data-class-select').value;
+    const filtered = classId ? dataStudentsAll.filter(s=>s.classId===classId) : dataStudentsAll;
+    document.getElementById('data-student-search').value = '';
+    renderDataStudentOptions(filtered);
+}
+
+function filterDataStudents(){
+    const q       = document.getElementById('data-student-search').value.trim();
+    const classId = document.getElementById('data-class-select').value;
+    let list = classId ? dataStudentsAll.filter(s=>s.classId===classId) : dataStudentsAll;
+    if (q) list = list.filter(s=>(s.name||'').includes(q));
+    renderDataStudentOptions(list);
+}
+
+function renderDataStudentOptions(list){
+    const sel = document.getElementById('data-student-select');
+    const opts = ['<option value="">전체 학생</option>'];
+    list.forEach(s => opts.push(`<option value="${String(s.kakaoId||s.id)}">${s.name||s.id}</option>`));
+    sel.innerHTML = opts.join('');
+}
+
+async function loadAttendanceByFilter(){
+    const academyId  = document.getElementById('data-academy-select').value;
+    const classId    = document.getElementById('data-class-select').value;
+    const studentKid = document.getElementById('data-student-select').value;
+    const date       = document.getElementById('data-date-input').value;
+    if (!academyId){ showToast('학원을 선택해주세요','error'); return; }
+    if (!date){ showToast('날짜를 선택해주세요','error'); return; }
+    showLoader(true);
+    try {
+        // 해당 학원 학생 전체 로드 → kakaoId → 학생 정보 Map
+        const [stuSnap, classSnap] = await Promise.all([
+            window.fsGetDocs(window.fsQuery(window.fsCollection(window.db,'students'), window.fsWhere('academyId','==',academyId))),
+            window.fsGetDocs(window.fsQuery(window.fsCollection(window.db,'classes'), window.fsWhere('academyId','==',academyId)))
+        ]);
+        const stuMap = {};
+        stuSnap.forEach(d => { stuMap[d.id] = {id:d.id,...d.data()}; });
+        const classNameMap = {};
+        classSnap.forEach(d => { classNameMap[d.id] = d.data().name || d.id; });
+
+        // 반 필터링 적용 시 classId 매칭
+        const validKakaoIds = new Set(
+            Object.values(stuMap)
+                .filter(s => !classId || s.classId === classId)
+                .map(s => String(s.kakaoId||s.id))
+        );
+
+        // 선택 날짜의 출결 전체 조회
+        const attSnap = await window.fsGetDocs(
+            window.fsQuery(window.fsCollection(window.db,'attendance'), window.fsWhere('date','==',date))
+        );
+        const records = [];
+        attSnap.forEach(d => {
+            const a = d.data();
+            const kid = String(a.kakaoId||'');
+            if (!validKakaoIds.has(kid)) return;
+            if (studentKid && kid !== studentKid) return;
+            const stu = stuMap[kid] || {};
+            records.push({
+                docId: d.id,
+                kakaoId: kid,
+                name: a.name || stu.name || kid,
+                className: classNameMap[stu.classId] || stu.classId || '-',
+                date: a.date,
+                inTime: a.inTime || '',
+                outTime: a.outTime || '',
+                hospital: a.hospital || ''
+            });
+        });
+        records.sort((a,b)=>(a.name||'').localeCompare(b.name||'','ko'));
+        renderAttendanceTable(records, date, academyId);
+    } catch(e){ showToast('조회 실패: '+e.message,'error'); }
+    showLoader(false);
+}
+
+function htmlAttr(v){ return String(v??'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+let _attListenerAdded = false;
+function ensureAttListeners(){
+    if (_attListenerAdded) return;
+    _attListenerAdded = true;
+    document.addEventListener('click', function(e){
+        const edit = e.target.closest('.edit-att-btn');
+        if (edit){
+            openEditAttModal(
+                edit.dataset.docId, edit.dataset.name, edit.dataset.date,
+                edit.dataset.inTime, edit.dataset.outTime, edit.dataset.hospital
+            );
+            return;
+        }
+        const del = e.target.closest('.delete-att-btn');
+        if (del) deleteAttRecord(del.dataset.docId, del.dataset.name, del.dataset.date);
+    });
+}
+
+function renderAttendanceTable(records, date, academyId){
+    ensureAttListeners();
+    const el = document.getElementById('data-result');
+    const rows = records.map(r=>`
+      <tr>
+        <td style="font-weight:600;">${r.name}</td>
+        <td style="color:var(--muted);font-size:12px;">${r.className}</td>
+        <td style="color:var(--muted);font-size:12px;">${r.date}</td>
+        <td>${r.inTime ? `<span class="badge badge-blue">${r.inTime}</span>` : '<span class="badge badge-gray">미기록</span>'}</td>
+        <td>${r.outTime ? `<span class="badge badge-green">${r.outTime}</span>` : '<span class="badge badge-gray">미기록</span>'}</td>
+        <td style="font-size:12px;">${r.hospital||'-'}</td>
+        <td>
+          <div style="display:flex;gap:6px;">
+            <button class="btn btn-outline btn-sm edit-att-btn"
+              data-doc-id="${htmlAttr(r.docId)}"
+              data-name="${htmlAttr(r.name)}"
+              data-date="${htmlAttr(r.date)}"
+              data-in-time="${htmlAttr(r.inTime)}"
+              data-out-time="${htmlAttr(r.outTime)}"
+              data-hospital="${htmlAttr(r.hospital)}">✏️ 수정</button>
+            <button class="btn btn-danger btn-sm delete-att-btn"
+              data-doc-id="${htmlAttr(r.docId)}"
+              data-name="${htmlAttr(r.name)}"
+              data-date="${htmlAttr(r.date)}">🗑️ 삭제</button>
+          </div>
+        </td>
+      </tr>`).join('');
+
+    el.innerHTML = `
+      <div style="font-size:13px;color:var(--muted);margin-bottom:10px;">${date} 출결 기록 — ${records.length}건</div>
+      <div class="card" style="padding:0;overflow:hidden;">
+        <table class="tbl">
+          <thead><tr><th>학생</th><th>반</th><th>날짜</th><th>출근</th><th>퇴근</th><th>병원</th><th>수정/삭제</th></tr></thead>
+          <tbody>${rows||'<tr><td colspan="7" style="text-align:center;padding:32px;color:var(--muted);">출결 기록이 없습니다</td></tr>'}</tbody>
+        </table>
+      </div>`;
+}
+
+function openEditAttModal(docId, name, date, inTime, outTime, hospital){
+    document.getElementById('edit-att-doc-id').value = docId;
+    document.getElementById('edit-att-name').value = name;
+    document.getElementById('edit-att-date').value = date;
+    // time input은 HH:MM 형식 (초 제거)
+    document.getElementById('edit-att-in').value = inTime ? inTime.slice(0,5) : '';
+    document.getElementById('edit-att-out').value = outTime ? outTime.slice(0,5) : '';
+    document.getElementById('edit-att-hospital').value = hospital;
+    document.getElementById('att-edit-modal').classList.add('show');
+}
+
+async function saveEditAttRecord(){
+    const docId   = document.getElementById('edit-att-doc-id').value.trim();
+    const date    = document.getElementById('edit-att-date').value;
+    const inRaw   = document.getElementById('edit-att-in').value;
+    const outRaw  = document.getElementById('edit-att-out').value;
+    const hospital= document.getElementById('edit-att-hospital').value.trim();
+    if (!docId){ showToast('오류: 문서 ID 없음','error'); return; }
+    if (!date)  { showToast('날짜를 입력해주세요','error'); return; }
+    if (!inRaw) { showToast('출근 시간을 입력해주세요','error'); return; }
+    const inTime  = inRaw.length === 5 ? inRaw+':00' : inRaw;
+    const outTime = outRaw ? (outRaw.length === 5 ? outRaw+':00' : outRaw) : null;
+    showLoader(true);
+    try {
+        const data = { date, inTime, missingOutApproved: false };
+        if (outTime) data.outTime = outTime; else data.outTime = null;
+        if (hospital) data.hospital = hospital; else data.hospital = null;
+        await window.fsSetDoc(window.fsDoc(window.db,'attendance',docId), data, {merge:true});
+        closeModal('att-edit-modal');
+        await loadAttendanceByFilter();
+        showToast('수정 완료','success');
+    } catch(e){
+        showToast('수정 실패: '+e.message,'error');
+        console.error(e);
+    } finally {
+        showLoader(false);
+    }
+}
+
+async function deleteAttRecord(docId, name, date){
+    if (!confirm(`"${name}" (${date}) 출결 기록을 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`)) return;
+    showLoader(true);
+    try {
+        await window.fsDeleteDoc(window.fsDoc(window.db,'attendance',docId));
+        showToast(`${name} ${date} 기록 삭제 완료`,'success');
+        await loadAttendanceByFilter();
+    } catch(e){ showToast('삭제 실패: '+e.message,'error'); }
+    showLoader(false);
+}
+
+// ── Payments ───────────────────────────────────────────────
+async function loadPayments(){
+    showLoader(true);
+    try {
+        const snap = await window.fsGetDocs(window.fsCollection(window.db,'directors'));
+        allDirectors = [];
+        snap.forEach(d=>allDirectors.push({id:d.id,...d.data()}));
+
+        const total   = allDirectors.filter(d=>d.status==='approved').length;
+        const active  = allDirectors.filter(d=>d.paymentStatus==='active').length;
+        const overdue = allDirectors.filter(d=>d.paymentStatus==='overdue').length;
+        const none    = allDirectors.filter(d=>d.status==='approved'&&(!d.paymentStatus||d.paymentStatus==='none')).length;
+
+        document.getElementById('payment-stats').innerHTML = `
+          <div class="stat-card"><div class="stat-num">${total}</div><div class="stat-lbl">승인 학원</div></div>
+          <div class="stat-card"><div class="stat-num" style="color:var(--accent);">${active}</div><div class="stat-lbl">정상 결제</div></div>
+          <div class="stat-card"><div class="stat-num" style="color:#c82014;">${overdue}</div><div class="stat-lbl">연체</div></div>
+          <div class="stat-card"><div class="stat-num" style="color:var(--muted);">${none}</div><div class="stat-lbl">미등록</div></div>`;
+
+        const rows = allDirectors.filter(d=>d.status==='approved').map(d=>{
+            const ps = d.paymentStatus||'none';
+            const payBadge = ps==='active' ? '<span class="badge badge-green">정상</span>'
+                : ps==='overdue' ? '<span class="badge badge-red">연체</span>'
+                : '<span class="badge badge-gray">미등록</span>';
+            const lastPay = d.lastPaymentAt ? formatDate(d.lastPaymentAt) : '-';
+            const cardInfo = d.cardInfo ? `${d.cardInfo.company||''} ${d.cardInfo.number||''}` : '미등록';
+            return `<tr>
+              <td style="font-weight:600;">${d.academyName||'-'}</td>
+              <td>${d.name||'-'}</td>
+              <td>${payBadge}</td>
+              <td style="color:var(--muted);font-size:12px;">${lastPay}</td>
+              <td style="font-size:12px;">${cardInfo}</td>
+              <td style="display:flex;gap:6px;">
+                ${ps==='overdue'
+                    ? `<button class="btn btn-primary btn-sm" onclick="setPaymentStatus('${d.id}','active')">정상화</button>`
+                    : ps==='active'
+                      ? `<button class="btn btn-warn btn-sm" onclick="setPaymentStatus('${d.id}','overdue')">연체 처리</button>`
+                      : ''}
+              </td>
+            </tr>`;
+        }).join('');
+        document.getElementById('payment-list').innerHTML = rows || '<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--muted);">승인된 학원 없음</td></tr>';
+    } catch(e){ showToast('불러오기 실패: '+e.message,'error'); }
+    showLoader(false);
+}
+
+async function setPaymentStatus(id, status){
+    const label = status==='active' ? '정상화' : '연체 처리';
+    if (!confirm(`결제 상태를 "${label}"로 변경하시겠습니까?`)) return;
+    showLoader(true);
+    try {
+        await window.fsUpdateDoc(window.fsDoc(window.db,'directors',id),{paymentStatus:status});
+        showToast(label+' 완료','success');
+        await loadPayments();
+    } catch(e){ showToast('실패: '+e.message,'error'); }
+    showLoader(false);
+}
+
+// ── 원장 추가 (기존 학원에) ────────────────────────────────
+function openAddDirectorModal(academyId){
+    const academy = allAcademies.find(a=>a.id===academyId);
+    document.getElementById('add-director-academy-id').value = academyId;
+    document.getElementById('add-director-academy-label').textContent = '학원: ' + (academy?.name||academyId);
+    document.getElementById('dir-modal-name').value = '';
+    document.getElementById('dir-modal-phone').value = '';
+    document.getElementById('dir-modal-password').value = '';
+    document.getElementById('add-director-modal').classList.add('show');
+    setTimeout(()=>document.getElementById('dir-modal-name').focus(),100);
+}
+
+async function saveNewDirector(){
+    const academyId   = document.getElementById('add-director-academy-id').value;
+    const name        = document.getElementById('dir-modal-name').value.trim();
+    const phone       = document.getElementById('dir-modal-phone').value.trim();
+    const pw          = document.getElementById('dir-modal-password').value;
+    const academy     = allAcademies.find(a=>a.id===academyId);
+    if (!name)  { showToast('이름을 입력해주세요','error'); return; }
+    if (!phone) { showToast('휴대폰 번호를 입력해주세요','error'); return; }
+    if (!pw)    { showToast('비밀번호를 입력해주세요','error'); return; }
+    showLoader(true);
+    try {
+        const passwordHash = await hashPw(pw);
+        await window.fsAddDoc(window.fsCollection(window.db,'directors'),{
+            name, phone, passwordHash,
+            academyName: academy?.name || '', academyId,
+            status:'approved', paymentStatus:'none',
+            billingKey:null, cardInfo:null, createdAt:Date.now()
+        });
+        closeModal('add-director-modal');
+        showToast(name+' 원장 계정 생성 완료','success');
+    } catch(e){ showToast('실패: '+e.message,'error'); }
+    showLoader(false);
+}
+
+// ── 학생 전체 관리 ─────────────────────────────────────────
+let allStudentsData = [];
+
+async function loadAllStudents(){
+    showLoader(true);
+    try {
+        const snap = await window.fsGetDocs(window.fsCollection(window.db,'students'));
+        allStudentsData = [];
+        snap.forEach(d => allStudentsData.push({id:d.id,...d.data()}));
+        allStudentsData.sort((a,b)=>(a.name||'').localeCompare(b.name||'','ko'));
+        renderAllStudents();
+    } catch(e){ showToast('조회 실패: '+e.message,'error'); }
+    showLoader(false);
+}
+
+function renderAllStudents(){
+    const filter = document.getElementById('stu-filter')?.value || 'all';
+    let list = allStudentsData;
+    if (filter==='unassigned') list = allStudentsData.filter(s=>!s.academyId);
+    else if (filter==='unapproved') list = allStudentsData.filter(s=>s.status!=='approved'&&s.status!=='active');
+    const el = document.getElementById('all-students-result');
+    if (!list.length){
+        el.innerHTML='<div class="empty-state"><div class="empty-icon">🎓</div><div class="empty-text">해당 학생 없음</div></div>';
+        return;
+    }
+    const academyOpts = allAcademies.map(a=>`<option value="${a.id}">${a.name}</option>`).join('');
+    const rows = list.map(s=>{
+        const sid = s.kakaoId||s.id;
+        const acName = s.academyId ? (allAcademies.find(a=>a.id===s.academyId)?.name || s.academyId) : '—';
+        const isApproved = s.status==='approved'||s.status==='active';
+        const statusCell = isApproved
+            ? '<span class="badge badge-green">승인됨</span>'
+            : `<div style="display:flex;gap:6px;align-items:center;">
+                <span class="badge badge-gray">${s.status||'미승인'}</span>
+                <button class="btn btn-primary btn-sm" onclick="approveStudent('${sid}')">승인</button>
+               </div>`;
+        const assignCell = s.academyId
+            ? `<span style="font-size:12px;color:var(--muted);">${acName}</span>`
+            : `<div style="display:flex;gap:6px;align-items:center;">
+                <select class="form-select" id="assign-${sid}" style="font-size:12px;padding:5px 8px;height:auto;">
+                  <option value="">학원 선택</option>${academyOpts}
+                </select>
+                <button class="btn btn-outline btn-sm" onclick="assignStudentAcademy('${sid}')">배정</button>
+               </div>`;
+        return `<tr>
+          <td style="font-weight:600;">${s.name||'-'}</td>
+          <td style="font-size:12px;color:var(--muted);">${s.phone||'-'}</td>
+          <td>${assignCell}</td>
+          <td>${statusCell}</td>
+        </tr>`;
+    }).join('');
+    const unapprovedCount = list.filter(s=>s.status!=='approved'&&s.status!=='active').length;
+    el.innerHTML = `<div class="card" style="padding:0;overflow:hidden;">
+      <table class="tbl"><thead><tr><th>이름</th><th>연락처</th><th>학원</th><th>상태</th></tr></thead>
+      <tbody>${rows}</tbody></table></div>
+      <div style="font-size:12px;color:var(--muted);margin-top:8px;">총 ${list.length}명${unapprovedCount>0?' · <span style="color:#c82014;">미승인 '+unapprovedCount+'명</span>':''}</div>`;
+}
+
+async function approveStudent(kakaoId){
+    showLoader(true);
+    try {
+        await window.fsUpdateDoc(window.fsDoc(window.db,'students',String(kakaoId)),{status:'approved'});
+        const stu = allStudentsData.find(s=>(s.kakaoId||s.id)===kakaoId);
+        if (stu) stu.status='approved';
+        showToast((stu?.name||kakaoId)+' 승인 완료','success');
+        renderAllStudents();
+    } catch(e){ showToast('실패: '+e.message,'error'); }
+    showLoader(false);
+}
+
+async function batchApproveAll(){
+    const filter = document.getElementById('stu-filter')?.value || 'all';
+    let targets = allStudentsData.filter(s=>s.status!=='approved'&&s.status!=='active');
+    if (filter==='unassigned') targets = targets.filter(s=>!s.academyId);
+    if (!targets.length){ showToast('승인할 학생이 없습니다','info'); return; }
+    if (!confirm(`미승인 학생 ${targets.length}명을 전체 승인하시겠습니까?`)) return;
+    showLoader(true);
+    const results = await Promise.allSettled(targets.map(s=>
+        window.fsUpdateDoc(window.fsDoc(window.db,'students',String(s.kakaoId||s.id)),{status:'approved'})
+    ));
+    const failed = results.filter(r=>r.status==='rejected').length;
+    targets.forEach((s,i)=>{ if(results[i].status==='fulfilled') s.status='approved'; });
+    if(failed) showToast(`${targets.length-failed}명 승인, ${failed}명 실패`,'error');
+    else showToast(targets.length+'명 승인 완료','success');
+    renderAllStudents();
+    showLoader(false);
+}
+
+async function assignStudentAcademy(kakaoId){
+    const sel = document.getElementById('assign-'+kakaoId);
+    const academyId = sel?.value;
+    if (!academyId){ showToast('학원을 선택해주세요','error'); return; }
+    const academy = allAcademies.find(a=>a.id===academyId);
+    showLoader(true);
+    try {
+        await window.fsUpdateDoc(window.fsDoc(window.db,'students',String(kakaoId)),{academyId});
+        showToast((allStudentsData.find(s=>(s.kakaoId||s.id)===kakaoId)?.name||kakaoId)+' → '+academy?.name+' 배정 완료','success');
+        const stu = allStudentsData.find(s=>(s.kakaoId||s.id)===kakaoId);
+        if (stu) stu.academyId = academyId;
+        renderAllStudents();
+    } catch(e){ showToast('실패: '+e.message,'error'); }
+    showLoader(false);
+}
+
+// ── 출결 직접 입력 ─────────────────────────────────────────
+let attStudentsAll = [];  // 선택된 학원의 학생 전체
+
+async function openAttInputModal(){
+    const today = new Date();
+    const todayStr = today.getFullYear()+'-'+String(today.getMonth()+1).padStart(2,'0')+'-'+String(today.getDate()).padStart(2,'0');
+    document.getElementById('att-date-input').value = todayStr;
+    document.getElementById('att-in-input').value = '';
+    document.getElementById('att-out-input').value = '';
+    document.getElementById('att-hospital-input').value = '';
+    document.getElementById('att-student-search').value = '';
+    document.getElementById('att-student-search').disabled = true;
+    document.getElementById('att-student-select').innerHTML = '<option value="">학원 먼저 선택하세요</option>';
+    document.getElementById('att-student-select').disabled = true;
+
+    // 학원 드롭다운 채우기 (미로드 시 먼저 로드)
+    if(!allAcademies.length) await loadAcademies();
+    const acSel = document.getElementById('att-academy-select');
+    acSel.innerHTML = '<option value="">학원을 선택하세요</option>'
+        + allAcademies.map(a=>`<option value="${a.id}">${escHtml(a.name)}</option>`).join('');
+
+    document.getElementById('att-input-modal').classList.add('show');
+}
+
+async function onAttAcademyChange(){
+    const academyId = document.getElementById('att-academy-select').value;
+    const stuSel = document.getElementById('att-student-select');
+    const stuSearch = document.getElementById('att-student-search');
+    if (!academyId){ attStudentsAll=[]; stuSel.innerHTML='<option value="">학원 먼저 선택하세요</option>'; stuSel.disabled=true; stuSearch.disabled=true; return; }
+    stuSel.innerHTML='<option value="">로딩 중...</option>'; stuSel.disabled=true; stuSearch.disabled=true;
+    try {
+        const snap = await window.fsGetDocs(window.fsQuery(window.fsCollection(window.db,'students'), window.fsWhere('academyId','==',academyId)));
+        attStudentsAll=[];
+        snap.forEach(d=>attStudentsAll.push({id:d.id,...d.data()}));
+        attStudentsAll.sort((a,b)=>(a.name||'').localeCompare(b.name||'','ko'));
+        stuSearch.value=''; stuSearch.disabled=false;
+        renderAttStudentOptions(attStudentsAll);
+        stuSel.disabled=false;
+        stuSel.onchange=()=>{
+            const opt=stuSel.options[stuSel.selectedIndex];
+            if(opt?.dataset.hospital) document.getElementById('att-hospital-input').value=opt.dataset.hospital;
+        };
+        if(attStudentsAll.length) stuSel.dispatchEvent(new Event('change'));
+    } catch(e){ stuSel.innerHTML='<option value="">로드 실패</option>'; }
+}
+
+function renderAttStudentOptions(list){
+    const stuSel=document.getElementById('att-student-select');
+    stuSel.innerHTML=list.length
+        ? list.map(s=>`<option value="${s.kakaoId||s.id}" data-hospital="${s.hospital||''}" data-name="${s.name||''}">${s.name||s.id} (${s.phone||'-'})</option>`).join('')
+        : '<option value="">학생 없음</option>';
+}
+
+function filterAttStudents(){
+    const q=document.getElementById('att-student-search').value.trim();
+    const filtered=q ? attStudentsAll.filter(s=>(s.name||'').includes(q)) : attStudentsAll;
+    renderAttStudentOptions(filtered);
+}
+
+async function saveAttRecord(){
+    const kakaoId  = document.getElementById('att-student-select').value;
+    const date     = document.getElementById('att-date-input').value;
+    const inTime   = document.getElementById('att-in-input').value;
+    const outTime  = document.getElementById('att-out-input').value;
+    const hospital = document.getElementById('att-hospital-input').value.trim();
+    const sel      = document.getElementById('att-student-select');
+    const name     = sel.options[sel.selectedIndex]?.dataset.name || '';
+
+    if (!kakaoId) { showToast('학생을 선택해주세요','error'); return; }
+    if (!date)    { showToast('날짜를 입력해주세요','error'); return; }
+    if (!inTime)  { showToast('출근 시간을 입력해주세요','error'); return; }
+
+    const inTimeFull  = inTime.length===5  ? inTime+':00'  : inTime;
+    const outTimeFull = outTime.length===5 ? outTime+':00' : outTime;
+
+    showLoader(true);
+    try {
+        const docId = String(kakaoId)+'_'+date;
+        const data = { kakaoId:String(kakaoId), name, date, inTime:inTimeFull };
+        if (outTimeFull) data.outTime = outTimeFull;
+        if (hospital) data.hospital = hospital;
+        await window.fsSetDoc(window.fsDoc(window.db,'attendance',docId), data, {merge:true});
+        closeModal('att-input-modal');
+        showToast(`${name||kakaoId} ${date} 출결 저장 완료`,'success');
+        loadAttendanceByFilter();
+    } catch(e){
+        console.error('출결 저장 실패:', e);
+        showToast('저장 실패: '+e.message,'error');
+    }
+    showLoader(false);
+}
+
+// ── Utils ──────────────────────────────────────────────────
+function formatDate(ts){
+    if (!ts) return '-';
+    let d;
+    if (ts.toDate) d = ts.toDate();
+    else if (typeof ts === 'number') d = new Date(ts);
+    else if (ts.seconds) d = new Date(ts.seconds*1000);
+    else return '-';
+    return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+
+init();
+</script>
+</body>
+</html>
