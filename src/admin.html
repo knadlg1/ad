@@ -1820,7 +1820,6 @@ async function onInlineClsChange(kakaoId,sel){
             }
         }
         await window.fsUpdateDoc(window.fsDoc(window.db,'students',String(kakaoId)),stuUpdate);
-        const stu=studentsList.find(s=>String(s.kakaoId)===String(kakaoId));
         if(stu){stu.classId=classId||null;if(stuUpdate.practiceStart)stu.practiceStart=stuUpdate.practiceStart;if(stuUpdate.practiceEnd)stu.practiceEnd=stuUpdate.practiceEnd;}
     },{successMsg:'반 변경 완료 ✓',delay:800,onSuccess:()=>{
         flashRow(kakaoId);
