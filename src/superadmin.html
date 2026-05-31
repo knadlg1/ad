@@ -105,6 +105,10 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--canvas);color:var
 .tbl td{padding:12px 14px;border-bottom:1px solid rgba(0,0,0,0.05);color:var(--text);vertical-align:middle;}
 .tbl tr:last-child td{border-bottom:none;}
 .tbl tr:hover td{background:rgba(0,0,0,0.015);}
+/* ── COLUMN HELP TOOLTIP ─────────────────────────────── */
+.th-help{display:inline-flex;align-items:center;justify-content:center;width:13px;height:13px;border-radius:50%;background:rgba(0,0,0,0.12);font-size:9px;font-weight:700;color:var(--muted);margin-left:3px;cursor:help;position:relative;vertical-align:middle;flex-shrink:0;}
+.th-help::after{content:attr(data-tip);position:absolute;bottom:calc(100% + 6px);left:50%;transform:translateX(-50%);background:#1e293b;color:#e2e8f0;font-size:11px;font-weight:400;white-space:pre-line;padding:8px 11px;border-radius:8px;width:max-content;max-width:240px;pointer-events:none;opacity:0;transition:opacity 0.15s;z-index:9999;line-height:1.6;box-shadow:0 4px 16px rgba(0,0,0,0.35);text-transform:none;letter-spacing:0;}
+.th-help:hover::after{opacity:1;}
 
 /* ── BADGE ───────────────────────────────────────────── */
 .badge{display:inline-block;padding:3px 10px;border-radius:var(--pill);font-size:11px;font-weight:700;}
@@ -366,10 +370,22 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--canvas);color:var
         <div class="card" style="padding:0;overflow:auto;">
           <table class="tbl" id="logs-table" style="font-size:12px;min-width:1100px;">
             <thead><tr>
-              <th>시각</th><th>학생</th><th>병원ID</th><th>유형</th><th>결과</th>
-              <th>dist</th><th>eff</th><th>acc</th><th>A점</th><th>B점</th>
-              <th>WiFi</th><th>BSSID</th><th>신뢰</th><th>앵커</th>
-              <th>오류유형</th><th>오류메시지</th>
+              <th>시각<span class="th-help" data-tip="출퇴근 시도 시각 (KST)">?</span></th>
+              <th>학생<span class="th-help" data-tip="학생 이름 또는 카카오 ID">?</span></th>
+              <th>병원ID<span class="th-help" data-tip="Firestore 병원 문서 ID&#10;(hospitalId 필터와 동일)">?</span></th>
+              <th>유형<span class="th-help" data-tip="출근 / 퇴근">?</span></th>
+              <th>결과<span class="th-help" data-tip="✅ 성공 — 정상 처리&#10;🔁 중복 — 이미 기록됨&#10;❌ 오류 — 거절됨">?</span></th>
+              <th>dist<span class="th-help" data-tip="학생 GPS ↔ 병원 좌표 직선 거리 (m)&#10;보정 전 원시 거리">?</span></th>
+              <th>eff<span class="th-help" data-tip="유효 거리 effectiveDist (m)&#10;= dist − min(acc, 40) × 0.5&#10;GPS 오차를 최대 20m 차감한 값&#10;A점수 산정 기준">?</span></th>
+              <th>acc<span class="th-help" data-tip="기기 GPS 정확도 반경 (m)&#10;낮을수록 정밀&#10;40m 초과분은 보정에 반영 안 됨">?</span></th>
+              <th>A점<span class="th-help" data-tip="GPS 유효거리 기반 점수 (1~5점)&#10;≤ 20m → 5점&#10;≤ 40m → 4점&#10;≤ 60m → 3점&#10;≤ 90m → 2점&#10;그 외  → 1점">?</span></th>
+              <th>B점<span class="th-help" data-tip="WiFi / BSSID 신뢰 점수 (0~5점)&#10;신뢰BSSID + 앵커 50m 이내 → 5점&#10;신뢰BSSID만 (앵커 초과)  → 2점&#10;WiFi 연결만 (미인증 BSSID) → 1점&#10;없음 → 0점&#10;&#10;A점 + B점 ≥ 5 이면 통과">?</span></th>
+              <th>WiFi<span class="th-help" data-tip="기기가 WiFi에 연결된 여부&#10;✔ 연결됨 / ✗ 미연결">?</span></th>
+              <th>BSSID<span class="th-help" data-tip="연결된 WiFi AP 주소 (마지막 8자리)&#10;신뢰 등록 여부 → 신뢰 열 참조">?</span></th>
+              <th>신뢰<span class="th-help" data-tip="⭐ 관리자가 신뢰 등록한 BSSID&#10;신뢰 BSSID는 B점 산정에 사용됨">?</span></th>
+              <th>앵커<span class="th-help" data-tip="신뢰 BSSID의 GPS 앵커와 현재 위치 간 거리 (m)&#10;50m 이하면 B점 5점&#10;50m 초과면 B점 2점">?</span></th>
+              <th>오류유형<span class="th-help" data-tip="distance — 거리/위치 문제&#10;wifi    — WiFi 점수 부족&#10;auth    — 인증 실패&#10;server  — 서버 오류">?</span></th>
+              <th>오류메시지<span class="th-help" data-tip="학생 화면에 실제로 표시된 오류 문구">?</span></th>
             </tr></thead>
             <tbody id="logs-tbody"></tbody>
           </table>
