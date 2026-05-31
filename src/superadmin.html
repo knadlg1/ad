@@ -6,7 +6,7 @@
 <title>Here — 최고관리자</title>
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-app.js";
-  import { getFirestore, doc, getDoc, setDoc, updateDoc, getDocs, collection, query, where, orderBy, addDoc, deleteDoc, writeBatch } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-firestore.js";
+  import { getFirestore, doc, getDoc, setDoc, updateDoc, getDocs, collection, query, where, orderBy, addDoc, deleteDoc, writeBatch, limit } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-firestore.js";
   import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-auth.js";
   const app = initializeApp({
     apiKey:"AIzaSyBaCpQKykViq6526dCJ8mEYbUZqyg5-NUo",
@@ -23,7 +23,7 @@
   window.fsUpdateDoc = updateDoc; window.fsGetDocs = getDocs;
   window.fsCollection = collection; window.fsQuery = query;
   window.fsWhere = where; window.fsOrderBy = orderBy;
-  window.fsAddDoc = addDoc; window.fsDeleteDoc = deleteDoc; window.fsWriteBatch = writeBatch;
+  window.fsAddDoc = addDoc; window.fsDeleteDoc = deleteDoc; window.fsWriteBatch = writeBatch; window.fsLimit = limit;
   try { await signInAnonymously(auth); } catch(e) {}
   window.fsReady = true;
   window.dispatchEvent(new Event('fsReady'));
@@ -202,6 +202,10 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--canvas);color:var
       <button class="nav-item" id="nav-payment" onclick="showPage('payment',this)">
         <span class="nav-icon">💳</span>결제 현황
       </button>
+      <div class="sidebar-section-label">분석</div>
+      <button class="nav-item" id="nav-logs" onclick="showPage('logs',this)">
+        <span class="nav-icon">📋</span>출결 로그
+      </button>
       <div class="nav-version">v1.0 · 최고관리자</div>
     </div>
 
@@ -327,6 +331,51 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--canvas);color:var
         </div>
       </div>
 
+      <!-- 출결 로그 -->
+      <div class="page" id="page-logs">
+        <div class="section-header">
+          <div>
+            <div class="section-title">출결 로그</div>
+            <div class="section-subtitle">출퇴근 시도 기록 — 승인·거절 모두 포함</div>
+          </div>
+          <button class="btn btn-outline btn-sm" onclick="loadLogs()">새로고침</button>
+        </div>
+        <div class="card" style="margin-bottom:16px;">
+          <div class="form-row" style="flex-wrap:wrap;gap:12px;align-items:flex-end;">
+            <div class="form-group" style="min-width:130px;">
+              <label class="form-label">날짜</label>
+              <input class="form-input" type="date" id="log-filter-date">
+            </div>
+            <div class="form-group" style="min-width:160px;">
+              <label class="form-label">학원/병원 ID</label>
+              <input class="form-input" type="text" id="log-filter-hospital" placeholder="hospitalId 또는 공란">
+            </div>
+            <div class="form-group" style="min-width:120px;">
+              <label class="form-label">결과</label>
+              <select class="form-select" id="log-filter-result">
+                <option value="">전체</option>
+                <option value="success">성공</option>
+                <option value="duplicate">중복</option>
+                <option value="error">오류</option>
+              </select>
+            </div>
+            <button class="btn btn-primary" onclick="loadLogs()" style="height:40px;align-self:flex-end;">조회</button>
+          </div>
+        </div>
+        <div id="logs-count" style="font-size:13px;color:var(--muted);margin-bottom:10px;"></div>
+        <div class="card" style="padding:0;overflow:auto;">
+          <table class="tbl" id="logs-table" style="font-size:12px;min-width:1100px;">
+            <thead><tr>
+              <th>시각</th><th>학생</th><th>병원ID</th><th>유형</th><th>결과</th>
+              <th>dist</th><th>eff</th><th>acc</th><th>A점</th><th>B점</th>
+              <th>WiFi</th><th>BSSID</th><th>신뢰</th><th>앵커</th>
+              <th>오류유형</th><th>오류메시지</th>
+            </tr></thead>
+            <tbody id="logs-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
     </div><!-- .main -->
   </div><!-- .body-wrap -->
 </div><!-- .app -->
@@ -434,7 +483,7 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--canvas);color:var
     <div class="modal-title">학원 추가</div>
     <div class="form-group" style="margin-bottom:14px;">
       <label class="form-label">학원명</label>
-      <input class="form-input" id="new-academy-name" placeholder="예: 사하간호학원" onkeydown="if(event.key==='Enter')document.getElementById('new-academy-code').focus()">
+      <input class="form-input" id="new-academy-name" placeholder="예: 사하간호학원" oninput="generateInviteCode()" onkeydown="if(event.key==='Enter')document.getElementById('new-academy-code').focus()">
     </div>
     <div class="form-group" style="margin-bottom:14px;">
       <label class="form-label">초대코드 <span style="color:var(--muted);font-weight:400;">(학생 가입 시 입력할 코드 — 대소문자 무관)</span></label>
@@ -448,7 +497,7 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--canvas);color:var
       </div>
       <div class="form-group" style="margin-bottom:12px;">
         <label class="form-label">원장 휴대폰</label>
-        <input class="form-input" id="new-dir-phone" placeholder="예: 01012345678" onkeydown="if(event.key==='Enter')document.getElementById('new-dir-password').focus()">
+        <input class="form-input" id="new-dir-phone" placeholder="예: 01012345678" oninput="generateInviteCode()" onkeydown="if(event.key==='Enter')document.getElementById('new-dir-password').focus()">
       </div>
       <div class="form-group" style="margin-bottom:20px;">
         <label class="form-label">초기 비밀번호</label>
@@ -456,6 +505,20 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--canvas);color:var
       </div>
     </div>
     <button class="btn btn-primary" onclick="saveNewAcademy()" style="width:100%;padding:14px;font-size:15px;">추가</button>
+  </div>
+</div>
+
+<!-- 삭제 비밀번호 확인 모달 -->
+<div class="modal-backdrop" id="delete-confirm-modal">
+  <div class="modal" style="max-width:360px;">
+    <button class="modal-close" onclick="closeModal('delete-confirm-modal')">✕</button>
+    <div class="modal-title" style="font-size:16px;">삭제 확인</div>
+    <div id="delete-confirm-desc" style="font-size:13px;color:var(--muted);margin-bottom:16px;"></div>
+    <label class="form-label">관리자 비밀번호</label>
+    <input class="form-input" id="delete-confirm-pw" type="password" placeholder="비밀번호 입력"
+      onkeydown="if(event.key==='Enter')executeDelete()" style="margin-bottom:8px;">
+    <div id="delete-confirm-err" style="color:#c82014;font-size:12px;margin-bottom:12px;display:none;"></div>
+    <button class="btn btn-danger" onclick="executeDelete()" style="width:100%;">삭제 확인</button>
   </div>
 </div>
 
@@ -512,6 +575,7 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--canvas);color:var
 // ── Kakao REST API 키 설정 ─────────────────────────────────
 // Kakao Developers(developers.kakao.com)에서 앱 생성 후 REST API 키 입력
 const KAKAO_REST_KEY = 'YOUR_KAKAO_REST_API_KEY';
+const CF_BASE_URL = 'https://us-central1-my-attendance-8122d.cloudfunctions.net';
 
 let allDirectors = [];
 let allAcademies = [];
@@ -568,6 +632,7 @@ async function doLogin(){
         if (!snap.exists()){ errEl.textContent='관리자 계정이 설정되지 않았습니다.'; errEl.style.display='block'; showLoader(false); return; }
         if (snap.data().passwordHash !== hash){ errEl.textContent='비밀번호가 일치하지 않습니다.'; errEl.style.display='block'; showLoader(false); return; }
         sessionStorage.setItem('saSession','ok');
+        sessionStorage.setItem('saPwHash', hash);
         showApp();
     } catch(e){ errEl.textContent='오류: '+e.message; errEl.style.display='block'; }
     showLoader(false);
@@ -596,6 +661,7 @@ function showPage(id, btn){
     if (id==='payment')   loadPayments();
     if (id==='data')      initDataPage();
     if (id==='academies') loadAcademies();
+    if (id==='logs')      initLogsPage();
 }
 
 // ── Directors ──────────────────────────────────────────────
@@ -730,6 +796,29 @@ function renderAcademies(){
       </div>`).join('');
 }
 
+function generateInviteCode(){
+    const name  = document.getElementById('new-academy-name').value.trim();
+    const phone = document.getElementById('new-dir-phone').value.replace(/\D/g,'');
+    const phoneSuffix = phone.slice(-4);
+    if (!name || phoneSuffix.length < 4) return;
+
+    // 한글 음절 → 초성+중성 로마자 (개정 로마자 표기법 기반)
+    const cho  = ['G','G','N','D','D','R','M','B','B','S','S','','J','J','CH','K','T','P','H'];
+    const jung = ['A','AE','YA','YAE','EO','E','YEO','YE','O','WA','WAE','OE','YO','U','WEO','WE','WI','YU','EU','UI','I'];
+    let roman = '';
+    for (const ch of name) {
+        const c = ch.charCodeAt(0);
+        if (c >= 0xAC00 && c <= 0xD7A3) {
+            const off = c - 0xAC00;
+            roman += cho[Math.floor(off / 588)] + jung[Math.floor((off % 588) / 28)];
+        } else if (/[A-Za-z]/.test(ch)) {
+            roman += ch.toUpperCase();
+        }
+    }
+    const letters = roman.replace(/[^A-Z]/g,'').slice(0,4).padEnd(4,'X');
+    document.getElementById('new-academy-code').value = letters + phoneSuffix;
+}
+
 function openAddAcademyModal(){
     document.getElementById('new-academy-name').value='';
     document.getElementById('new-academy-code').value='';
@@ -820,12 +909,18 @@ function renderHospitalList(hospitals){
         return;
     }
     el.innerHTML = hospitals.map((h,i)=>`
-      <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px;background:#f8f7f5;border-radius:10px;margin-bottom:8px;">
-        <div>
-          <div style="font-size:15px;font-weight:700;">${escHtml(h.name)}</div>
-          <div style="font-size:11px;color:var(--muted);margin-top:2px;">위도 ${h.lat?.toFixed(6)} / 경도 ${h.lon?.toFixed(6)}</div>
+      <div style="background:#f8f7f5;border-radius:10px;margin-bottom:8px;overflow:hidden;">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px;">
+          <div>
+            <div style="font-size:15px;font-weight:700;">${escHtml(h.name)}</div>
+            <div style="font-size:11px;color:var(--muted);margin-top:2px;">기본 위도 ${h.lat?.toFixed(6)} / 경도 ${h.lon?.toFixed(6)}</div>
+          </div>
+          <div style="display:flex;gap:6px;">
+            <button class="btn btn-outline btn-sm" onclick="toggleWaypointEdit(${i},'${escHtml(h.name).replace(/'/g,"\\'")}')">보조좌표</button>
+            <button class="btn btn-danger btn-sm" data-hosp-name="${escHtml(h.name)}" onclick="removeHospital(this.dataset.hospName)">삭제</button>
+          </div>
         </div>
-        <button class="btn btn-danger btn-sm" data-hosp-name="${escHtml(h.name)}" onclick="removeHospital(this.dataset.hospName)">삭제</button>
+        <div id="wp-edit-${i}" style="display:none;padding:0 14px 14px;border-top:1px solid #e5e3df;"></div>
       </div>`).join('');
 }
 
@@ -934,19 +1029,92 @@ async function addManualHospital(){
     showLoader(false);
 }
 
-async function removeHospital(name){
-    if (!confirm(`"${name}" 병원을 삭제하시겠습니까?`)) return;
+function hospIdFromName(name){ return name.replace(/\//g,'_').trim(); }
+
+async function toggleWaypointEdit(i, name){
+    const el = document.getElementById('wp-edit-'+i);
+    if (!el) return;
+    if (el.style.display !== 'none'){ el.style.display='none'; return; }
+    const hospId = hospIdFromName(name);
+    let wps = [{lat:'',lon:''},{lat:'',lon:''}];
+    try {
+        const snap = await window.fsGetDoc(window.fsDoc(window.db,'hospitals',hospId));
+        if (snap.exists()){
+            const existing = snap.data().waypoints||[];
+            wps = [
+                {lat:existing[0]?.lat??'',lon:existing[0]?.lon??''},
+                {lat:existing[1]?.lat??'',lon:existing[1]?.lon??''},
+            ];
+        }
+    } catch(e){}
+    el.innerHTML = `
+      <div style="padding-top:12px;">
+        <div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:10px;letter-spacing:0.05em;">보조 좌표 (최대 2개 — 비워두면 미사용)</div>
+        ${[0,1].map(j=>`
+          <div style="display:flex;gap:8px;margin-bottom:8px;align-items:center;">
+            <span style="font-size:12px;font-weight:700;color:var(--muted);min-width:24px;">P${j+1}</span>
+            <input type="number" step="any" id="wp-lat-${i}-${j}" value="${wps[j].lat}" placeholder="위도" style="flex:1;padding:7px 10px;border:1.5px solid var(--border);border-radius:7px;font-size:12px;outline:none;">
+            <input type="number" step="any" id="wp-lon-${i}-${j}" value="${wps[j].lon}" placeholder="경도" style="flex:1;padding:7px 10px;border:1.5px solid var(--border);border-radius:7px;font-size:12px;outline:none;">
+          </div>`).join('')}
+        <button class="btn btn-primary btn-sm" onclick="saveWaypoints(${i},'${escHtml(name).replace(/'/g,"\\'")}')">저장</button>
+      </div>`;
+    el.style.display = 'block';
+}
+
+async function saveWaypoints(i, name){
+    const hospId = hospIdFromName(name);
+    const wps = [];
+    for (let j=0; j<2; j++){
+        const lat = parseFloat(document.getElementById(`wp-lat-${i}-${j}`)?.value);
+        const lon = parseFloat(document.getElementById(`wp-lon-${i}-${j}`)?.value);
+        if (!isNaN(lat)&&!isNaN(lon)&&lat>=-90&&lat<=90&&lon>=-180&&lon<=180) wps.push({lat,lon});
+    }
     showLoader(true);
     try {
-        const a = allAcademies.find(x=>x.id===currentHospitalAcademyId);
-        const hospitals = (a?.hospitals||[]).filter(h=>h.name!==name);
-        await window.fsUpdateDoc(window.fsDoc(window.db,'academies',currentHospitalAcademyId),{hospitals});
-        showToast('삭제 완료','success');
-        await loadAcademies();
-        const updated = allAcademies.find(x=>x.id===currentHospitalAcademyId);
-        renderHospitalList(updated?.hospitals||[]);
-    } catch(e){ showToast('실패: '+e.message,'error'); }
+        await window.fsSetDoc(window.fsDoc(window.db,'hospitals',hospId),{waypoints:wps},{merge:true});
+        showToast(name+' 보조좌표 저장 완료 ('+wps.length+'개)','success');
+    } catch(e){ showToast('저장 실패: '+e.message,'error'); }
     showLoader(false);
+}
+
+let _pendingDeleteFn = null;
+
+function showDeleteConfirm(desc, onConfirmed){
+    _pendingDeleteFn = onConfirmed;
+    document.getElementById('delete-confirm-desc').textContent = desc;
+    document.getElementById('delete-confirm-pw').value = '';
+    document.getElementById('delete-confirm-err').style.display = 'none';
+    document.getElementById('delete-confirm-modal').classList.add('show');
+    setTimeout(()=>document.getElementById('delete-confirm-pw').focus(), 100);
+}
+
+async function executeDelete(){
+    const pw = document.getElementById('delete-confirm-pw').value;
+    const errEl = document.getElementById('delete-confirm-err');
+    if (!pw){ errEl.textContent='비밀번호를 입력해주세요.'; errEl.style.display='block'; return; }
+    const hash = await hashPw(pw);
+    const snap = await window.fsGetDoc(window.fsDoc(window.db,'superadmin','config'));
+    if (!snap.exists()||snap.data().passwordHash!==hash){
+        errEl.textContent='비밀번호가 일치하지 않습니다.'; errEl.style.display='block'; return;
+    }
+    closeModal('delete-confirm-modal');
+    if (_pendingDeleteFn) { _pendingDeleteFn(); _pendingDeleteFn=null; }
+}
+
+function removeHospital(name){
+    showDeleteConfirm(`"${name}" 병원을 삭제합니다.`, async ()=>{
+        showLoader(true);
+        try {
+            const a = allAcademies.find(x=>x.id===currentHospitalAcademyId);
+            const hospitals = (a?.hospitals||[]).filter(h=>h.name!==name);
+            await window.fsUpdateDoc(window.fsDoc(window.db,'academies',currentHospitalAcademyId),{hospitals});
+            showToast('삭제 완료','success');
+            await loadAcademies();
+            const updated = allAcademies.find(x=>x.id===currentHospitalAcademyId);
+            renderHospitalList(updated?.hospitals||[]);
+        } catch(e){ showToast('실패: '+e.message,'error'); }
+        showLoader(false);
+    });
 }
 
 // ── Academy Data ───────────────────────────────────────────
@@ -1475,6 +1643,97 @@ async function saveAttRecord(){
     } catch(e){
         console.error('출결 저장 실패:', e);
         showToast('저장 실패: '+e.message,'error');
+    }
+    showLoader(false);
+}
+
+// ── Attendance Logs ────────────────────────────────────────
+function initLogsPage(){
+    const dateEl = document.getElementById('log-filter-date');
+    if (!dateEl.value) dateEl.value = todayKST();
+    loadLogs();
+}
+
+async function loadLogs(){
+    showLoader(true);
+    try {
+        const dateVal    = document.getElementById('log-filter-date').value;
+        const hospitalVal= document.getElementById('log-filter-hospital').value.trim();
+        const resultVal  = document.getElementById('log-filter-result').value;
+
+        const col = window.fsCollection(window.db, 'attendanceLogs');
+        const constraints = [];
+
+        if (dateVal) {
+            const start = new Date(dateVal + 'T00:00:00+09:00');
+            const end   = new Date(dateVal + 'T23:59:59+09:00');
+            constraints.push(window.fsWhere('ts', '>=', start));
+            constraints.push(window.fsWhere('ts', '<=', end));
+        }
+        if (hospitalVal) constraints.push(window.fsWhere('hospitalId', '==', hospitalVal));
+        if (resultVal)   constraints.push(window.fsWhere('result', '==', resultVal));
+
+        constraints.push(window.fsOrderBy('ts', 'desc'));
+        constraints.push(window.fsLimit(300));
+
+        const snap = await window.fsGetDocs(window.fsQuery(col, ...constraints));
+
+        const rows = [];
+        snap.forEach(d => rows.push(d.data()));
+
+        document.getElementById('logs-count').textContent = `총 ${rows.length}건 (최대 300건)`;
+
+        const tbody = document.getElementById('logs-tbody');
+        if (rows.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="16" style="text-align:center;color:var(--muted);padding:24px;">로그 없음</td></tr>';
+            showLoader(false); return;
+        }
+
+        tbody.innerHTML = rows.map(r => {
+            const result = r.result || '';
+            let rowStyle = '';
+            if (result === 'success') rowStyle = 'background:#f0fdf4;';
+            else if (result === 'duplicate') rowStyle = 'background:#fefce8;';
+            else if (result === 'error') rowStyle = 'background:#fff1f2;';
+
+            const ts = r.ts ? (r.ts.toDate ? r.ts.toDate() : new Date(r.ts.seconds*1000)) : null;
+            const tsStr = ts ? (
+                ts.toLocaleString('ko-KR', {timeZone:'Asia/Seoul',
+                    month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit'})
+            ) : '-';
+
+            const bssidShort = r.bssid ? r.bssid.slice(-8) : '-';
+            const errorMsg = r.errorMsg ? escHtml(r.errorMsg.replace(/\n/g,' ')) : '-';
+            const resultLabel = result === 'success' ? '✅ 성공'
+                              : result === 'duplicate' ? '🔁 중복'
+                              : result === 'error' ? '❌ 오류' : result || '-';
+
+            return `<tr style="${rowStyle}">
+              <td style="white-space:nowrap;">${tsStr}</td>
+              <td>${escHtml(r.name||r.kakaoId||'-')}</td>
+              <td style="max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${escHtml(r.hospitalId||'')}">
+                ${escHtml((r.hospitalId||'-').slice(0,14))}
+              </td>
+              <td>${escHtml(r.type||'-')}</td>
+              <td style="white-space:nowrap;">${resultLabel}</td>
+              <td>${r.dist != null ? Math.round(r.dist)+'m' : '-'}</td>
+              <td>${r.effectiveDist != null ? r.effectiveDist+'m' : '-'}</td>
+              <td>${r.accuracy != null ? r.accuracy+'m' : '-'}</td>
+              <td style="text-align:center;font-weight:700;">${r.scoreA != null ? r.scoreA : '-'}</td>
+              <td style="text-align:center;font-weight:700;">${r.scoreB != null ? r.scoreB : '-'}</td>
+              <td style="text-align:center;">${r.wifiConnected ? '✔' : '✗'}</td>
+              <td style="font-family:monospace;">${escHtml(bssidShort)}</td>
+              <td style="text-align:center;">${r.bssidTrusted ? '⭐' : '-'}</td>
+              <td>${r.anchorDist != null ? r.anchorDist+'m' : '-'}</td>
+              <td>${escHtml(r.errorType||'-')}</td>
+              <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${errorMsg}">
+                ${errorMsg}
+              </td>
+            </tr>`;
+        }).join('');
+    } catch(e) {
+        showToast('로그 불러오기 실패: '+e.message, 'error');
+        console.error(e);
     }
     showLoader(false);
 }
