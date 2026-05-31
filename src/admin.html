@@ -242,11 +242,16 @@ body{font-family:'Pretendard',system-ui,sans-serif;background:var(--canvas);colo
 .att-cal-day.cal-end{background:var(--brand)!important;color:#fff!important;border-radius:0 5px 5px 0;}
 .att-cal-day.cal-in-range{background:var(--brand-xlight);color:var(--brand);border-radius:0;}
 .att-cal-hint{font-size:15px;font-weight:800;color:var(--brand);text-align:center;margin-top:6px;min-height:22px;letter-spacing:0.03em;}
+/* 업데이트 일시 */
+.last-updated-bar{padding:8px 2px 10px;display:flex;flex-direction:column;gap:2px;}
+.last-updated-label{font-size:9px;font-weight:800;color:var(--muted);letter-spacing:0.08em;text-transform:uppercase;}
+.last-updated-val{font-size:12px;font-weight:700;color:var(--brand);}
 /* 문서발급 탭 */
 .doc-type-btns{display:flex;gap:12px;margin-bottom:18px;}
 .doc-type-btn{flex:1;padding:14px 8px 12px;border:2px solid transparent;border-radius:12px;cursor:pointer;transition:all .15s;text-align:center;display:flex;flex-direction:column;align-items:center;gap:8px;}
 .doc-type-btn img{width:44px;height:44px;object-fit:contain;opacity:.75;transition:opacity .15s;}
 .doc-type-btn-label{font-size:12px;font-weight:800;letter-spacing:0.02em;line-height:1.3;}
+.doc-type-btn-desc{font-size:10px;font-weight:500;color:var(--muted);line-height:1.4;margin-top:2px;white-space:normal;}
 .doc-type-btn.card-btn{background:rgba(186,230,253,.18);border-color:rgba(186,230,253,.45);}
 .doc-type-btn.card-btn .doc-type-btn-label{color:#0369a1;}
 .doc-type-btn.card-btn:hover{background:rgba(186,230,253,.32);border-color:rgba(186,230,253,.65);}
@@ -679,6 +684,10 @@ body{font-family:'Pretendard',system-ui,sans-serif;background:var(--canvas);colo
           <div class="att-col-body-row">
             <!-- 사이드바: 날짜 + 학생 검색 -->
             <div class="att-sidebar-col att-date-stu-sidebar">
+              <div class="last-updated-bar">
+                <span class="last-updated-label">업데이트 일시</span>
+                <span class="last-updated-val" id="last-updated-at">-</span>
+              </div>
               <div class="att-cal-card">
                 <input type="hidden" id="att-start-date">
                 <input type="hidden" id="att-end-date">
@@ -788,17 +797,17 @@ body{font-family:'Pretendard',system-ui,sans-serif;background:var(--canvas);colo
 
             <!-- 문서발급 탭 -->
             <div class="htab-panel active" id="vtab-docs">
-              <div class="htab-panel-head">문서 발급</div>
-
               <!-- 서류 유형 선택 -->
               <div class="doc-type-btns">
                 <button class="doc-type-btn card-btn active" id="doc-type-card" onclick="selectDocType('card')">
                   <img src="../assets/pdf.png" alt="실습카드">
                   <div class="doc-type-btn-label">실습카드</div>
+                  <div class="doc-type-btn-desc">실습 병원 담당자 서명과 학생 서명 관련 서류</div>
                 </button>
                 <button class="doc-type-btn entry-btn" id="doc-type-entry" onclick="selectDocType('entry')">
                   <img src="../assets/pdf.png" alt="직권입력대장">
                   <div class="doc-type-btn-label">직권입력대장</div>
+                  <div class="doc-type-btn-desc">실습에 대한 학원 담당자의 확인 서류</div>
                 </button>
               </div>
 
@@ -903,7 +912,6 @@ body{font-family:'Pretendard',system-ui,sans-serif;background:var(--canvas);colo
 
             <!-- 반정보 -->
             <div class="htab-panel" id="vtab-cls">
-              <div class="htab-panel-head">반 정보</div>
 
               <div class="cls-section">
                 <div class="cls-section-title">반 생성</div>
@@ -1108,6 +1116,7 @@ let missingOutRequests = [];
 let academyHospitals = [];
 let parsedHolidays = [], parsedPracticeDays = [], parsedFileName = '', parsedClassId = '', parsedTimetableData = {};
 let regPhone = '';
+let lastUpdatedAt = null;
 
 // ── Utilities ────────────────────────────────────────────
 function todayKST() {
@@ -1124,12 +1133,10 @@ function showLoaderSuccess(text='저장 완료 ✓'){
     el.classList.add('success');
     document.getElementById('loading-text').textContent=text;
 }
-async function withSave(asyncFn,{successMsg='저장 완료 ✓',delay=1000,onSuccess}={}){
+async function withSave(asyncFn,{successMsg='저장 완료 ✓',onSuccess}={}){
     showLoader(true);
     try{
         await asyncFn();
-        showLoaderSuccess(successMsg);
-        await new Promise(r=>setTimeout(r,delay));
         showLoader(false);
         if(onSuccess)await onSuccess();
     }catch(e){
@@ -1381,6 +1388,14 @@ function calNext(){
 }
 
 // ── Data Loading ──────────────────────────────────────────
+function updateLastUpdatedDisplay(){
+    const el=document.getElementById('last-updated-at');
+    if(!el||!lastUpdatedAt) return;
+    const d=lastUpdatedAt;
+    const m=d.getMonth()+1, day=d.getDate();
+    const h=String(d.getHours()).padStart(2,'0'), min=String(d.getMinutes()).padStart(2,'0');
+    el.textContent=`${m}월 ${day}일 ${h}:${min}`;
+}
 async function loadAll(){
     showLoader(true);
     try{
@@ -1388,6 +1403,8 @@ async function loadAll(){
         await Promise.all([loadAttendance(),loadPendingStudents(),loadMissingOutRequests()]);
         renderStudents();
         initDocTab();
+        lastUpdatedAt=new Date();
+        updateLastUpdatedDisplay();
     }catch(e){console.error('loadAll 실패:',e);}
     showLoader(false);
 }
