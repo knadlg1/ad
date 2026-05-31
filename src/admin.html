@@ -2844,6 +2844,82 @@ function updateDocCardStudents(){
     sel.innerHTML='<option value="all">전체 학생</option>'+students.map(s=>`<option value="${s.kakaoId}">${s.name||s.kakaoId}</option>`).join('');
 }
 
+function decodeNumericEntities(str){
+    return str.replace(/&#(\d+);/g,(_,n)=>String.fromCodePoint(Number(n)));
+}
+function fillTemplate(html,map){
+    return html.replace(/\{\{([^}]+)\}\}/g,(match,key)=>
+        Object.prototype.hasOwnProperty.call(map,key)?(map[key]??''):match
+    );
+}
+function timeToMinutes(t){
+    if(!t||!/^\d/.test(t))return 0;
+    const p=t.split(':');
+    return(parseInt(p[0])||0)*60+(parseInt(p[1])||0);
+}
+function minutesToHM(mins){
+    if(mins<=0)return'';
+    const h=Math.floor(mins/60),m=mins%60;
+    return m>0?`${h}시간 ${m}분`:`${h}시간`;
+}
+async function generateFromTemplate(templateUrl,cls,stu,practiceDates,sigs,getManagerSig){
+    const resp=await fetch(templateUrl);
+    const rawHtml=decodeNumericEntities(await resp.text());
+    const acName=directorData?.academyName||'';
+    const dirName=directorData?.name||'';
+    const totalPeriod=cls?.practiceStart&&cls?.practiceEnd?`${cls.practiceStart} ~ ${cls.practiceEnd}`:'';
+    const pages=[];
+    const totalChunks=Math.max(1,Math.ceil(practiceDates.length/30));
+    for(let pi=0;pi<totalChunks;pi++){
+        const chunk=practiceDates.slice(pi*30,(pi+1)*30);
+        const map={
+            '학원명':acName,'이름':stu.name||'','전체훈련기간':totalPeriod,
+            '원장님이름':dirName,
+            '기간시작일':chunk[0]||'','기간종료일':chunk[chunk.length-1]||'',
+        };
+        let cumMins=0;
+        for(let i=1;i<=30;i++){
+            const date=chunk[i-1]||null;
+            if(date){
+                const att=getAttForDate(stu.kakaoId,date);
+                const sigData=sigs[String(stu.kakaoId)]?.[date]||null;
+                const inT=att?.inTime||'';
+                const outT=(att?.outTime&&/^\d/.test(att.outTime))?att.outTime:'';
+                const inM=timeToMinutes(inT),outM=timeToMinutes(outT);
+                if(inM>0&&outM>inM)cumMins+=outM-inM;
+                const stuSig=sigData?.studentSig||att?.studentSig||'';
+                const mgrSig=getManagerSig(att,sigData);
+                map[`단위기간시작일${i}`]=date.slice(5).replace('-','/');
+                map[`출근시간${i}`]=inT;
+                map[`퇴근시간${i}`]=outT;
+                map[`누적시간${i}`]=minutesToHM(cumMins);
+                map[`학생서명${i}`]=stuSig?`<img src="data:image/png;base64,${stuSig}" style="max-height:28px;max-width:70px;vertical-align:middle;">`:' ';
+                map[`담당자서명${i}`]=mgrSig?`<img src="data:image/png;base64,${mgrSig}" style="max-height:28px;max-width:70px;vertical-align:middle;">`:' ';
+            }else{
+                map[`단위기간시작일${i}`]='';map[`출근시간${i}`]='';map[`퇴근시간${i}`]='';
+                map[`누적시간${i}`]='';map[`학생서명${i}`]='';map[`담당자서명${i}`]='';
+            }
+        }
+        map['실습시간']=minutesToHM(cumMins);
+        pages.push(fillTemplate(rawHtml,map));
+    }
+    return pages;
+}
+function openDocWindow(pages){
+    if(!pages.length){showToast('출력할 데이터가 없습니다','info');return;}
+    const headMatch=pages[0].match(/<head[^>]*>([\s\S]*?)<\/head>/i);
+    const headContent=headMatch?headMatch[1]:'';
+    const bodyParts=pages.map((html,i)=>{
+        const bm=html.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+        const content=bm?bm[1]:html;
+        return i>0?`<div style="page-break-before:always">${content}</div>`:`<div>${content}</div>`;
+    });
+    const w=window.open('','_blank');
+    if(!w){showToast('팝업이 차단되었습니다. 팝업 허용 후 다시 시도해주세요','error');return;}
+    w.document.open();
+    w.document.write(`<!DOCTYPE html><html><head>${headContent}</head><body>${bodyParts.join('')}</body></html>`);
+    w.document.close();
+}
 async function previewDoc(type){
     if(type==='card'){
         const clsId=document.getElementById('doc-card-cls')?.value;
@@ -2855,12 +2931,10 @@ async function previewDoc(type){
         let students=stuVal==='all'?studentsList.filter(s=>s.classId===clsId&&(s.status==='approved'||s.status==='active')):[studentsList.find(s=>String(s.kakaoId)===String(stuVal))].filter(Boolean);
         showLoader(true);
         const sigs=await loadWeeklySigsForRange(students.map(s=>s.kakaoId),startDate,endDate);
+        const pages=await generatePracticeCardHtml(cls,students,startDate,endDate,sigs);
         showLoader(false);
-        const html=await generatePracticeCardHtml(cls,students,startDate,endDate,sigs);
-        document.getElementById('doc-preview-title').textContent='실습카드 미리보기';
-        document.getElementById('doc-preview-body').innerHTML=html;
-        document.getElementById('doc-preview-overlay').classList.add('open');
-    } else {
+        openDocWindow(pages);
+    }else{
         const clsId=document.getElementById('doc-entry-cls')?.value;
         const startDate=document.getElementById('doc-entry-start')?.value;
         const endDate=document.getElementById('doc-entry-end')?.value||startDate;
@@ -2869,11 +2943,9 @@ async function previewDoc(type){
         const students=studentsList.filter(s=>s.classId===clsId&&(s.status==='approved'||s.status==='active'));
         showLoader(true);
         const sigs=await loadWeeklySigsForRange(students.map(s=>s.kakaoId),startDate,endDate);
+        const pages=await generateDirectEntryHtml(cls,students,startDate,endDate,sigs);
         showLoader(false);
-        const html=generateDirectEntryHtml(cls,students,startDate,endDate,sigs);
-        document.getElementById('doc-preview-title').textContent='직권입력관리대장 미리보기';
-        document.getElementById('doc-preview-body').innerHTML=html;
-        document.getElementById('doc-preview-overlay').classList.add('open');
+        openDocWindow(pages);
     }
 }
 
@@ -2911,121 +2983,31 @@ function getAttForDate(kakaoId,date){
 async function generatePracticeCardHtml(cls,students,startDate,endDate,sigs){
     const allDates=getDatesInRange(startDate,endDate);
     const clsTt=cls?.timetableData||null;
-    // 실습일(timetable에 있는 날만)
     const practiceDates=clsTt?allDates.filter(d=>clsTt[d]):allDates;
-    const acName=directorData?.academyName||'';
-    const dirName=directorData?.name||'원장';
-
-    // 14일씩 페이지 분할, 학생 1명씩
     const pages=[];
     for(const stu of students){
-        for(let i=0;i<practiceDates.length;i+=14){
-            const chunk=practiceDates.slice(i,i+14);
-            const rows=chunk.map(d=>{
-                const att=getAttForDate(stu.kakaoId,d);
-                const sigData=sigs[String(stu.kakaoId)]?.[d]||null;
-                const sched=clsTt?.[d];
-                const inT=att?.inTime||'';
-                const outT=(att?.outTime&&/^\d/.test(att.outTime))?att.outTime:'';
-                const studentSig=sigData?.studentSig||att?.studentSig||'';
-                const managerSig=sigData?.managerSig||att?.managerSig||'';
-                return`<tr>
-                    <td>${d.slice(5).replace('-','/')}</td>
-                    <td>${sched?`${sched.start}~${sched.end}`:''}</td>
-                    <td>${inT}</td>
-                    <td>${outT}</td>
-                    <td style="text-align:center;">${studentSig?`<img src="data:image/png;base64,${studentSig}" style="height:28px;max-width:60px;object-fit:contain;">`:''}</td>
-                    <td style="text-align:center;">${managerSig?`<img src="data:image/png;base64,${managerSig}" style="height:28px;max-width:60px;object-fit:contain;">`:''}</td>
-                </tr>`;
-            }).join('');
-            pages.push(`<div style="page-break-after:always;padding:20px;font-family:sans-serif;font-size:12px;">
-                <div style="text-align:center;font-size:16px;font-weight:700;margin-bottom:12px;">현장실습 실습카드</div>
-                <div style="display:flex;gap:20px;margin-bottom:10px;font-size:12px;">
-                    <span><b>학원명:</b> ${acName}</span>
-                    <span><b>학생명:</b> ${stu.name||''}</span>
-                    <span><b>기간:</b> ${chunk[0]} ~ ${chunk[chunk.length-1]}</span>
-                </div>
-                <table style="width:100%;border-collapse:collapse;font-size:11px;">
-                    <thead><tr style="background:#f3f4f6;">
-                        <th style="border:1px solid #ccc;padding:4px;">날짜</th>
-                        <th style="border:1px solid #ccc;padding:4px;">실습시간</th>
-                        <th style="border:1px solid #ccc;padding:4px;">입실</th>
-                        <th style="border:1px solid #ccc;padding:4px;">퇴실</th>
-                        <th style="border:1px solid #ccc;padding:4px;">학생서명</th>
-                        <th style="border:1px solid #ccc;padding:4px;">담당자서명</th>
-                    </tr></thead>
-                    <tbody>${rows}</tbody>
-                </table>
-                <div style="margin-top:12px;font-size:11px;color:#666;">담당 관리자: ${dirName}</div>
-            </div>`);
-        }
+        const stuPages=await generateFromTemplate(
+            './template-card.html',cls,stu,practiceDates,sigs,
+            (att,sigData)=>sigData?.managerSig||att?.managerSig||''
+        );
+        pages.push(...stuPages);
     }
-    return pages.join('');
+    return pages;
 }
 
-function generateDirectEntryHtml(cls,students,startDate,endDate,sigs){
+async function generateDirectEntryHtml(cls,students,startDate,endDate,sigs){
     const allDates=getDatesInRange(startDate,endDate);
     const clsTt=cls?.timetableData||null;
     const practiceDates=clsTt?allDates.filter(d=>clsTt[d]):allDates;
-    const acName=directorData?.academyName||'';
-    const dirName=directorData?.name||'원장';
-    const clsName=cls?.name||'';
-    const clsCode=cls?.code||'';
-    const period=cls?.practiceStart&&cls?.practiceEnd?`${cls.practiceStart} ~ ${cls.practiceEnd}`:(practiceDates.length?`${practiceDates[0]} ~ ${practiceDates[practiceDates.length-1]}`:'');
-
-    // 모든 날짜 × 모든 학생 행 생성 (날짜순)
-    let seq=1;
-    const rows=[];
-    practiceDates.forEach(d=>{
-        const sched=clsTt?.[d];
-        students.forEach(stu=>{
-            const att=getAttForDate(stu.kakaoId,d);
-            const sigData=sigs[String(stu.kakaoId)]?.[d]||null;
-            const inT=att?.inTime||'';
-            const outT=(att?.outTime&&/^\d/.test(att.outTime))?att.outTime:'';
-            const studentSig=sigData?.studentSig||att?.studentSig||'';
-            rows.push(`<tr>
-                <td style="text-align:center;">${seq++}</td>
-                <td style="text-align:center;">${d.slice(0,4)}</td>
-                <td style="text-align:center;">${d.slice(5).replace('-','/')}</td>
-                <td>${stu.name||''}</td>
-                <td style="text-align:center;">${sched?`${sched.start}~${sched.end}`:''}</td>
-                <td style="text-align:center;">${inT}</td>
-                <td style="text-align:center;">${outT}</td>
-                <td style="text-align:center;font-size:10px;color:#555;">직인으로 대체</td>
-                <td style="text-align:center;">${studentSig?`<img src="data:image/png;base64,${studentSig}" style="height:28px;max-width:60px;object-fit:contain;">`:''}</td>
-            </tr>`);
-        });
-    });
-
-    // 50행씩 페이지 분할
     const pages=[];
-    for(let i=0;i<rows.length;i+=50){
-        const chunk=rows.slice(i,i+50);
-        pages.push(`<div style="page-break-after:always;padding:16px;font-family:sans-serif;font-size:11px;">
-            <div style="text-align:center;font-size:15px;font-weight:700;margin-bottom:10px;">직권입력관리대장</div>
-            <table style="width:100%;border-collapse:collapse;font-size:10px;margin-bottom:8px;">
-                <tr><td style="padding:2px 6px;"><b>훈련과정명:</b> 간호조무사 취득과정</td><td style="padding:2px 6px;"><b>과정코드:</b> ${clsCode}</td><td style="padding:2px 6px;"><b>반:</b> ${clsName}</td></tr>
-                <tr><td style="padding:2px 6px;"><b>훈련기관:</b> ${acName}</td><td style="padding:2px 6px;" colspan="2"><b>훈련기간:</b> ${period}</td></tr>
-                <tr><td style="padding:2px 6px;"><b>대상관리자:</b> ${dirName}</td></tr>
-            </table>
-            <table style="width:100%;border-collapse:collapse;font-size:10px;">
-                <thead><tr style="background:#f3f4f6;">
-                    <th style="border:1px solid #ccc;padding:3px;">순번</th>
-                    <th style="border:1px solid #ccc;padding:3px;">연도</th>
-                    <th style="border:1px solid #ccc;padding:3px;">날짜</th>
-                    <th style="border:1px solid #ccc;padding:3px;">학생명</th>
-                    <th style="border:1px solid #ccc;padding:3px;">현장훈련</th>
-                    <th style="border:1px solid #ccc;padding:3px;">입실</th>
-                    <th style="border:1px solid #ccc;padding:3px;">퇴실</th>
-                    <th style="border:1px solid #ccc;padding:3px;">관리자서명</th>
-                    <th style="border:1px solid #ccc;padding:3px;">학생서명</th>
-                </tr></thead>
-                <tbody>${chunk.join('')}</tbody>
-            </table>
-        </div>`);
+    for(const stu of students){
+        const stuPages=await generateFromTemplate(
+            './template-entry.html',cls,stu,practiceDates,sigs,
+            ()=>''
+        );
+        pages.push(...stuPages);
     }
-    return pages.join('')||'<div style="padding:20px;color:#888;">해당 기간에 출결 데이터가 없습니다.</div>';
+    return pages;
 }
 
 // ── 등록된 반 목록 ────────────────────────────────────────
