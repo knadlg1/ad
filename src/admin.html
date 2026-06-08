@@ -2875,7 +2875,7 @@ function fmtDocDate(dateStr){
 async function generateFromTemplate(templateUrl,cls,stu,practiceDates,sigs,getManagerSig){
     const resp=await fetch(templateUrl);
     let rawHtml=decodeNumericEntities(await resp.text());
-    // 각 데이터 행의 <td>에 {{ROW_CELL_STYLE_N}} 플레이스홀더 주입
+    // 각 데이터 행의 <td>에 스타일/이름/사유 플레이스홀더 주입
     for(let i=1;i<=30;i++){
         const marker=`{{단위기간시작일${i}}}`;
         const mi=rawHtml.indexOf(marker);
@@ -2883,9 +2883,11 @@ async function generateFromTemplate(templateUrl,cls,stu,practiceDates,sigs,getMa
         const trStart=rawHtml.lastIndexOf('<tr',mi);
         const trEnd=rawHtml.indexOf('</tr>',mi);
         if(trStart===-1||trEnd===-1)continue;
-        const rowSlice=rawHtml.slice(trStart,trEnd+5);
-        const newRow=rowSlice.replace(/<td/g,`<td {{ROW_CELL_STYLE_${i}}}`);
-        rawHtml=rawHtml.slice(0,trStart)+newRow+rawHtml.slice(trEnd+5);
+        let rowSlice=rawHtml.slice(trStart,trEnd+5);
+        rowSlice=rowSlice.replace(/<td/g,`<td {{ROW_CELL_STYLE_${i}}}`);
+        rowSlice=rowSlice.replace('{{이름}}',`{{이름_${i}}}`);
+        rowSlice=rowSlice.replace(/>실습</,`>{{사유_${i}}}<`);
+        rawHtml=rawHtml.slice(0,trStart)+rowSlice+rawHtml.slice(trEnd+5);
     }
     const acName=directorData?.academyName||'';
     const dirName=directorData?.name||'';
@@ -2917,6 +2919,8 @@ async function generateFromTemplate(templateUrl,cls,stu,practiceDates,sigs,getMa
                 const mgrSig=getManagerSig(att,sigData);
                 map[`ROW_CELL_STYLE_${i}`]=hasAtt?'':'style="background-color:#e8e8e8"';
                 map[`단위기간시작일${i}`]=fmtDocDate(date);
+                map[`이름_${i}`]=stu.name||'';
+                map[`사유_${i}`]='실습';
                 map[`출근시간${i}`]=inT;
                 map[`퇴근시간${i}`]=outT;
                 map[`누적시간${i}`]=minutesToHM(cumMins);
@@ -2924,7 +2928,8 @@ async function generateFromTemplate(templateUrl,cls,stu,practiceDates,sigs,getMa
                 map[`담당자서명${i}`]=mgrSig?`<img src="data:image/png;base64,${mgrSig}" style="max-height:28px;max-width:70px;vertical-align:middle;">`:' ';
             }else{
                 map[`ROW_CELL_STYLE_${i}`]='style="background-color:#e8e8e8"';
-                map[`단위기간시작일${i}`]='';map[`출근시간${i}`]='';map[`퇴근시간${i}`]='';
+                map[`단위기간시작일${i}`]='';map[`이름_${i}`]='';map[`사유_${i}`]='';
+                map[`출근시간${i}`]='';map[`퇴근시간${i}`]='';
                 map[`누적시간${i}`]='';map[`학생서명${i}`]='';map[`담당자서명${i}`]='';
             }
         }
