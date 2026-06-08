@@ -1114,7 +1114,7 @@ let calClickStep = 0;
 let pendingStudents = [];
 let missingOutRequests = [];
 let academyHospitals = [];
-let parsedHolidays = [], parsedPracticeDays = [], parsedFileName = '', parsedClassId = '', parsedTimetableData = {};
+let parsedHolidays = [], parsedPracticeDays = [], parsedFileName = '', parsedClassId = '', parsedTimetableData = {}, parsedTrainStart = null, parsedTrainEnd = null;
 let regPhone = '';
 let lastUpdatedAt = null;
 
@@ -2446,7 +2446,7 @@ function processFile(file){
             const wb=XLSX.read(e.target.result,{type:'binary'});
             const ws=wb.Sheets[wb.SheetNames[0]];
             const rows=XLSX.utils.sheet_to_json(ws,{header:1,raw:true});
-            parsedTimetableData={};parsedPracticeDays=[];parsedHolidays=[];
+            parsedTimetableData={};parsedPracticeDays=[];parsedHolidays=[];parsedTrainStart=null;parsedTrainEnd=null;
             function pD(raw){
                 if(raw==null||raw==='')return null;
                 if(typeof raw==='number'){const adj=raw>59?raw-1:raw;const d=new Date((adj-25569)*86400000);const yr=d.getUTCFullYear(),mo=String(d.getUTCMonth()+1).padStart(2,'0'),dy=String(d.getUTCDate()).padStart(2,'0');if(yr<1990||yr>2100)return null;return `${yr}-${mo}-${dy}`;}
@@ -2468,6 +2468,8 @@ function processFile(file){
             }
             rows.forEach(row=>{
                 const date=pD(row[0]);if(!date)return;
+                if(!parsedTrainStart||date<parsedTrainStart)parsedTrainStart=date;
+                if(!parsedTrainEnd||date>parsedTrainEnd)parsedTrainEnd=date;
                 if(parsedTimetableData[date])return;
                 const subj=((row[8]||'').toString()).trim();
                 if(!subj.includes('현장실습'))return;
@@ -2549,7 +2551,7 @@ function toggleDay(ds){
     renderTTCalendar();
 }
 
-function resetTimetable(){parsedHolidays=[];parsedPracticeDays=[];parsedTimetableData={};parsedClassId='';document.getElementById('tt-parse-result').style.display='none';document.getElementById('tt-file').value='';}
+function resetTimetable(){parsedHolidays=[];parsedPracticeDays=[];parsedTimetableData={};parsedClassId='';parsedTrainStart=null;parsedTrainEnd=null;document.getElementById('tt-parse-result').style.display='none';document.getElementById('tt-file').value='';}
 
 async function saveTimetable(){
     if(!parsedClassId||(!parsedPracticeDays.length&&!parsedHolidays.length)){showToast('반과 일정을 확인해주세요','info');return;}
@@ -2557,7 +2559,7 @@ async function saveTimetable(){
     try{
         const all=[...parsedPracticeDays,...parsedHolidays].sort();
         const sortedPrac=parsedPracticeDays.slice().sort();
-        await window.fsUpdateDoc(window.fsDoc(window.db,'classes',parsedClassId),{holidays:parsedHolidays,practiceDays:parsedPracticeDays,timetableData:parsedTimetableData,timetableFileName:parsedFileName,timetableUpdatedAt:Date.now(),practiceStart:sortedPrac.length?sortedPrac[0]:null,practiceEnd:sortedPrac.length?sortedPrac[sortedPrac.length-1]:null});
+        await window.fsUpdateDoc(window.fsDoc(window.db,'classes',parsedClassId),{holidays:parsedHolidays,practiceDays:parsedPracticeDays,timetableData:parsedTimetableData,timetableFileName:parsedFileName,timetableUpdatedAt:Date.now(),practiceStart:sortedPrac.length?sortedPrac[0]:null,practiceEnd:sortedPrac.length?sortedPrac[sortedPrac.length-1]:null,trainStart:parsedTrainStart,trainEnd:parsedTrainEnd});
         if(all.length){
             const s=all[0],e=all[all.length-1];
             const members=studentsList.filter(ss=>ss.classId===parsedClassId);
@@ -2652,7 +2654,7 @@ function renderVtabClasses(){
 }
 
 // vtab-cls 반 생성용 전자시간표 변수
-let clsTtHolidays=[], clsTtPracticeDays=[], clsTtFileName='', clsTtData={};
+let clsTtHolidays=[], clsTtPracticeDays=[], clsTtFileName='', clsTtData={}, clsTtTrainStart=null, clsTtTrainEnd=null;
 function toMins(t){const p=(t||'').split(':').map(Number);return(p[0]||0)*60+(p[1]||0);}
 function normDate(d){if(d&&/^\d{8}$/.test(d))return`${d.slice(0,4)}-${d.slice(4,6)}-${d.slice(6,8)}`;return d||'';}
 function getClsPracticePeriod(cls){
@@ -2700,7 +2702,7 @@ function parseClsTimetable(e){
             const wb=XLSX.read(ev.target.result,{type:'binary'});
             const ws=wb.Sheets[wb.SheetNames[0]];
             const rows=XLSX.utils.sheet_to_json(ws,{header:1,raw:true});
-            clsTtData={};clsTtPracticeDays=[];clsTtHolidays=[];
+            clsTtData={};clsTtPracticeDays=[];clsTtHolidays=[];clsTtTrainStart=null;clsTtTrainEnd=null;
 
             // Excel 날짜 시리얼 → "YYYY-MM-DD"
             function parseDate(raw){
@@ -2738,6 +2740,8 @@ function parseClsTimetable(e){
             rows.forEach(row=>{
                 const date=parseDate(row[0]);
                 if(!date)return;
+                if(!clsTtTrainStart||date<clsTtTrainStart)clsTtTrainStart=date;
+                if(!clsTtTrainEnd||date>clsTtTrainEnd)clsTtTrainEnd=date;
                 if(clsTtData[date])return;
                 const subj=((row[8]||'').toString()).trim();
                 if(!subj.includes('현장실습'))return;
@@ -2770,7 +2774,7 @@ function parseClsTimetable(e){
 }
 
 function resetClsTimetable(){
-    clsTtHolidays=[];clsTtPracticeDays=[];clsTtFileName='';clsTtData={};
+    clsTtHolidays=[];clsTtPracticeDays=[];clsTtFileName='';clsTtData={};clsTtTrainStart=null;clsTtTrainEnd=null;
     document.getElementById('cls-file-label').textContent='선택된 파일 없음';
     document.getElementById('cls-tt-parse').style.display='none';
     document.getElementById('cls-tt-file').value='';
@@ -2799,6 +2803,7 @@ async function createClassFromVtab(){
             timetableFileName:clsTtFileName,timetableUpdatedAt:Date.now(),
             practiceStart:sortedDays.length?sortedDays[0]:null,
             practiceEnd:sortedDays.length?sortedDays[sortedDays.length-1]:null,
+            trainStart:clsTtTrainStart,trainEnd:clsTtTrainEnd,
             students:[],createdAt:Date.now()
         });
         showToast('반 추가 완료','success');
@@ -2862,12 +2867,31 @@ function minutesToHM(mins){
     const h=Math.floor(mins/60),m=mins%60;
     return m>0?`${h}시간 ${m}분`:`${h}시간`;
 }
+function fmtDocDate(dateStr){
+    if(!dateStr)return'';
+    const[y,m,d]=dateStr.split('-');
+    return`${y}년 ${parseInt(m)}월 ${parseInt(d)}일`;
+}
 async function generateFromTemplate(templateUrl,cls,stu,practiceDates,sigs,getManagerSig){
     const resp=await fetch(templateUrl);
-    const rawHtml=decodeNumericEntities(await resp.text());
+    let rawHtml=decodeNumericEntities(await resp.text());
+    // 각 데이터 행의 <td>에 {{ROW_CELL_STYLE_N}} 플레이스홀더 주입
+    for(let i=1;i<=30;i++){
+        const marker=`{{단위기간시작일${i}}}`;
+        const mi=rawHtml.indexOf(marker);
+        if(mi===-1)continue;
+        const trStart=rawHtml.lastIndexOf('<tr',mi);
+        const trEnd=rawHtml.indexOf('</tr>',mi);
+        if(trStart===-1||trEnd===-1)continue;
+        const rowSlice=rawHtml.slice(trStart,trEnd+5);
+        const newRow=rowSlice.replace(/<td/g,`<td {{ROW_CELL_STYLE_${i}}}`);
+        rawHtml=rawHtml.slice(0,trStart)+newRow+rawHtml.slice(trEnd+5);
+    }
     const acName=directorData?.academyName||'';
     const dirName=directorData?.name||'';
-    const totalPeriod=cls?.practiceStart&&cls?.practiceEnd?`${cls.practiceStart} ~ ${cls.practiceEnd}`:'';
+    const totalPeriod=cls?.trainStart&&cls?.trainEnd
+        ?`${fmtDocDate(cls.trainStart)} ~ ${fmtDocDate(cls.trainEnd)}`
+        :(cls?.practiceStart&&cls?.practiceEnd?`${fmtDocDate(cls.practiceStart)} ~ ${fmtDocDate(cls.practiceEnd)}`:'');
     const pages=[];
     const totalChunks=Math.max(1,Math.ceil(practiceDates.length/30));
     for(let pi=0;pi<totalChunks;pi++){
@@ -2875,7 +2899,8 @@ async function generateFromTemplate(templateUrl,cls,stu,practiceDates,sigs,getMa
         const map={
             '학원명':acName,'이름':stu.name||'','전체훈련기간':totalPeriod,
             '원장님이름':dirName,
-            '기간시작일':chunk[0]||'','기간종료일':chunk[chunk.length-1]||'',
+            '기간시작일':chunk[0]?fmtDocDate(chunk[0]):'',
+            '기간종료일':chunk[chunk.length-1]?fmtDocDate(chunk[chunk.length-1]):'',
         };
         let cumMins=0;
         for(let i=1;i<=30;i++){
@@ -2886,16 +2911,19 @@ async function generateFromTemplate(templateUrl,cls,stu,practiceDates,sigs,getMa
                 const inT=att?.inTime||'';
                 const outT=(att?.outTime&&/^\d/.test(att.outTime))?att.outTime:'';
                 const inM=timeToMinutes(inT),outM=timeToMinutes(outT);
+                const hasAtt=inT||outT;
                 if(inM>0&&outM>inM)cumMins+=outM-inM;
                 const stuSig=sigData?.studentSig||att?.studentSig||'';
                 const mgrSig=getManagerSig(att,sigData);
-                map[`단위기간시작일${i}`]=date.slice(5).replace('-','/');
+                map[`ROW_CELL_STYLE_${i}`]=hasAtt?'':'style="background-color:#e8e8e8"';
+                map[`단위기간시작일${i}`]=fmtDocDate(date);
                 map[`출근시간${i}`]=inT;
                 map[`퇴근시간${i}`]=outT;
                 map[`누적시간${i}`]=minutesToHM(cumMins);
                 map[`학생서명${i}`]=stuSig?`<img src="data:image/png;base64,${stuSig}" style="max-height:28px;max-width:70px;vertical-align:middle;">`:' ';
                 map[`담당자서명${i}`]=mgrSig?`<img src="data:image/png;base64,${mgrSig}" style="max-height:28px;max-width:70px;vertical-align:middle;">`:' ';
             }else{
+                map[`ROW_CELL_STYLE_${i}`]='style="background-color:#e8e8e8"';
                 map[`단위기간시작일${i}`]='';map[`출근시간${i}`]='';map[`퇴근시간${i}`]='';
                 map[`누적시간${i}`]='';map[`학생서명${i}`]='';map[`담당자서명${i}`]='';
             }
@@ -3011,7 +3039,7 @@ async function generateDirectEntryHtml(cls,students,startDate,endDate,sigs){
 }
 
 // ── 등록된 반 목록 ────────────────────────────────────────
-let editingClsId=null, editClsTtData={}, editClsTtPracticeDays=[], editClsTtFileName='';
+let editingClsId=null, editClsTtData={}, editClsTtPracticeDays=[], editClsTtFileName='', editClsTtTrainStart=null, editClsTtTrainEnd=null;
 
 function renderRegisteredClasses(){
     const el=document.getElementById('cls-reg-list');
@@ -3118,10 +3146,10 @@ function parseEditClsTimetable(e){
             const wb=XLSX.read(ev.target.result,{type:'binary'});
             const ws=wb.Sheets[wb.SheetNames[0]];
             const rows=XLSX.utils.sheet_to_json(ws,{header:1,raw:true});
-            editClsTtData={};editClsTtPracticeDays=[];
+            editClsTtData={};editClsTtPracticeDays=[];editClsTtTrainStart=null;editClsTtTrainEnd=null;
             function parseDate(raw){if(raw==null||raw==='')return null;if(typeof raw==='number'){const adj=raw>59?raw-1:raw;const d=new Date((adj-25569)*86400000);const yr=d.getUTCFullYear(),mo=String(d.getUTCMonth()+1).padStart(2,'0'),dy=String(d.getUTCDate()).padStart(2,'0');if(yr<1990||yr>2100)return null;return`${yr}-${mo}-${dy}`;}const s=raw.toString().trim();if(/^\d{8}$/.test(s))return`${s.slice(0,4)}-${s.slice(4,6)}-${s.slice(6,8)}`;if(/^\d{4}-\d{2}-\d{2}$/.test(s))return s;return null;}
             function parseTime(raw){if(raw==null||raw==='')return null;if(typeof raw==='number'){const totalMins=Math.round(raw*24*60);const h=Math.floor(totalMins/60),m=totalMins%60;return`${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;}const s=raw.toString().trim();if(/^\d{4}$/.test(s))return`${s.slice(0,2)}:${s.slice(2,4)}`;if(/^\d{1,2}:\d{2}/.test(s))return s.slice(0,5);return null;}
-            rows.forEach(row=>{const date=parseDate(row[0]);if(!date)return;if(editClsTtData[date])return;const subj=((row[8]||'').toString()).trim();if(!subj.includes('현장실습'))return;const start=parseTime(row[1]);const end=parseTime(row[2]);if(!start||!end)return;editClsTtData[date]={start,end};editClsTtPracticeDays.push(date);});
+            rows.forEach(row=>{const date=parseDate(row[0]);if(!date)return;if(!editClsTtTrainStart||date<editClsTtTrainStart)editClsTtTrainStart=date;if(!editClsTtTrainEnd||date>editClsTtTrainEnd)editClsTtTrainEnd=date;if(editClsTtData[date])return;const subj=((row[8]||'').toString()).trim();if(!subj.includes('현장실습'))return;const start=parseTime(row[1]);const end=parseTime(row[2]);if(!start||!end)return;editClsTtData[date]={start,end};editClsTtPracticeDays.push(date);});
             const lbl=document.getElementById(`cls-edit-file-label-${clsId}`);
             if(lbl)lbl.textContent=editClsTtFileName;
             const parseEl=document.getElementById(`cls-edit-tt-parse-${clsId}`);
@@ -3152,10 +3180,12 @@ async function saveEditedClsTimetable(clsId){
             timetableFileName:editClsTtFileName,
             timetableUpdatedAt:Date.now(),
             practiceStart:sortedDays[0],
-            practiceEnd:sortedDays[sortedDays.length-1]
+            practiceEnd:sortedDays[sortedDays.length-1],
+            trainStart:editClsTtTrainStart,
+            trainEnd:editClsTtTrainEnd
         });
         const cls=classesList.find(c=>c.id===clsId);
-        if(cls){cls.timetableData=editClsTtData;cls.practiceDays=editClsTtPracticeDays;cls.practiceStart=sortedDays[0];cls.practiceEnd=sortedDays[sortedDays.length-1];}
+        if(cls){cls.timetableData=editClsTtData;cls.practiceDays=editClsTtPracticeDays;cls.practiceStart=sortedDays[0];cls.practiceEnd=sortedDays[sortedDays.length-1];cls.trainStart=editClsTtTrainStart;cls.trainEnd=editClsTtTrainEnd;}
         showToast('시간표 저장됨 (Firestore 반영 완료)','success');
         cancelEditClsTimetable(clsId);
         renderRegisteredClasses();
