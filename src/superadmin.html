@@ -369,6 +369,12 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--canvas);color:var
                 <option value="">전체 병원</option>
               </select>
             </div>
+            <div class="form-group" style="min-width:140px;">
+              <label class="form-label">학생</label>
+              <select class="form-select" id="log-filter-student" disabled>
+                <option value="">전체 학생</option>
+              </select>
+            </div>
             <div class="form-group" style="min-width:120px;">
               <label class="form-label">결과</label>
               <select class="form-select" id="log-filter-result">
@@ -1714,8 +1720,12 @@ function populateLogAcademySelect(){
 function onLogAcademyChange(){
     const academyId = document.getElementById('log-filter-academy').value;
     const hospSel   = document.getElementById('log-filter-hospital-select');
+    const stuSel    = document.getElementById('log-filter-student');
     hospSel.innerHTML = '<option value="">전체 병원</option>';
+    stuSel.innerHTML  = '<option value="">전체 학생</option>';
+    stuSel.disabled   = true;
     if (!academyId){ hospSel.disabled = true; return; }
+
     const hospitals = allAcademies.find(a=>a.id===academyId)?.hospitals || [];
     if (hospitals.length){
         hospitals.forEach(h => {
@@ -1728,6 +1738,21 @@ function onLogAcademyChange(){
     } else {
         hospSel.disabled = true;
     }
+
+    window.fsGetDocs(window.fsQuery(window.fsCollection(window.db,'students'), window.fsWhere('academyId','==',academyId)))
+        .then(snap => {
+            const students = [];
+            snap.forEach(d => students.push({id:d.id,...d.data()}));
+            students.sort((a,b)=>(a.name||'').localeCompare(b.name||'','ko'));
+            students.forEach(s => {
+                const opt = document.createElement('option');
+                opt.value = String(s.kakaoId||s.id);
+                opt.textContent = s.name || s.id;
+                stuSel.appendChild(opt);
+            });
+            if (students.length) stuSel.disabled = false;
+        })
+        .catch(()=>{});
 }
 
 async function loadLogs(){
@@ -1736,6 +1761,7 @@ async function loadLogs(){
         const dateStart  = document.getElementById('log-filter-date-start').value;
         const dateEnd    = document.getElementById('log-filter-date-end').value;
         const hospitalVal= document.getElementById('log-filter-hospital-select').value;
+        const studentVal = document.getElementById('log-filter-student').value;
         const resultVal  = document.getElementById('log-filter-result').value;
 
         if (dateStart && dateEnd && dateStart > dateEnd){
@@ -1761,8 +1787,9 @@ async function loadLogs(){
 
         const snap = await window.fsGetDocs(window.fsQuery(col, ...constraints));
 
-        const rows = [];
+        let rows = [];
         snap.forEach(d => rows.push(d.data()));
+        if (studentVal) rows = rows.filter(r => String(r.kakaoId||'') === studentVal);
 
         document.getElementById('logs-count').textContent = `총 ${rows.length}건 조회 (최대 ${limitVal}건)`;
 
