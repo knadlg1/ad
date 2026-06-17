@@ -350,12 +350,24 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--canvas);color:var
         <div class="card" style="margin-bottom:16px;">
           <div class="form-row" style="flex-wrap:wrap;gap:12px;align-items:flex-end;">
             <div class="form-group" style="min-width:130px;">
-              <label class="form-label">날짜</label>
-              <input class="form-input" type="date" id="log-filter-date">
+              <label class="form-label">시작 날짜</label>
+              <input class="form-input" type="date" id="log-filter-date-start">
             </div>
-            <div class="form-group" style="min-width:160px;">
-              <label class="form-label">학원/병원 ID</label>
-              <input class="form-input" type="text" id="log-filter-hospital" placeholder="hospitalId 또는 공란">
+            <div class="form-group" style="min-width:130px;">
+              <label class="form-label">종료 날짜</label>
+              <input class="form-input" type="date" id="log-filter-date-end">
+            </div>
+            <div class="form-group" style="min-width:150px;">
+              <label class="form-label">학원</label>
+              <select class="form-select" id="log-filter-academy" onchange="onLogAcademyChange()">
+                <option value="">전체 학원</option>
+              </select>
+            </div>
+            <div class="form-group" style="min-width:150px;">
+              <label class="form-label">병원</label>
+              <select class="form-select" id="log-filter-hospital-select" disabled>
+                <option value="">전체 병원</option>
+              </select>
             </div>
             <div class="form-group" style="min-width:120px;">
               <label class="form-label">결과</label>
@@ -1683,24 +1695,60 @@ async function saveAttRecord(){
 
 // ── Attendance Logs ────────────────────────────────────────
 function initLogsPage(){
-    const dateEl = document.getElementById('log-filter-date');
-    if (!dateEl.value) dateEl.value = todayKST();
+    const today = todayKST();
+    if (!document.getElementById('log-filter-date-start').value) document.getElementById('log-filter-date-start').value = today;
+    if (!document.getElementById('log-filter-date-end').value)   document.getElementById('log-filter-date-end').value   = today;
+    if (!allAcademies.length) loadAcademies().then(populateLogAcademySelect);
+    else populateLogAcademySelect();
     loadLogs();
+}
+
+function populateLogAcademySelect(){
+    const sel = document.getElementById('log-filter-academy');
+    const prev = sel.value;
+    sel.innerHTML = '<option value="">전체 학원</option>'
+        + allAcademies.map(a=>`<option value="${a.id}">${escHtml(a.name)}</option>`).join('');
+    if (prev) sel.value = prev;
+}
+
+function onLogAcademyChange(){
+    const academyId = document.getElementById('log-filter-academy').value;
+    const hospSel   = document.getElementById('log-filter-hospital-select');
+    hospSel.innerHTML = '<option value="">전체 병원</option>';
+    if (!academyId){ hospSel.disabled = true; return; }
+    const hospitals = allAcademies.find(a=>a.id===academyId)?.hospitals || [];
+    if (hospitals.length){
+        hospitals.forEach(h => {
+            const opt = document.createElement('option');
+            opt.value = hospIdFromName(h.name);
+            opt.textContent = h.name;
+            hospSel.appendChild(opt);
+        });
+        hospSel.disabled = false;
+    } else {
+        hospSel.disabled = true;
+    }
 }
 
 async function loadLogs(){
     showLoader(true);
     try {
-        const dateVal    = document.getElementById('log-filter-date').value;
-        const hospitalVal= document.getElementById('log-filter-hospital').value.trim();
+        const dateStart  = document.getElementById('log-filter-date-start').value;
+        const dateEnd    = document.getElementById('log-filter-date-end').value;
+        const hospitalVal= document.getElementById('log-filter-hospital-select').value;
         const resultVal  = document.getElementById('log-filter-result').value;
+
+        if (dateStart && dateEnd && dateStart > dateEnd){
+            showToast('시작 날짜가 종료 날짜보다 늦습니다','error');
+            showLoader(false); return;
+        }
 
         const col = window.fsCollection(window.db, 'attendanceLogs');
         const constraints = [];
 
-        if (dateVal) {
-            const start = new Date(dateVal + 'T00:00:00+09:00');
-            const end   = new Date(dateVal + 'T23:59:59+09:00');
+        if (dateStart) {
+            const start = new Date(dateStart + 'T00:00:00+09:00');
+            const end   = new Date((dateEnd || dateStart) + 'T23:59:59+09:00');
             constraints.push(window.fsWhere('ts', '>=', start));
             constraints.push(window.fsWhere('ts', '<=', end));
         }
