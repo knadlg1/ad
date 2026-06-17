@@ -283,8 +283,12 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--canvas);color:var
               </select>
             </div>
             <div class="form-group" style="min-width:130px;">
-              <label class="form-label">날짜</label>
-              <input type="date" id="data-date-input" class="form-input">
+              <label class="form-label">시작 날짜</label>
+              <input type="date" id="data-date-start" class="form-input">
+            </div>
+            <div class="form-group" style="min-width:130px;">
+              <label class="form-label">종료 날짜</label>
+              <input type="date" id="data-date-end" class="form-input">
             </div>
             <div>
               <button class="btn btn-primary" onclick="loadAttendanceByFilter()">조회</button>
@@ -1143,8 +1147,9 @@ function removeHospital(name){
 
 // ── Academy Data ───────────────────────────────────────────
 async function initDataPage(){
-    const dateEl = document.getElementById('data-date-input');
-    if (!dateEl.value) dateEl.value = todayKST();
+    const today = todayKST();
+    if (!document.getElementById('data-date-start').value) document.getElementById('data-date-start').value = today;
+    if (!document.getElementById('data-date-end').value)   document.getElementById('data-date-end').value   = today;
     if (!allAcademies.length) await loadAcademies();
     populateDataAcademySelect();
     document.getElementById('data-result').innerHTML = '';
@@ -1223,9 +1228,11 @@ async function loadAttendanceByFilter(){
     const academyId  = document.getElementById('data-academy-select').value;
     const classId    = document.getElementById('data-class-select').value;
     const studentKid = document.getElementById('data-student-select').value;
-    const date       = document.getElementById('data-date-input').value;
+    const dateStart  = document.getElementById('data-date-start').value;
+    const dateEnd    = document.getElementById('data-date-end').value;
     if (!academyId){ showToast('학원을 선택해주세요','error'); return; }
-    if (!date){ showToast('날짜를 선택해주세요','error'); return; }
+    if (!dateStart || !dateEnd){ showToast('날짜 범위를 선택해주세요','error'); return; }
+    if (dateStart > dateEnd){ showToast('시작 날짜가 종료 날짜보다 늦습니다','error'); return; }
     showLoader(true);
     try {
         // 해당 학원 학생 전체 로드 → kakaoId → 학생 정보 Map
@@ -1247,7 +1254,9 @@ async function loadAttendanceByFilter(){
 
         // 선택 날짜의 출결 전체 조회
         const attSnap = await window.fsGetDocs(
-            window.fsQuery(window.fsCollection(window.db,'attendance'), window.fsWhere('date','==',date))
+            window.fsQuery(window.fsCollection(window.db,'attendance'),
+                window.fsWhere('date','>=',dateStart),
+                window.fsWhere('date','<=',dateEnd))
         );
         const records = [];
         attSnap.forEach(d => {
@@ -1267,8 +1276,8 @@ async function loadAttendanceByFilter(){
                 hospital: a.hospital || ''
             });
         });
-        records.sort((a,b)=>(a.name||'').localeCompare(b.name||'','ko'));
-        renderAttendanceTable(records, date, academyId);
+        records.sort((a,b)=>((a.name||'').localeCompare(b.name||'','ko')) || (a.date||'').localeCompare(b.date||''));
+        renderAttendanceTable(records, dateStart, dateEnd, academyId);
     } catch(e){ showToast('조회 실패: '+e.message,'error'); }
     showLoader(false);
 }
@@ -1293,9 +1302,10 @@ function ensureAttListeners(){
     });
 }
 
-function renderAttendanceTable(records, date, academyId){
+function renderAttendanceTable(records, dateStart, dateEnd, academyId){
     ensureAttListeners();
     const el = document.getElementById('data-result');
+    const dateLabel = dateStart === dateEnd ? dateStart : `${dateStart} ~ ${dateEnd}`;
     const rows = records.map(r=>`
       <tr>
         <td style="font-weight:600;">${r.name}</td>
@@ -1322,7 +1332,7 @@ function renderAttendanceTable(records, date, academyId){
       </tr>`).join('');
 
     el.innerHTML = `
-      <div style="font-size:13px;color:var(--muted);margin-bottom:10px;">${date} 출결 기록 — ${records.length}건</div>
+      <div style="font-size:13px;color:var(--muted);margin-bottom:10px;">${dateLabel} 출결 기록 — ${records.length}건</div>
       <div class="card" style="padding:0;overflow:hidden;">
         <table class="tbl">
           <thead><tr><th>학생</th><th>반</th><th>날짜</th><th>출근</th><th>퇴근</th><th>병원</th><th>수정/삭제</th></tr></thead>
