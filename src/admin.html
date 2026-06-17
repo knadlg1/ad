@@ -1113,6 +1113,7 @@ let classesList = [];
 let attendanceRecords = [];
 let sidebarClassFilter = '';
 let studentFilter = '';
+let attStuNameFilter = '';
 let calYear = new Date().getFullYear();
 let calMonth = new Date().getMonth();
 let calStart = '';
@@ -1512,6 +1513,7 @@ function renderStudentDropdown(){
 
 function onStudentSearchInput(){
     const q=document.getElementById('att-stu-search').value.trim();
+    attStuNameFilter=q;
     const sel=document.getElementById('att-stu-select');
     let list=sidebarClassFilter?studentsList.filter(s=>s.classId===sidebarClassFilter):studentsList;
     if(q)list=list.filter(s=>(s.name||'').includes(q));
@@ -1522,6 +1524,7 @@ function onStudentSearchInput(){
 }
 
 function onStudentSelectChange(){
+    attStuNameFilter='';
     studentFilter=document.getElementById('att-stu-select').value;
     renderAttendance();
 }
@@ -1584,7 +1587,7 @@ function renderAttendance(){
 
     // 테이블 학생 목록 필터
     const emptyEl=document.getElementById('att-empty');
-    let filtered=studentsList.filter(s=>(!classFilter||s.classId===classFilter)&&(!stuFilter||String(s.kakaoId)===stuFilter));
+    let filtered=studentsList.filter(s=>(!classFilter||s.classId===classFilter)&&(!stuFilter||String(s.kakaoId)===stuFilter)&&(!attStuNameFilter||(s.name||'').includes(attStuNameFilter)));
     filtered.sort((a,b)=>{
         const ca=(classesList.find(c=>c.id===a.classId)||{name:'ㅎ'}).name;
         const cb=(classesList.find(c=>c.id===b.classId)||{name:'ㅎ'}).name;
