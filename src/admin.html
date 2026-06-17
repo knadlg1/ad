@@ -274,6 +274,11 @@ body{font-family:'Pretendard',system-ui,sans-serif;background:var(--canvas);colo
 .doc-preview-btn{padding:10px;border-radius:9px;font-size:13px;font-weight:700;cursor:pointer;border:none;background:var(--brand);color:#fff;margin-top:4px;transition:.15s;}
 .doc-preview-btn:hover{opacity:.88;}
 .doc-preview-btn:disabled{background:var(--muted);opacity:.5;cursor:not-allowed;}
+.doc-stu-list{border:1.5px solid var(--border-strong);border-radius:7px;padding:5px 8px;max-height:160px;overflow-y:auto;background:#fff;}
+.doc-stu-empty{font-size:12px;color:var(--muted);padding:4px 2px;}
+.doc-stu-all{display:flex;align-items:center;gap:7px;font-size:12px;font-weight:800;color:var(--brand);padding:4px 2px 6px;border-bottom:1px solid var(--border);margin-bottom:3px;cursor:pointer;}
+.doc-stu-row{display:flex;align-items:center;gap:7px;font-size:12px;font-weight:600;color:var(--text);padding:3px 2px;cursor:pointer;border-radius:5px;}
+.doc-stu-row:hover{background:var(--brand-xlight);}
 /* 승인 탭 구분 */
 .approve-section-head{font-size:12px;font-weight:800;color:var(--brand);padding:7px 10px;background:var(--brand-xlight);border-radius:8px;margin-bottom:10px;margin-top:4px;letter-spacing:0.03em;}
 /* 반정보 - 등록된 반 목록 */
@@ -821,9 +826,7 @@ body{font-family:'Pretendard',system-ui,sans-serif;background:var(--canvas);colo
                 </div>
                 <div>
                   <div class="doc-sel-label">학생 선택</div>
-                  <select class="doc-select" id="doc-card-stu">
-                    <option value="">반을 먼저 선택하세요</option>
-                  </select>
+                  <div class="doc-stu-list" id="doc-card-stu-list"><div class="doc-stu-empty">반을 먼저 선택하세요</div></div>
                 </div>
                 <div>
                   <div class="doc-sel-label">날짜 선택</div>
@@ -840,9 +843,13 @@ body{font-family:'Pretendard',system-ui,sans-serif;background:var(--canvas);colo
               <div class="doc-form-section" id="doc-form-entry">
                 <div>
                   <div class="doc-sel-label">반 선택</div>
-                  <select class="doc-select" id="doc-entry-cls">
+                  <select class="doc-select" id="doc-entry-cls" onchange="updateDocEntryStudents()">
                     <option value="">반을 선택하세요</option>
                   </select>
+                </div>
+                <div>
+                  <div class="doc-sel-label">학생 선택</div>
+                  <div class="doc-stu-list" id="doc-entry-stu-list"><div class="doc-stu-empty">반을 먼저 선택하세요</div></div>
                 </div>
                 <div>
                   <div class="doc-sel-label">날짜 선택</div>
@@ -2830,6 +2837,7 @@ function initDocTab(){
         if(cur)sel.value=cur;
     });
     updateDocCardStudents();
+    updateDocEntryStudents();
 }
 
 function selectDocType(type){
@@ -2842,11 +2850,34 @@ function selectDocType(type){
 
 function updateDocCardStudents(){
     const clsId=document.getElementById('doc-card-cls')?.value||'';
-    const sel=document.getElementById('doc-card-stu');
-    if(!sel)return;
-    if(!clsId){sel.innerHTML='<option value="">반을 먼저 선택하세요</option>';return;}
+    const list=document.getElementById('doc-card-stu-list');
+    if(!list)return;
+    if(!clsId){list.innerHTML='<div class="doc-stu-empty">반을 먼저 선택하세요</div>';return;}
     const students=studentsList.filter(s=>s.classId===clsId&&(s.status==='approved'||s.status==='active'));
-    sel.innerHTML='<option value="all">전체 학생</option>'+students.map(s=>`<option value="${s.kakaoId}">${s.name||s.kakaoId}</option>`).join('');
+    if(!students.length){list.innerHTML='<div class="doc-stu-empty">해당 반 학생이 없습니다</div>';return;}
+    list.innerHTML=`<label class="doc-stu-all"><input type="checkbox" id="doc-card-check-all" checked onchange="toggleDocAllStudents('card',this)"><span>전체 (${students.length}명)</span></label>`
+        +students.map(s=>`<label class="doc-stu-row"><input type="checkbox" class="doc-card-stu-chk" value="${s.kakaoId}" checked onchange="syncDocAllChk('card')"><span>${escHtml(s.name||String(s.kakaoId))}</span></label>`).join('');
+}
+function updateDocEntryStudents(){
+    const clsId=document.getElementById('doc-entry-cls')?.value||'';
+    const list=document.getElementById('doc-entry-stu-list');
+    if(!list)return;
+    if(!clsId){list.innerHTML='<div class="doc-stu-empty">반을 먼저 선택하세요</div>';return;}
+    const students=studentsList.filter(s=>s.classId===clsId&&(s.status==='approved'||s.status==='active'));
+    if(!students.length){list.innerHTML='<div class="doc-stu-empty">해당 반 학생이 없습니다</div>';return;}
+    list.innerHTML=`<label class="doc-stu-all"><input type="checkbox" id="doc-entry-check-all" checked onchange="toggleDocAllStudents('entry',this)"><span>전체 (${students.length}명)</span></label>`
+        +students.map(s=>`<label class="doc-stu-row"><input type="checkbox" class="doc-entry-stu-chk" value="${s.kakaoId}" checked onchange="syncDocAllChk('entry')"><span>${escHtml(s.name||String(s.kakaoId))}</span></label>`).join('');
+}
+function toggleDocAllStudents(type,allChk){
+    document.querySelectorAll(`.doc-${type}-stu-chk`).forEach(c=>c.checked=allChk.checked);
+}
+function syncDocAllChk(type){
+    const all=[...document.querySelectorAll(`.doc-${type}-stu-chk`)];
+    const allChk=document.getElementById(`doc-${type}-check-all`);
+    if(!allChk)return;
+    const checkedCount=all.filter(c=>c.checked).length;
+    allChk.checked=checkedCount===all.length;
+    allChk.indeterminate=checkedCount>0&&checkedCount<all.length;
 }
 
 function decodeNumericEntities(str){
@@ -2956,12 +2987,12 @@ function openDocWindow(pages){
 async function previewDoc(type){
     if(type==='card'){
         const clsId=document.getElementById('doc-card-cls')?.value;
-        const stuVal=document.getElementById('doc-card-stu')?.value;
         const startDate=document.getElementById('doc-card-start')?.value;
         const endDate=document.getElementById('doc-card-end')?.value||startDate;
-        if(!clsId||!stuVal||!startDate){showToast('반, 학생, 날짜를 모두 선택해주세요','info');return;}
+        const checkedIds=[...document.querySelectorAll('.doc-card-stu-chk:checked')].map(el=>el.value);
+        if(!clsId||!checkedIds.length||!startDate){showToast('반, 학생, 날짜를 모두 선택해주세요','info');return;}
         const cls=classesList.find(c=>c.id===clsId);
-        let students=stuVal==='all'?studentsList.filter(s=>s.classId===clsId&&(s.status==='approved'||s.status==='active')):[studentsList.find(s=>String(s.kakaoId)===String(stuVal))].filter(Boolean);
+        const students=studentsList.filter(s=>checkedIds.includes(String(s.kakaoId)));
         showLoader(true);
         const sigs=await loadWeeklySigsForRange(students.map(s=>s.kakaoId),startDate,endDate);
         const pages=await generatePracticeCardHtml(cls,students,startDate,endDate,sigs);
@@ -2971,9 +3002,10 @@ async function previewDoc(type){
         const clsId=document.getElementById('doc-entry-cls')?.value;
         const startDate=document.getElementById('doc-entry-start')?.value;
         const endDate=document.getElementById('doc-entry-end')?.value||startDate;
-        if(!clsId||!startDate){showToast('반과 날짜를 선택해주세요','info');return;}
+        const checkedIds=[...document.querySelectorAll('.doc-entry-stu-chk:checked')].map(el=>el.value);
+        if(!clsId||!checkedIds.length||!startDate){showToast('반, 학생, 날짜를 모두 선택해주세요','info');return;}
         const cls=classesList.find(c=>c.id===clsId);
-        const students=studentsList.filter(s=>s.classId===clsId&&(s.status==='approved'||s.status==='active'));
+        const students=studentsList.filter(s=>checkedIds.includes(String(s.kakaoId)));
         showLoader(true);
         const sigs=await loadWeeklySigsForRange(students.map(s=>s.kakaoId),startDate,endDate);
         const pages=await generateDirectEntryHtml(cls,students,startDate,endDate,sigs);
