@@ -212,14 +212,21 @@ body{font-family:'Pretendard',system-ui,sans-serif;background:var(--canvas);colo
 .att-authreq-main-btn{padding:10px 14px;background:var(--brand);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:800;cursor:pointer;letter-spacing:-0.01em;transition:.15s;text-align:center;}
 .att-authreq-main-btn:hover:not(:disabled){opacity:.88;}
 .att-authreq-main-btn:disabled{background:var(--muted);opacity:.45;cursor:not-allowed;}
-.att-authreq-list-head{display:flex;align-items:center;justify-content:space-between;font-size:10px;font-weight:800;color:var(--muted);letter-spacing:0.06em;text-transform:uppercase;padding:4px 0 2px;}
-.att-authreq-badge{background:var(--brand);color:#fff;border-radius:10px;padding:1px 7px;font-size:10px;font-weight:700;}
-.att-authreq-badge-done{background:#10b981;}
-.att-authreq-list-body{display:flex;flex-direction:column;gap:3px;}
+.att-authreq-tabs{display:flex;border-radius:8px;overflow:hidden;border:1.5px solid var(--border);flex-shrink:0;}
+.att-authreq-tab{flex:1;padding:6px 4px;border:none;background:#fff;font-size:11px;font-weight:700;color:var(--muted);cursor:pointer;transition:.15s;display:flex;align-items:center;justify-content:center;gap:4px;white-space:nowrap;}
+.att-authreq-tab+.att-authreq-tab{border-left:1.5px solid var(--border);}
+.att-authreq-tab:hover:not(.active){background:var(--brand-xlight);color:var(--brand);}
+.att-authreq-tab.active{background:var(--brand);color:#fff;}
+.att-authreq-badge{background:rgba(255,255,255,0.35);color:#fff;border-radius:10px;padding:0 6px;font-size:10px;font-weight:800;line-height:1.6;}
+.att-authreq-badge-done{background:rgba(255,255,255,0.35);}
+.att-authreq-tab:not(.active) .att-authreq-badge{background:var(--brand);color:#fff;}
+.att-authreq-tab:not(.active) .att-authreq-badge-done{background:#10b981;}
+.att-authreq-tab-panel{height:120px;overflow-y:auto;-webkit-overflow-scrolling:touch;}
+.att-authreq-list-body{display:flex;flex-direction:column;gap:3px;padding:2px 0;}
 .att-authreq-list-item{padding:5px 7px;background:var(--canvas);border-radius:7px;font-size:11px;display:flex;flex-direction:column;gap:1px;}
 .att-authreq-list-item-name{font-weight:700;color:var(--text);}
 .att-authreq-list-item-meta{color:var(--muted);font-size:10px;}
-.att-authreq-list-empty{font-size:11px;color:var(--muted);text-align:center;padding:3px 0;}
+.att-authreq-list-empty{font-size:11px;color:var(--muted);text-align:center;padding:10px 0;}
 /* 날짜 카드 */
 .att-cal-card{background:#fff;border:2px solid var(--border);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:8px;transition:border-color .15s;}
 .att-cal-card:focus-within{border-color:var(--brand);}
@@ -764,16 +771,20 @@ body{font-family:'Pretendard',system-ui,sans-serif;background:var(--canvas);colo
                 </div>
                 <button class="att-authreq-main-btn" id="att-authreq-main-btn" disabled onclick="sendAuthReqFromSidebar()">요청하기</button>
                 <div class="att-sb-divider"></div>
-                <div class="att-authreq-list-head">
-                  <span>요청중</span>
-                  <span id="authreq-pending-count" class="att-authreq-badge" style="display:none;"></span>
+                <div class="att-authreq-tabs">
+                  <button class="att-authreq-tab active" id="authreq-tab-btn-pending" onclick="switchAuthReqTab('pending',this)">
+                    요청중 <span id="authreq-pending-count" class="att-authreq-badge" style="display:none;"></span>
+                  </button>
+                  <button class="att-authreq-tab" id="authreq-tab-btn-done" onclick="switchAuthReqTab('done',this)">
+                    완료 <span id="authreq-done-count" class="att-authreq-badge att-authreq-badge-done" style="display:none;"></span>
+                  </button>
                 </div>
-                <div id="authreq-pending-list" class="att-authreq-list-body"><div class="att-authreq-list-empty">없음</div></div>
-                <div class="att-authreq-list-head" style="margin-top:4px;">
-                  <span>완료</span>
-                  <span id="authreq-done-count" class="att-authreq-badge att-authreq-badge-done" style="display:none;"></span>
+                <div class="att-authreq-tab-panel" id="authreq-panel-pending">
+                  <div id="authreq-pending-list" class="att-authreq-list-body"><div class="att-authreq-list-empty">없음</div></div>
                 </div>
-                <div id="authreq-done-list" class="att-authreq-list-body"><div class="att-authreq-list-empty">없음</div></div>
+                <div class="att-authreq-tab-panel" id="authreq-panel-done" style="display:none;">
+                  <div id="authreq-done-list" class="att-authreq-list-body"><div class="att-authreq-list-empty">없음</div></div>
+                </div>
               </div>
             </div>
             <!-- 우측: 4구역 + 테이블 -->
@@ -1884,6 +1895,12 @@ function renderAuthReqStuDropdown(){
     if(authreqStuFilter&&list.some(s=>String(s.kakaoId)===authreqStuFilter))sel.value=authreqStuFilter;
     else{authreqStuFilter='';sel.value='';}
     updateAuthReqBtn();
+}
+function switchAuthReqTab(tab,btn){
+    document.querySelectorAll('.att-authreq-tab').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('authreq-panel-pending').style.display=tab==='pending'?'':'none';
+    document.getElementById('authreq-panel-done').style.display=tab==='done'?'':'none';
 }
 function onAuthReqStuInput(){renderAuthReqStuDropdown();}
 function onAuthReqStuChange(){
