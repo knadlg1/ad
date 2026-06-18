@@ -190,7 +190,7 @@ body{font-family:'Pretendard',system-ui,sans-serif;background:var(--canvas);colo
 .att-sc-extended .att-sc-item{background:#D1FAE5;color:#064E3B;}
 .att-table-section{flex:3;overflow:auto;min-height:0;}
 /* 세로 바 공통 레이아웃 */
-.att-col-body-row{flex:1;display:flex;flex-direction:row;min-height:0;overflow:hidden;}
+.att-col-body-row{flex:1;display:flex;flex-direction:column;min-height:0;overflow:hidden;}
 .att-col-body-main{flex:1;display:flex;flex-direction:column;min-height:0;overflow:hidden;}
 /* 사이드바 공통 */
 .att-sidebar-col{flex-shrink:0;display:flex;flex-direction:column;border-right:1px solid var(--border);overflow-y:auto;background:var(--sidebar);}
@@ -203,7 +203,15 @@ body{font-family:'Pretendard',system-ui,sans-serif;background:var(--canvas);colo
 .att-cls-btn:hover{background:var(--brand-xlight);color:var(--brand);}
 .att-cls-btn.active{background:var(--brand);color:#fff;box-shadow:0 3px 8px rgba(108,99,255,.3);}
 /* ── 사이드바 2: 날짜 + 학생 검색 ── */
-.att-date-stu-sidebar{width:220px;padding:18px 14px;gap:8px;justify-content:center;}
+.att-date-stu-sidebar{flex-direction:row;flex-shrink:0;padding:12px 16px;gap:14px;align-items:flex-start;overflow-y:visible;overflow-x:auto;border-bottom:1px solid var(--border);border-right:none;width:100%;}
+.att-filter-updated{flex-shrink:0;display:flex;flex-direction:column;justify-content:flex-start;min-width:90px;}
+.att-date-stu-sidebar .att-cal-card{width:195px;flex-shrink:0;}
+.att-date-stu-sidebar .att-stu-card{width:195px;flex-shrink:0;}
+.att-authreq-section{flex:1;min-width:160px;display:flex;flex-direction:column;justify-content:center;gap:8px;background:#fff;border:2px solid var(--brand);border-radius:12px;padding:12px;}
+.att-authreq-info{font-size:12px;color:var(--muted);font-weight:600;min-height:16px;}
+.att-authreq-main-btn{padding:11px 14px;background:var(--brand);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:800;cursor:pointer;letter-spacing:-0.01em;transition:.15s;text-align:center;}
+.att-authreq-main-btn:hover:not(:disabled){opacity:.88;}
+.att-authreq-main-btn:disabled{background:var(--muted);opacity:.45;cursor:not-allowed;}
 /* 날짜 카드 */
 .att-cal-card{background:#fff;border:2px solid var(--border);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:8px;transition:border-color .15s;}
 .att-cal-card:focus-within{border-color:var(--brand);}
@@ -713,9 +721,11 @@ body{font-family:'Pretendard',system-ui,sans-serif;background:var(--canvas);colo
           <div class="att-col-body-row">
             <!-- 사이드바: 날짜 + 학생 검색 -->
             <div class="att-sidebar-col att-date-stu-sidebar">
-              <div class="last-updated-bar">
-                <span class="last-updated-label">업데이트 일시</span>
-                <span class="last-updated-val" id="last-updated-at">-</span>
+              <div class="att-filter-updated">
+                <div class="last-updated-bar">
+                  <span class="last-updated-label">업데이트 일시</span>
+                  <span class="last-updated-val" id="last-updated-at">-</span>
+                </div>
               </div>
               <div class="att-cal-card">
                 <input type="hidden" id="att-start-date">
@@ -733,6 +743,11 @@ body{font-family:'Pretendard',system-ui,sans-serif;background:var(--canvas);colo
                 <select id="att-stu-select" class="att-stu-select" onchange="onStudentSelectChange()">
                   <option value="">전체 학생</option>
                 </select>
+              </div>
+              <div class="att-authreq-section">
+                <div class="att-stu-card-header">🔐 출결 인증 요청</div>
+                <div id="att-authreq-info" class="att-authreq-info">학생을 선택하면 활성화됩니다</div>
+                <button class="att-authreq-main-btn" id="att-authreq-main-btn" disabled onclick="openAuthReqFromBar()">인증 요청 전송</button>
               </div>
             </div>
             <!-- 우측: 4구역 + 테이블 -->
@@ -784,7 +799,6 @@ body{font-family:'Pretendard',system-ui,sans-serif;background:var(--canvas);colo
                       <th>출근</th>
                       <th>퇴근</th>
                       <th>상태</th>
-                      <th></th>
                     </tr>
                   </thead>
                   <tbody id="att-tbody"></tbody>
@@ -1180,6 +1194,7 @@ let calClickStep = 0;
 let pendingStudents = [];
 let missingOutRequests = [];
 let authRequests = [];
+let authReqBarData = null;
 let _authReqKakaoId = '', _authReqName = '';
 let academyHospitals = [];
 let parsedHolidays = [], parsedPracticeDays = [], parsedFileName = '', parsedClassId = '', parsedTimetableData = {}, parsedTrainStart = null, parsedTrainEnd = null;
@@ -1736,7 +1751,6 @@ function renderAttendance(){
                 <td class="att-td-time">${inT||'-'}</td>
                 <td class="att-td-time">${outT||'-'}</td>
                 <td>${statusHtml}</td>
-                <td><button class="auth-req-btn" onclick="openAuthRequestModal('${stu.kakaoId}','${escHtml(stu.name||'')}','${selDate}')">🔐 인증요청</button></td>
             </tr>`;
         }).join('');
     }else{
@@ -1828,6 +1842,36 @@ function renderAttendance(){
             return summaryRow+sectionHeader+detailRows;
         }).join('');
     }
+    updateAuthReqBar();
+}
+
+function updateAuthReqBar(){
+    const startDate=document.getElementById('att-start-date')?.value||todayKST();
+    const endDate=document.getElementById('att-end-date')?.value||startDate;
+    const isRange=startDate!==endDate;
+    const btn=document.getElementById('att-authreq-main-btn');
+    const info=document.getElementById('att-authreq-info');
+    authReqBarData=null;
+    if(!btn)return;
+    if(isRange){
+        btn.disabled=true;
+        if(info)info.textContent='날짜 범위 선택 시 비활성';
+        return;
+    }
+    if(!studentFilter){
+        btn.disabled=true;
+        if(info)info.textContent='학생을 선택하면 활성화됩니다';
+        return;
+    }
+    const stu=studentsList.find(s=>String(s.kakaoId)===String(studentFilter));
+    if(!stu){btn.disabled=true;if(info)info.textContent='학생을 선택하면 활성화됩니다';return;}
+    authReqBarData={kakaoId:stu.kakaoId,name:stu.name,date:startDate};
+    btn.disabled=false;
+    if(info)info.innerHTML=`<strong>${escHtml(stu.name)}</strong> · ${startDate}`;
+}
+function openAuthReqFromBar(){
+    if(!authReqBarData)return;
+    openAuthRequestModal(authReqBarData.kakaoId,authReqBarData.name,authReqBarData.date);
 }
 
 function getDatesInRange(start,end){
