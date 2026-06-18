@@ -204,11 +204,22 @@ body{font-family:'Pretendard',system-ui,sans-serif;background:var(--canvas);colo
 .att-cls-btn.active{background:var(--brand);color:#fff;box-shadow:0 3px 8px rgba(108,99,255,.3);}
 /* ── 사이드바 2: 날짜 + 학생 검색 ── */
 .att-date-stu-sidebar{width:220px;padding:18px 14px;gap:8px;justify-content:center;}
-.att-authreq-section{background:#fff;border:2px solid var(--brand);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:8px;}
-.att-authreq-info{font-size:12px;color:var(--muted);font-weight:600;min-height:16px;}
+.att-authreq-section{background:#fff;border:2px solid var(--brand);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:7px;}
+.att-authreq-type-row{display:flex;gap:4px;}
+.att-authreq-type-btn{flex:1;padding:6px 3px;border:1.5px solid var(--border);border-radius:7px;font-size:11px;font-weight:700;color:var(--muted);background:#fff;cursor:pointer;text-align:center;transition:.15s;white-space:nowrap;}
+.att-authreq-type-btn:hover{border-color:var(--brand);color:var(--brand);}
+.att-authreq-type-btn.active{background:var(--brand);border-color:var(--brand);color:#fff;}
 .att-authreq-main-btn{padding:10px 14px;background:var(--brand);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:800;cursor:pointer;letter-spacing:-0.01em;transition:.15s;text-align:center;}
 .att-authreq-main-btn:hover:not(:disabled){opacity:.88;}
 .att-authreq-main-btn:disabled{background:var(--muted);opacity:.45;cursor:not-allowed;}
+.att-authreq-list-head{display:flex;align-items:center;justify-content:space-between;font-size:10px;font-weight:800;color:var(--muted);letter-spacing:0.06em;text-transform:uppercase;padding:4px 0 2px;}
+.att-authreq-badge{background:var(--brand);color:#fff;border-radius:10px;padding:1px 7px;font-size:10px;font-weight:700;}
+.att-authreq-badge-done{background:#10b981;}
+.att-authreq-list-body{display:flex;flex-direction:column;gap:3px;}
+.att-authreq-list-item{padding:5px 7px;background:var(--canvas);border-radius:7px;font-size:11px;display:flex;flex-direction:column;gap:1px;}
+.att-authreq-list-item-name{font-weight:700;color:var(--text);}
+.att-authreq-list-item-meta{color:var(--muted);font-size:10px;}
+.att-authreq-list-empty{font-size:11px;color:var(--muted);text-align:center;padding:3px 0;}
 /* 날짜 카드 */
 .att-cal-card{background:#fff;border:2px solid var(--border);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:8px;transition:border-color .15s;}
 .att-cal-card:focus-within{border-color:var(--brand);}
@@ -741,8 +752,28 @@ body{font-family:'Pretendard',system-ui,sans-serif;background:var(--canvas);colo
               </div>
               <div class="att-authreq-section">
                 <div class="att-stu-card-header">🔐 출결 인증 요청</div>
-                <div id="att-authreq-info" class="att-authreq-info">학생을 선택하면 활성화됩니다</div>
-                <button class="att-authreq-main-btn" id="att-authreq-main-btn" disabled onclick="openAuthReqFromBar()">인증 요청 전송</button>
+                <input type="text" id="authreq-stu-search" class="att-stu-search" placeholder="이름 검색..." oninput="onAuthReqStuInput()">
+                <select id="authreq-stu-select" class="att-stu-select" onchange="onAuthReqStuChange()">
+                  <option value="">학생 선택</option>
+                </select>
+                <input type="date" id="authreq-date" class="att-sb-date-input" onchange="updateAuthReqBtn()">
+                <div class="att-authreq-type-row">
+                  <button class="att-authreq-type-btn" data-type="in" onclick="setAuthReqType('in',this)">출근</button>
+                  <button class="att-authreq-type-btn" data-type="out" onclick="setAuthReqType('out',this)">퇴근</button>
+                  <button class="att-authreq-type-btn active" data-type="both" onclick="setAuthReqType('both',this)">출+퇴근</button>
+                </div>
+                <button class="att-authreq-main-btn" id="att-authreq-main-btn" disabled onclick="sendAuthReqFromSidebar()">요청하기</button>
+                <div class="att-sb-divider"></div>
+                <div class="att-authreq-list-head">
+                  <span>요청중</span>
+                  <span id="authreq-pending-count" class="att-authreq-badge" style="display:none;"></span>
+                </div>
+                <div id="authreq-pending-list" class="att-authreq-list-body"><div class="att-authreq-list-empty">없음</div></div>
+                <div class="att-authreq-list-head" style="margin-top:4px;">
+                  <span>완료</span>
+                  <span id="authreq-done-count" class="att-authreq-badge att-authreq-badge-done" style="display:none;"></span>
+                </div>
+                <div id="authreq-done-list" class="att-authreq-list-body"><div class="att-authreq-list-empty">없음</div></div>
               </div>
             </div>
             <!-- 우측: 4구역 + 테이블 -->
@@ -1190,6 +1221,8 @@ let pendingStudents = [];
 let missingOutRequests = [];
 let authRequests = [];
 let authReqBarData = null;
+let authreqStuFilter = '';
+let authreqType = 'both';
 let _authReqKakaoId = '', _authReqName = '';
 let academyHospitals = [];
 let parsedHolidays = [], parsedPracticeDays = [], parsedFileName = '', parsedClassId = '', parsedTimetableData = {}, parsedTrainStart = null, parsedTrainEnd = null;
@@ -1481,6 +1514,8 @@ async function loadAll(){
         await Promise.all([loadAttendance(),loadPendingStudents(),loadMissingOutRequests(),loadAttendanceAuthRequests()]);
         renderStudents();
         initDocTab();
+        renderAuthReqStuDropdown();
+        loadSidebarAuthReqs();
         lastUpdatedAt=new Date();
         updateLastUpdatedDisplay();
     }catch(e){console.error('loadAll 실패:',e);}
@@ -1837,36 +1872,95 @@ function renderAttendance(){
             return summaryRow+sectionHeader+detailRows;
         }).join('');
     }
-    updateAuthReqBar();
 }
 
-function updateAuthReqBar(){
-    const startDate=document.getElementById('att-start-date')?.value||todayKST();
-    const endDate=document.getElementById('att-end-date')?.value||startDate;
-    const isRange=startDate!==endDate;
-    const btn=document.getElementById('att-authreq-main-btn');
-    const info=document.getElementById('att-authreq-info');
-    authReqBarData=null;
-    if(!btn)return;
-    if(isRange){
-        btn.disabled=true;
-        if(info)info.textContent='날짜 범위 선택 시 비활성';
-        return;
-    }
-    if(!studentFilter){
-        btn.disabled=true;
-        if(info)info.textContent='학생을 선택하면 활성화됩니다';
-        return;
-    }
-    const stu=studentsList.find(s=>String(s.kakaoId)===String(studentFilter));
-    if(!stu){btn.disabled=true;if(info)info.textContent='학생을 선택하면 활성화됩니다';return;}
-    authReqBarData={kakaoId:stu.kakaoId,name:stu.name,date:startDate};
-    btn.disabled=false;
-    if(info)info.innerHTML=`<strong>${escHtml(stu.name)}</strong> · ${startDate}`;
+function renderAuthReqStuDropdown(){
+    const search=document.getElementById('authreq-stu-search')?.value.trim()||'';
+    const sel=document.getElementById('authreq-stu-select');
+    if(!sel)return;
+    let list=studentsList.slice().sort((a,b)=>(a.name||'').localeCompare(b.name||'','ko'));
+    if(search)list=list.filter(s=>(s.name||'').includes(search));
+    sel.innerHTML='<option value="">학생 선택</option>'+list.map(s=>`<option value="${String(s.kakaoId)}">${escHtml(s.name||'-')}</option>`).join('');
+    if(authreqStuFilter&&list.some(s=>String(s.kakaoId)===authreqStuFilter))sel.value=authreqStuFilter;
+    else{authreqStuFilter='';sel.value='';}
+    updateAuthReqBtn();
 }
-function openAuthReqFromBar(){
-    if(!authReqBarData)return;
-    openAuthRequestModal(authReqBarData.kakaoId,authReqBarData.name,authReqBarData.date);
+function onAuthReqStuInput(){renderAuthReqStuDropdown();}
+function onAuthReqStuChange(){
+    authreqStuFilter=document.getElementById('authreq-stu-select').value;
+    updateAuthReqBtn();
+}
+function setAuthReqType(type,btn){
+    authreqType=type;
+    document.querySelectorAll('.att-authreq-type-btn').forEach(b=>b.classList.toggle('active',b.dataset.type===type));
+}
+function updateAuthReqBtn(){
+    const btn=document.getElementById('att-authreq-main-btn');
+    if(!btn)return;
+    const date=document.getElementById('authreq-date')?.value;
+    btn.disabled=!authreqStuFilter||!date;
+}
+async function sendAuthReqFromSidebar(){
+    const kakaoId=authreqStuFilter;
+    const date=document.getElementById('authreq-date')?.value;
+    const type=authreqType;
+    const acId=directorData?.academyId;
+    if(!kakaoId||!date){showToast('학생과 날짜를 선택해주세요','info');return;}
+    await withSave(async()=>{
+        const ref=await window.fsAddDoc(window.fsCollection(window.db,'attendanceAuthRequests'),{
+            kakaoId:String(kakaoId),academyId:acId,date,type,note:'',status:'pending',
+            requestedAt:window.fsServerTimestamp()
+        });
+        await window.fsUpdateDoc(window.fsDoc(window.db,'students',String(kakaoId)),{pendingAuthRequestId:ref.id});
+    },{successMsg:'인증 요청 전송 완료 ✓',onSuccess:()=>{
+        document.getElementById('authreq-date').value='';
+        authreqStuFilter='';
+        document.getElementById('authreq-stu-select').value='';
+        document.getElementById('authreq-stu-search').value='';
+        updateAuthReqBtn();
+        loadSidebarAuthReqs();
+    }});
+}
+async function loadSidebarAuthReqs(){
+    const acId=directorData?.academyId;
+    if(!acId){renderSidebarAuthReqs([],[]);return;}
+    try{
+        const q=window.fsQuery(
+            window.fsCollection(window.db,'attendanceAuthRequests'),
+            window.fsWhere('academyId','==',acId),
+            window.fsOrderBy('requestedAt','desc'),
+            window.fsLimit(30)
+        );
+        const snap=await window.fsGetDocs(q);
+        const all=[];
+        snap.forEach(d=>all.push({id:d.id,...d.data()}));
+        renderSidebarAuthReqs(all.filter(r=>r.status==='pending'),all.filter(r=>r.status==='submitted'));
+    }catch(e){console.error('loadSidebarAuthReqs:',e);}
+}
+function renderSidebarAuthReqs(pending,done){
+    const typeLabel={in:'출근',out:'퇴근',both:'출+퇴근'};
+    const pendingEl=document.getElementById('authreq-pending-list');
+    const pendingBadge=document.getElementById('authreq-pending-count');
+    if(pendingEl){
+        pendingEl.innerHTML=pending.length
+            ?pending.map(r=>{
+                const name=studentsList.find(s=>String(s.kakaoId)===String(r.kakaoId))?.name||r.kakaoId;
+                return `<div class="att-authreq-list-item"><div class="att-authreq-list-item-name">${escHtml(name)}</div><div class="att-authreq-list-item-meta">${r.date} · ${typeLabel[r.type]||r.type}</div></div>`;
+            }).join('')
+            :'<div class="att-authreq-list-empty">없음</div>';
+    }
+    if(pendingBadge){pendingBadge.textContent=pending.length;pendingBadge.style.display=pending.length?'':'none';}
+    const doneEl=document.getElementById('authreq-done-list');
+    const doneBadge=document.getElementById('authreq-done-count');
+    if(doneEl){
+        doneEl.innerHTML=done.length
+            ?done.map(r=>{
+                const name=studentsList.find(s=>String(s.kakaoId)===String(r.kakaoId))?.name||r.kakaoId;
+                return `<div class="att-authreq-list-item" style="opacity:.7;"><div class="att-authreq-list-item-name">✓ ${escHtml(name)}</div><div class="att-authreq-list-item-meta">${r.date} · ${typeLabel[r.type]||r.type}${r.inTime?' · '+r.inTime+'~'+(r.outTime||'?'):''}</div></div>`;
+            }).join('')
+            :'<div class="att-authreq-list-empty">없음</div>';
+    }
+    if(doneBadge){doneBadge.textContent=done.length;doneBadge.style.display=done.length?'':'none';}
 }
 
 function getDatesInRange(start,end){
