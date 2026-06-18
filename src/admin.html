@@ -295,6 +295,24 @@ body{font-family:'Pretendard',system-ui,sans-serif;background:var(--canvas);colo
 /* 시간표 수정 인라인 */
 .cls-edit-tt-area{display:none;padding:8px;background:var(--canvas);border:1px solid var(--border);border-radius:7px;margin-top:6px;}
 .cls-edit-tt-area.open{display:block;}
+/* 출결 인증 요청 */
+.auth-req-btn{padding:3px 7px;border:1.5px solid #6c63ff;border-radius:6px;font-size:11px;font-weight:700;color:#6c63ff;background:#fff;cursor:pointer;transition:.15s;white-space:nowrap;}
+.auth-req-btn:hover{background:#6c63ff;color:#fff;}
+.auth-modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:3000;align-items:center;justify-content:center;}
+.auth-modal-overlay.open{display:flex;}
+.auth-modal-card{background:#fff;border-radius:14px;padding:20px;width:min(360px,92vw);display:flex;flex-direction:column;gap:12px;}
+.auth-modal-title{font-size:15px;font-weight:800;color:var(--text);text-align:center;}
+.auth-modal-label{font-size:11px;font-weight:700;color:var(--muted);margin-bottom:3px;}
+.auth-modal-input{width:100%;padding:7px 10px;border:1.5px solid var(--border-strong);border-radius:7px;font-size:13px;outline:none;box-sizing:border-box;}
+.auth-modal-input:focus{border-color:var(--brand);}
+.auth-req-card{background:var(--canvas);border:1px solid var(--border);border-radius:9px;padding:10px 12px;margin-bottom:8px;}
+.auth-req-card-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;}
+.auth-req-card-name{font-size:13px;font-weight:700;color:var(--text);}
+.auth-req-card-meta{font-size:11px;color:var(--muted);}
+.auth-req-card-sigs{display:flex;gap:8px;margin-top:8px;padding-top:8px;border-top:1px solid var(--border);}
+.auth-req-card-sig{flex:1;text-align:center;}
+.auth-req-card-sig-label{font-size:10px;color:var(--muted);font-weight:700;margin-bottom:3px;}
+.auth-req-card-sig img{width:100%;max-height:50px;object-fit:contain;border:1px solid var(--border);border-radius:6px;background:#fff;}
 /* 문서 미리보기 오버레이 */
 .doc-preview-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:2000;align-items:center;justify-content:center;}
 .doc-preview-overlay.open{display:flex;}
@@ -552,6 +570,12 @@ body{font-family:'Pretendard',system-ui,sans-serif;background:var(--canvas);colo
 .unassigned-row input[type=checkbox]{width:15px;height:15px;accent-color:var(--brand);flex-shrink:0;cursor:pointer;}
 .unassigned-name{font-size:13px;font-weight:700;min-width:54px;}
 .unassigned-phone{font-size:12px;color:var(--muted);flex:1;}
+/* ── 중도탈락 ── */
+.stu-dropout-badge{display:inline-block;font-size:10px;font-weight:700;color:#ef4444;background:#fef2f2;border:1px solid #fecaca;border-radius:4px;padding:1px 6px;margin-left:4px;vertical-align:middle;}
+.stu-dropout-btn{font-size:11px;padding:3px 8px;border:1px solid #fecaca;background:#fff;color:#ef4444;border-radius:4px;cursor:pointer;font-weight:700;white-space:nowrap;}
+.stu-dropout-btn.active{background:#ef4444;color:#fff;border-color:#ef4444;}
+.doc-stu-row.dropped{opacity:0.45;}
+.doc-stu-row.dropped span{text-decoration:line-through;}
 </style>
 </head>
 <body>
@@ -760,6 +784,7 @@ body{font-family:'Pretendard',system-ui,sans-serif;background:var(--canvas);colo
                       <th>출근</th>
                       <th>퇴근</th>
                       <th>상태</th>
+                      <th></th>
                     </tr>
                   </thead>
                   <tbody id="att-tbody"></tbody>
@@ -865,7 +890,11 @@ body{font-family:'Pretendard',system-ui,sans-serif;background:var(--canvas);colo
 
             <!-- 승인 탭 (출결 + 신규가입 통합) -->
             <div class="htab-panel" id="vtab-approve">
-              <div class="approve-section-head">출결 승인</div>
+              <div class="approve-section-head">출결 인증 내역</div>
+              <div style="font-size:12px;color:var(--muted);margin-bottom:10px;">원장님이 요청한 출결 인증을 학생이 제출하면 여기서 확인할 수 있습니다.</div>
+              <div id="auth-requests-list"><div class="empty-state" style="padding:8px;">제출된 인증 없음</div></div>
+
+              <div class="approve-section-head" style="margin-top:18px;">출결 승인</div>
               <div style="font-size:12px;color:var(--muted);margin-bottom:10px;">퇴근 누락 신청 승인 시 해당 날짜 출퇴근 기록에 자동 반영됩니다.</div>
               <div id="missingout-list"><div class="empty-state" style="padding:8px;">대기 중인 출결 신청 없음</div></div>
 
@@ -1081,6 +1110,35 @@ body{font-family:'Pretendard',system-ui,sans-serif;background:var(--canvas);colo
   </div>
 </div>
 
+<!-- 출결 인증 요청 생성 모달 -->
+<div class="auth-modal-overlay" id="auth-request-modal">
+  <div class="auth-modal-card">
+    <div class="auth-modal-title">🔐 출결 인증 요청</div>
+    <div>
+      <div class="auth-modal-label">학생</div>
+      <input class="auth-modal-input" id="auth-req-name" readonly>
+    </div>
+    <div>
+      <div class="auth-modal-label">날짜</div>
+      <input class="auth-modal-input" type="date" id="auth-req-date">
+    </div>
+    <div>
+      <div class="auth-modal-label">인증 유형</div>
+      <select class="auth-modal-input" id="auth-req-type">
+        <option value="both">출근 + 퇴근</option>
+        <option value="in">출근만</option>
+        <option value="out">퇴근만</option>
+      </select>
+    </div>
+    <div>
+      <div class="auth-modal-label">메모 (선택)</div>
+      <input class="auth-modal-input" id="auth-req-note" placeholder="학생에게 전달할 메모">
+    </div>
+    <button class="doc-preview-btn" onclick="sendAuthRequest()">요청 전송</button>
+    <button style="padding:8px;border-radius:8px;border:1.5px solid var(--border);background:#fff;font-size:13px;cursor:pointer;color:var(--muted);" onclick="document.getElementById('auth-request-modal').classList.remove('open')">취소</button>
+  </div>
+</div>
+
 <div class="loading-overlay" id="loading"><div class="spinner"></div><div class="loading-success-icon">✓</div><div class="loading-text" id="loading-text">처리 중...</div></div>
 <div id="toast-container"></div>
 <input type="file" id="tt-file" accept=".xlsx,.xls" style="display:none;" onchange="parseTimetable(event)">
@@ -1121,6 +1179,8 @@ let calEnd = '';
 let calClickStep = 0;
 let pendingStudents = [];
 let missingOutRequests = [];
+let authRequests = [];
+let _authReqKakaoId = '', _authReqName = '';
 let academyHospitals = [];
 let parsedHolidays = [], parsedPracticeDays = [], parsedFileName = '', parsedClassId = '', parsedTimetableData = {}, parsedTrainStart = null, parsedTrainEnd = null;
 let regPhone = '';
@@ -1408,7 +1468,7 @@ async function loadAll(){
     showLoader(true);
     try{
         await Promise.all([loadStudents(),loadClasses(),loadAcademyHospitals()]);
-        await Promise.all([loadAttendance(),loadPendingStudents(),loadMissingOutRequests()]);
+        await Promise.all([loadAttendance(),loadPendingStudents(),loadMissingOutRequests(),loadAttendanceAuthRequests()]);
         renderStudents();
         initDocTab();
         lastUpdatedAt=new Date();
@@ -1676,6 +1736,7 @@ function renderAttendance(){
                 <td class="att-td-time">${inT||'-'}</td>
                 <td class="att-td-time">${outT||'-'}</td>
                 <td>${statusHtml}</td>
+                <td><button class="auth-req-btn" onclick="openAuthRequestModal('${stu.kakaoId}','${escHtml(stu.name||'')}','${selDate}')">🔐 인증요청</button></td>
             </tr>`;
         }).join('');
     }else{
@@ -1815,13 +1876,16 @@ function filterStudentsPanel(){
             classesList.map(c=>`<option value="${c.id}"${c.id===s.classId?' selected':''}>${escHtml(c.name)}</option>`).join('');
         const hospOpts='<option value=""'+(s.hospital?'':' selected')+'>병원 미지정</option>'+
             academyHospitals.map(h=>`<option value="${escHtml(h.name)}"${h.name===s.hospital?' selected':''}>${escHtml(h.name)}</option>`).join('');
-        return `<tr data-id="${s.kakaoId}">
+        const dropoutBadge=s.droppedOut?'<span class="stu-dropout-badge">중도탈락</span>':'';
+        const dropoutBtn=`<button class="stu-dropout-btn${s.droppedOut?' active':''}" onclick="toggleDropout('${s.kakaoId}')">${s.droppedOut?'탈락해제':'중도탈락'}</button>`;
+        return `<tr data-id="${s.kakaoId}"${s.droppedOut?' style="opacity:0.55;"':''}>
             <td><select class="stu-edit-inline-sel" onchange="onInlineClsChange('${s.kakaoId}',this)">${clsOpts}</select></td>
-            <td style="font-weight:700;white-space:nowrap;">${escHtml(s.name||'-')}</td>
+            <td style="font-weight:700;white-space:nowrap;">${escHtml(s.name||'-')}${dropoutBadge}</td>
             <td><select class="stu-edit-inline-sel" onchange="onInlineHospChange('${s.kakaoId}',this)">${hospOpts}</select></td>
+            <td>${dropoutBtn}</td>
         </tr>`;
     }).join('');
-    listEl.innerHTML=`<table class="stu-edit-table"><thead><tr><th>반</th><th>이름</th><th>실습병원</th></tr></thead><tbody>${rows}</tbody></table>`;
+    listEl.innerHTML=`<table class="stu-edit-table"><thead><tr><th>반</th><th>이름</th><th>실습병원</th><th>상태</th></tr></thead><tbody>${rows}</tbody></table>`;
 }
 
 async function onInlineClsChange(kakaoId,sel){
@@ -2101,6 +2165,91 @@ async function rejectMissingOut(docId){
     },{successMsg:'거절 완료 ✓',delay:800,onSuccess:async()=>{
         await loadMissingOutRequests();
     }});
+}
+
+// ── 출결 인증 요청 ────────────────────────────────────────
+function maskPhone(phone){
+    if(!phone)return'';
+    return phone.replace(/(\d{3})-?(\d{3,4})-?(\d{4})/,'***-****-$3');
+}
+
+function openAuthRequestModal(kakaoId,name,date){
+    _authReqKakaoId=kakaoId; _authReqName=name;
+    document.getElementById('auth-req-name').value=name;
+    document.getElementById('auth-req-date').value=date||'';
+    document.getElementById('auth-req-type').value='both';
+    document.getElementById('auth-req-note').value='';
+    document.getElementById('auth-request-modal').classList.add('open');
+}
+
+async function sendAuthRequest(){
+    const kakaoId=_authReqKakaoId;
+    const date=document.getElementById('auth-req-date').value;
+    const type=document.getElementById('auth-req-type').value;
+    const note=document.getElementById('auth-req-note').value.trim();
+    const acId=directorData?.academyId;
+    if(!kakaoId||!date){showToast('날짜를 선택해주세요','info');return;}
+    await withSave(async()=>{
+        const ref=await window.fsAddDoc(window.fsCollection(window.db,'attendanceAuthRequests'),{
+            kakaoId:String(kakaoId),academyId:acId,date,type,note,status:'pending',
+            requestedAt:window.fsServerTimestamp()
+        });
+        await window.fsUpdateDoc(window.fsDoc(window.db,'students',String(kakaoId)),{
+            pendingAuthRequestId:ref.id
+        });
+    },{successMsg:'인증 요청 전송 완료 ✓',onSuccess:()=>{
+        document.getElementById('auth-request-modal').classList.remove('open');
+    }});
+}
+
+async function loadAttendanceAuthRequests(){
+    const acId=directorData?.academyId;
+    if(!acId){authRequests=[];renderAttendanceAuthRequests();return;}
+    try{
+        const kakaoIds=studentsList.map(s=>String(s.kakaoId));
+        if(!kakaoIds.length){authRequests=[];renderAttendanceAuthRequests();return;}
+        const q=window.fsQuery(
+            window.fsCollection(window.db,'attendanceAuthRequests'),
+            window.fsWhere('academyId','==',acId),
+            window.fsWhere('status','==','submitted')
+        );
+        const snap=await window.fsGetDocs(q);
+        authRequests=[];
+        snap.forEach(d=>authRequests.push({id:d.id,...d.data()}));
+        authRequests.sort((a,b)=>(b.submittedAt?.seconds||0)-(a.submittedAt?.seconds||0));
+        renderAttendanceAuthRequests();
+    }catch(e){console.error('인증요청 로드 실패:',e);}
+}
+
+function renderAttendanceAuthRequests(){
+    const el=document.getElementById('auth-requests-list');
+    if(!el)return;
+    if(!authRequests.length){el.innerHTML='<div class="empty-state" style="padding:8px;">제출된 인증 없음</div>';return;}
+    const typeLabel={in:'출근',out:'퇴근',both:'출+퇴근'};
+    el.innerHTML=authRequests.map(r=>{
+        const stu=studentsList.find(s=>String(s.kakaoId)===String(r.kakaoId));
+        const name=stu?.name||r.kakaoId;
+        const phone=maskPhone(r.managerPhone||'');
+        return `<div class="auth-req-card">
+            <div class="auth-req-card-head">
+                <div>
+                    <div class="auth-req-card-name">${escHtml(name)}</div>
+                    <div class="auth-req-card-meta">${r.date} · ${typeLabel[r.type]||r.type}</div>
+                </div>
+                <div class="auth-req-card-meta">출근 ${r.inTime||'-'} 퇴근 ${r.outTime||'-'}</div>
+            </div>
+            ${(r.studentSig||r.managerSig)?`<div class="auth-req-card-sigs">
+                <div class="auth-req-card-sig">
+                    <div class="auth-req-card-sig-label">학생 서명</div>
+                    ${r.studentSig?`<img src="data:image/png;base64,${r.studentSig}">`:'<span style="font-size:11px;color:var(--muted);">없음</span>'}
+                </div>
+                <div class="auth-req-card-sig">
+                    <div class="auth-req-card-sig-label">담당자 서명 (${escHtml(phone)})</div>
+                    ${r.managerSig?`<img src="data:image/png;base64,${r.managerSig}">`:'<span style="font-size:11px;color:var(--muted);">없음</span>'}
+                </div>
+            </div>`:''}
+        </div>`;
+    }).join('');
 }
 
 // ── Render: 신규가입관리 ──────────────────────────────────
@@ -2858,8 +3007,9 @@ function updateDocCardStudents(){
     if(!clsId){list.innerHTML='<div class="doc-stu-empty">반을 먼저 선택하세요</div>';return;}
     const students=studentsList.filter(s=>s.classId===clsId&&(s.status==='approved'||s.status==='active'));
     if(!students.length){list.innerHTML='<div class="doc-stu-empty">해당 반 학생이 없습니다</div>';return;}
-    list.innerHTML=`<label class="doc-stu-all"><input type="checkbox" id="doc-card-check-all" checked onchange="toggleDocAllStudents('card',this)"><span>전체 (${students.length}명)</span></label>`
-        +students.map(s=>`<label class="doc-stu-row"><input type="checkbox" class="doc-card-stu-chk" value="${s.kakaoId}" checked onchange="syncDocAllChk('card')"><span>${escHtml(s.name||String(s.kakaoId))}</span></label>`).join('');
+    const activeCount=students.filter(s=>!s.droppedOut).length;
+    list.innerHTML=`<label class="doc-stu-all"><input type="checkbox" id="doc-card-check-all" checked onchange="toggleDocAllStudents('card',this)"><span>전체 (${activeCount}명)</span></label>`
+        +students.map(s=>`<label class="doc-stu-row${s.droppedOut?' dropped':''}"><input type="checkbox" class="doc-card-stu-chk" value="${s.kakaoId}"${s.droppedOut?'':' checked'} onchange="syncDocAllChk('card')"><span>${escHtml(s.name||String(s.kakaoId))}${s.droppedOut?' <span class="stu-dropout-badge">중도탈락</span>':''}</span></label>`).join('');
 }
 function updateDocEntryStudents(){
     const clsId=document.getElementById('doc-entry-cls')?.value||'';
@@ -2868,21 +3018,38 @@ function updateDocEntryStudents(){
     if(!clsId){list.innerHTML='<div class="doc-stu-empty">반을 먼저 선택하세요</div>';return;}
     const students=studentsList.filter(s=>s.classId===clsId&&(s.status==='approved'||s.status==='active'));
     if(!students.length){list.innerHTML='<div class="doc-stu-empty">해당 반 학생이 없습니다</div>';return;}
-    list.innerHTML=`<label class="doc-stu-all"><input type="checkbox" id="doc-entry-check-all" checked onchange="toggleDocAllStudents('entry',this)"><span>전체 (${students.length}명)</span></label>`
-        +students.map(s=>`<label class="doc-stu-row"><input type="checkbox" class="doc-entry-stu-chk" value="${s.kakaoId}" checked onchange="syncDocAllChk('entry')"><span>${escHtml(s.name||String(s.kakaoId))}</span></label>`).join('');
+    const activeCount=students.filter(s=>!s.droppedOut).length;
+    list.innerHTML=`<label class="doc-stu-all"><input type="checkbox" id="doc-entry-check-all" checked onchange="toggleDocAllStudents('entry',this)"><span>전체 (${activeCount}명)</span></label>`
+        +students.map(s=>`<label class="doc-stu-row${s.droppedOut?' dropped':''}"><input type="checkbox" class="doc-entry-stu-chk" value="${s.kakaoId}"${s.droppedOut?'':' checked'} onchange="syncDocAllChk('entry')"><span>${escHtml(s.name||String(s.kakaoId))}${s.droppedOut?' <span class="stu-dropout-badge">중도탈락</span>':''}</span></label>`).join('');
 }
 function toggleDocAllStudents(type,allChk){
-    document.querySelectorAll(`.doc-${type}-stu-chk`).forEach(c=>c.checked=allChk.checked);
+    // 중도탈락 학생은 전체 선택 대상에서 제외
+    document.querySelectorAll(`.doc-${type}-stu-chk`).forEach(c=>{
+        if(!c.closest('label')?.classList.contains('dropped'))c.checked=allChk.checked;
+    });
 }
 function syncDocAllChk(type){
-    const all=[...document.querySelectorAll(`.doc-${type}-stu-chk`)];
+    const all=[...document.querySelectorAll(`.doc-${type}-stu-chk`)].filter(c=>!c.closest('label')?.classList.contains('dropped'));
     const allChk=document.getElementById(`doc-${type}-check-all`);
     if(!allChk)return;
     const checkedCount=all.filter(c=>c.checked).length;
-    allChk.checked=checkedCount===all.length;
+    allChk.checked=all.length>0&&checkedCount===all.length;
     allChk.indeterminate=checkedCount>0&&checkedCount<all.length;
 }
 
+async function toggleDropout(kakaoId){
+    const stu=studentsList.find(s=>String(s.kakaoId)===String(kakaoId));
+    if(!stu)return;
+    const newVal=!stu.droppedOut;
+    try{
+        await window.fsUpdateDoc(window.fsDoc(window.db,'students',String(kakaoId)),{droppedOut:newVal});
+        stu.droppedOut=newVal;
+        filterStudentsPanel();
+        showToast(newVal?'중도탈락 처리됐습니다.':'중도탈락이 해제됐습니다.','success');
+    }catch(e){
+        showToast('저장 실패: '+e.message,'error');
+    }
+}
 function decodeNumericEntities(str){
     return str.replace(/&#(\d+);/g,(_,n)=>String.fromCodePoint(Number(n)));
 }
