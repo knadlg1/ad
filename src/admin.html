@@ -221,7 +221,7 @@ body{font-family:'Pretendard',system-ui,sans-serif;background:var(--canvas);colo
 .att-authreq-badge-done{background:rgba(255,255,255,0.35);}
 .att-authreq-tab:not(.active) .att-authreq-badge{background:var(--brand);color:#fff;}
 .att-authreq-tab:not(.active) .att-authreq-badge-done{background:#10b981;}
-.att-authreq-tab-panel{height:120px;overflow-y:auto;-webkit-overflow-scrolling:touch;}
+.att-authreq-tab-panel{height:80px;overflow-y:auto;-webkit-overflow-scrolling:touch;}
 .att-authreq-list-body{display:flex;flex-direction:column;gap:3px;padding:2px 0;}
 .att-authreq-list-item{padding:5px 7px;background:var(--canvas);border-radius:7px;font-size:11px;display:flex;flex-direction:column;gap:1px;}
 .att-authreq-list-item-name{font-weight:700;color:var(--text);}
@@ -744,11 +744,6 @@ body{font-family:'Pretendard',system-ui,sans-serif;background:var(--canvas);colo
                 <input type="hidden" id="att-start-date">
                 <input type="hidden" id="att-end-date">
                 <div class="att-mini-cal" id="att-mini-cal"></div>
-                <div class="att-cal-quick">
-                  <button class="att-sb-quick-btn active" id="qbtn-today" onclick="setDateRange('today')">오늘</button>
-                  <button class="att-sb-quick-btn" id="qbtn-week" onclick="setDateRange('week')">이번주</button>
-                  <button class="att-sb-quick-btn" id="qbtn-month" onclick="setDateRange('month')">이번달</button>
-                </div>
               </div>
               <div class="att-stu-card">
                 <div class="att-stu-card-header">🔍 학생 검색</div>
