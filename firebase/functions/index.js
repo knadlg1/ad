@@ -38,15 +38,6 @@ exports.requestOTP = functions.https.onRequest(async (req, res) => {
         const phone = body.phone;
         if (!phone) { res.json({ status: "error", success: false, message: "전화번호 필요" }); return; }
 
-        // 학생 최초 가입 시: students 컬렉션에 등록된 번호인지 확인
-        if (body.type === "student") {
-            const snap = await db.collection("students").where("phone", "==", phone).limit(1).get();
-            if (snap.empty) {
-                res.json({ status: "error", success: false, message: "등록되지 않은 번호입니다. 학원에 문의해주세요." });
-                return;
-            }
-        }
-
         const otpCode = String(Math.floor(100000 + Math.random() * 900000));
         await db.doc("otps/" + phone).set({
             code: otpCode,
@@ -112,6 +103,54 @@ exports.iosInstall = functions.https.onRequest((req, res) => {
     res.set('Content-Type', 'application/x-apple-aspen-config');
     res.set('Content-Disposition', 'attachment; filename="here.mobileconfig"');
     res.send(xml);
+});
+
+// ── 카카오 로그인: code → kakaoId 교환 ──────────────────────────────────
+const KAKAO_REST_KEY = 'ca34b3c2a0cf2d0fe87d9f18b39aa8d8';
+
+exports.kakaoLogin = functions.https.onRequest(async (req, res) => {
+    setCors(res);
+    if (req.method === 'OPTIONS') { res.status(204).send(''); return; }
+    try {
+        const { code, redirect_uri } = parseBody(req);
+        if (!code || !redirect_uri) {
+            res.json({ status: 'error', message: '파라미터 누락' }); return;
+        }
+
+        // 1. 카카오 액세스 토큰 발급
+        const tokenRes = await fetch('https://kauth.kakao.com/oauth/token', {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body:    new URLSearchParams({
+                grant_type:   'authorization_code',
+                client_id:    KAKAO_REST_KEY,
+                redirect_uri,
+                code,
+            }).toString(),
+        });
+        const tokenData = await tokenRes.json();
+        if (!tokenData.access_token) {
+            console.error('카카오 토큰 발급 실패:', tokenData);
+            res.json({ status: 'error', message: '카카오 인증에 실패했습니다.' }); return;
+        }
+
+        // 2. 사용자 정보 조회
+        const userRes = await fetch('https://kapi.kakao.com/v2/user/me', {
+            headers: { Authorization: `Bearer ${tokenData.access_token}` },
+        });
+        const userData = await userRes.json();
+        if (!userData.id) {
+            res.json({ status: 'error', message: '사용자 정보를 가져올 수 없습니다.' }); return;
+        }
+
+        res.json({
+            kakaoId:  userData.id,
+            nickname: userData.kakao_account?.profile?.nickname || userData.properties?.nickname || '',
+        });
+    } catch (e) {
+        console.error('kakaoLogin error:', e);
+        res.status(500).json({ status: 'error', message: e.message });
+    }
 });
 
 // ════════════════════════════════════════════════════════════════════════

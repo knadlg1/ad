@@ -472,6 +472,9 @@
     <div id="urgent-request-banner" class="urgent-banner" onclick="openProofModal()">
         🚨 [원장님 요청] <span id="request-type-text">서류</span> 증빙을 제출해주세요! 👆
     </div>
+    <div id="auth-request-banner" class="urgent-banner" style="display:none;background:#4f46e5;cursor:pointer;" onclick="openDirAuthModal()">
+        🔐 [원장님 출결 인증 요청] <span id="auth-request-date-text"></span> 인증을 시작하세요 👆
+    </div>
 
     <!-- 광고 배너: 사용시 display:block으로 변경하고 src에 base64 붙여넣기 -->
     <div class="ad-banner" id="ad-banner">
@@ -751,6 +754,60 @@
 <div class="locked-overlay" id="processing-overlay" style="z-index:9999;background:rgba(0,0,0,0.85);">
     <div class="loader" style="display:block;margin-bottom:20px;border-top-color:#10b981;width:50px;height:50px;position:static;margin-left:auto;margin-right:auto;"></div>
     <h2 id="processing-text" style="font-size:22px;text-align:center;line-height:1.4;color:white;">처리 중...⏳</h2>
+</div>
+
+<!-- ── 원장님 출결 인증 요청 모달 ── -->
+<div class="sig-modal-overlay" id="dir-auth-modal" style="z-index:4010;display:none;">
+    <div class="sig-modal-card">
+        <div class="missing-box" style="margin-bottom:15px;">
+            <div class="missing-title">🔐 원장님 출결 인증 요청</div>
+            <div id="dir-auth-date-badge" style="text-align:center;margin-top:6px;font-size:15px;font-weight:900;color:#4f46e5;background:#eef2ff;border-radius:10px;padding:6px 0;"></div>
+            <div id="dir-auth-note" style="margin-top:8px;font-size:12px;color:#64748b;text-align:center;"></div>
+        </div>
+        <div id="dir-auth-in-box" style="display:none;background:#f0fdf4;border:2px solid #10b981;border-radius:12px;padding:12px 14px;margin-bottom:10px;text-align:center;">
+            <div style="font-size:13px;font-weight:900;color:#059669;margin-bottom:8px;">🕐 출근 시간 선택 <span style="color:#ef4444;font-size:12px;">★ 필수</span></div>
+            <div class="time-select-group" id="dir-auth-in-dropdowns"></div>
+        </div>
+        <div id="dir-auth-out-box" style="display:none;background:#fff5f5;border:2px solid #ef4444;border-radius:12px;padding:12px 14px;margin-bottom:10px;text-align:center;">
+            <div style="font-size:13px;font-weight:900;color:#dc2626;margin-bottom:8px;">🕐 퇴근 시간 선택 <span style="color:#ef4444;font-size:12px;">★ 필수</span></div>
+            <div class="time-select-group" id="dir-auth-out-dropdowns"></div>
+        </div>
+        <div style="display:flex;gap:10px;margin-bottom:10px;">
+            <div id="dir-auth-student-sig-area" style="flex:1;min-height:120px;border:1.5px dashed #cbd5e1;border-radius:12px;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden;padding:6px;">
+                <button class="btn missing-btn-a" style="width:100%;margin-bottom:0;padding:18px 0;" onclick="openAuthStudentPad()">학생 서명</button>
+            </div>
+            <div id="dir-auth-manager-sig-area" style="flex:1;min-height:120px;border:1.5px dashed #cbd5e1;border-radius:12px;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden;padding:6px;">
+                <button class="btn missing-btn-b" style="width:100%;margin-bottom:0;padding:18px 0;" onclick="openAuthManagerPad()">담당자 서명</button>
+            </div>
+        </div>
+        <button class="btn" id="dir-auth-submit-btn" style="display:none;background:#4f46e5;color:white;" onclick="submitAuthRequest()">제출하기</button>
+    </div>
+</div>
+
+<!-- 인증요청 학생 서명 캔버스 -->
+<div class="sig-modal-overlay" id="dir-auth-student-sig-modal" style="z-index:4011;display:none;">
+    <div class="sig-modal-card">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+            <button onclick="document.getElementById('dir-auth-student-sig-modal').style.display='none';document.getElementById('dir-auth-modal').style.display='flex';" style="background:none;border:none;color:#64748b;font-size:13px;cursor:pointer;">← 뒤로</button>
+            <div class="sig-modal-title" style="margin:0;">📝 학생 서명</div>
+            <button onclick="clearCanvas('dir-auth-student-canvas')" style="background:none;border:none;color:#64748b;font-size:13px;cursor:pointer;">지우기</button>
+        </div>
+        <canvas id="dir-auth-student-canvas" class="modal-canvas"></canvas>
+        <button class="btn" style="background:#0f172a;color:white;margin-top:15px;" onclick="completeAuthStudentSig()">학생 서명 완료</button>
+    </div>
+</div>
+
+<!-- 인증요청 담당자 서명 캔버스 -->
+<div class="sig-modal-overlay" id="dir-auth-manager-sig-modal" style="z-index:4012;display:none;">
+    <div class="sig-modal-card">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+            <button onclick="document.getElementById('dir-auth-manager-sig-modal').style.display='none';document.getElementById('dir-auth-modal').style.display='flex';" style="background:none;border:none;color:#64748b;font-size:13px;cursor:pointer;">← 뒤로</button>
+            <div class="sig-modal-title" style="margin:0;">👨‍🏫 담당자 서명</div>
+            <button onclick="clearCanvas('dir-auth-manager-canvas')" style="background:none;border:none;color:#64748b;font-size:13px;cursor:pointer;">지우기</button>
+        </div>
+        <canvas id="dir-auth-manager-canvas" class="modal-canvas"></canvas>
+        <button class="btn" style="background:#3b82f6;color:white;margin-top:15px;" onclick="completeAuthManagerSig()">담당자 서명 완료</button>
+    </div>
 </div>
 
 <div class="sig-modal-overlay" id="missing-alert-modal" style="z-index:4000;" onclick="if(event.target===this)document.getElementById('missing-alert-modal').style.display='none'">

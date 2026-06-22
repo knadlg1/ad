@@ -3379,13 +3379,76 @@ async function generateDirectEntryHtml(cls,students,startDate,endDate,sigs){
     const allDates=getDatesInRange(startDate,endDate);
     const clsTt=cls?.timetableData||null;
     const practiceDates=clsTt?allDates.filter(d=>clsTt[d]):allDates;
+
+    const resp=await fetch('./template-entry.html');
+    let rawHtml=decodeNumericEntities(await resp.text());
+    for(let i=1;i<=30;i++){
+        const marker=`{{단위기간시작일${i}}}`;
+        const mi=rawHtml.indexOf(marker);
+        if(mi===-1)continue;
+        const trStart=rawHtml.lastIndexOf('<tr',mi);
+        const trEnd=rawHtml.indexOf('</tr>',mi);
+        if(trStart===-1||trEnd===-1)continue;
+        let rowSlice=rawHtml.slice(trStart,trEnd+5);
+        rowSlice=rowSlice.replace(/<td/g,`<td {{ROW_CELL_STYLE_${i}}}`);
+        rowSlice=rowSlice.replace('{{이름}}',`{{이름_${i}}}`);
+        rowSlice=rowSlice.replace(/>실습</,`>{{사유_${i}}}<`);
+        rawHtml=rawHtml.slice(0,trStart)+rowSlice+rawHtml.slice(trEnd+5);
+    }
+
+    const acName=directorData?.academyName||'';
+    const dirName=directorData?.name||'';
+    const totalPeriod=cls?.trainStart&&cls?.trainEnd
+        ?`${fmtDocDate(cls.trainStart)} ~ ${fmtDocDate(cls.trainEnd)}`
+        :(cls?.practiceStart&&cls?.practiceEnd?`${fmtDocDate(cls.practiceStart)} ~ ${fmtDocDate(cls.practiceEnd)}`:'');
+
+    const cumMinsPerStu={};
+    students.forEach(stu=>{cumMinsPerStu[String(stu.kakaoId)]=0;});
+
     const pages=[];
-    for(const stu of students){
-        const stuPages=await generateFromTemplate(
-            './template-entry.html',cls,stu,practiceDates,sigs,
-            ()=>''
-        );
-        pages.push(...stuPages);
+    for(const date of practiceDates){
+        for(const stu of students){
+            const att=getAttForDate(stu.kakaoId,date);
+            const inT=att?.inTime||'';
+            const outT=(att?.outTime&&/^\d/.test(att.outTime))?att.outTime:'';
+            const inM=timeToMinutes(inT),outM=timeToMinutes(outT);
+            if(inM>0&&outM>inM)cumMinsPerStu[String(stu.kakaoId)]+=outM-inM;
+        }
+        const totalChunks=Math.max(1,Math.ceil(students.length/30));
+        for(let pi=0;pi<totalChunks;pi++){
+            const chunk=students.slice(pi*30,(pi+1)*30);
+            const map={
+                '학원명':acName,'전체훈련기간':totalPeriod,
+                '원장님이름':dirName,'실습시간':'',
+                '기간시작일':practiceDates[0]?fmtDocDate(practiceDates[0]):'',
+                '기간종료일':practiceDates[practiceDates.length-1]?fmtDocDate(practiceDates[practiceDates.length-1]):'',
+            };
+            for(let i=1;i<=30;i++){
+                const stu=chunk[i-1]||null;
+                if(stu){
+                    const att=getAttForDate(stu.kakaoId,date);
+                    const sigData=sigs[String(stu.kakaoId)]?.[date]||null;
+                    const inT=att?.inTime||'';
+                    const outT=(att?.outTime&&/^\d/.test(att.outTime))?att.outTime:'';
+                    const stuSig=sigData?.studentSig||att?.studentSig||'';
+                    map[`ROW_CELL_STYLE_${i}`]=(inT||outT)?'':'style="background-color:#e8e8e8"';
+                    map[`단위기간시작일${i}`]=fmtDocDate(date);
+                    map[`이름_${i}`]=stu.name||'';
+                    map[`사유_${i}`]='실습';
+                    map[`출근시간${i}`]=inT;
+                    map[`퇴근시간${i}`]=outT;
+                    map[`누적시간${i}`]=minutesToHM(cumMinsPerStu[String(stu.kakaoId)]);
+                    map[`학생서명${i}`]=stuSig?`<img src="data:image/png;base64,${stuSig}" style="max-height:28px;max-width:70px;vertical-align:middle;">`:' ';
+                    map[`담당자서명${i}`]='';
+                }else{
+                    map[`ROW_CELL_STYLE_${i}`]='style="background-color:#e8e8e8"';
+                    map[`단위기간시작일${i}`]='';map[`이름_${i}`]='';map[`사유_${i}`]='';
+                    map[`출근시간${i}`]='';map[`퇴근시간${i}`]='';
+                    map[`누적시간${i}`]='';map[`학생서명${i}`]='';map[`담당자서명${i}`]='';
+                }
+            }
+            pages.push(fillTemplate(rawHtml,map));
+        }
     }
     return pages;
 }
