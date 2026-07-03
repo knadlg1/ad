@@ -1796,9 +1796,11 @@ function renderAttendance(){
                 const adjIn=Math.max(ih*60+(im||0),sMs);
                 const out=oh*60+(om||0);
                 if(out<=adjIn)return;
-                let mins=out-adjIn;
-                if(mins>240)mins-=30;
-                totalMins+=Math.max(0,mins);
+                const rawMins=out-adjIn;
+                const netMins=rawMins>=240?rawMins-30:rawMins;
+                const wh=Math.min(Math.floor(netMins/60),8);
+                if(wh<=0)return;
+                totalMins+=wh*60;
             });
             const accH=Math.round(totalMins/6)/10;
             const TOTAL=780;
@@ -1874,9 +1876,10 @@ function renderAttendance(){
                     if(outMins<eMs)earlyCount++;
                     if(outMins>eMs)extCount++;
                     const adjIn=Math.max(inMins,sMs);
-                    let mins=outMins-adjIn;
-                    if(mins>240)mins-=30;
-                    totalMins+=Math.max(0,mins);
+                    const rawMins=outMins-adjIn;
+                    const netMins=rawMins>=240?rawMins-30:rawMins;
+                    const wh=Math.min(Math.floor(netMins/60),8);
+                    if(wh>0)totalMins+=wh*60;
                 }
             });
             const accH=Math.round(totalMins/6)/10;
@@ -3293,6 +3296,7 @@ async function generateFromTemplate(templateUrl,cls,stu,practiceDates,sigs,getMa
     const totalPeriod=cls?.trainStart&&cls?.trainEnd
         ?`${fmtDocDate(cls.trainStart)} ~ ${fmtDocDate(cls.trainEnd)}`
         :(cls?.practiceStart&&cls?.practiceEnd?`${fmtDocDate(cls.practiceStart)} ~ ${fmtDocDate(cls.practiceEnd)}`:'');
+    const clsTt=cls?.timetableData||null;
     const pages=[];
     const totalChunks=Math.max(1,Math.ceil(practiceDates.length/30));
     for(let pi=0;pi<totalChunks;pi++){
@@ -3313,7 +3317,7 @@ async function generateFromTemplate(templateUrl,cls,stu,practiceDates,sigs,getMa
                 const outT=(att?.outTime&&/^\d/.test(att.outTime))?att.outTime:'';
                 const inM=timeToMinutes(inT),outM=timeToMinutes(outT);
                 const hasAtt=inT||outT;
-                if(inM>0&&outM>inM)cumMins+=outM-inM;
+                if(inM>0&&outM>inM){const dayS=clsTt?clsTt[date]:null;const sMs=dayS?timeToMinutes(dayS.start):9*60;const effIn=Math.max(inM,sMs);const rawM=outM-effIn;const netM=rawM>=240?rawM-30:rawM;const wh=Math.min(Math.floor(netM/60),8);if(wh>0)cumMins+=wh*60;}
                 const stuSig=sigData?.studentSig||att?.studentSig||'';
                 const mgrSig=getManagerSig(att,sigData);
                 map[`ROW_CELL_STYLE_${i}`]=hasAtt?'':'style="background-color:#e8e8e8"';
@@ -3465,7 +3469,7 @@ async function generateDirectEntryHtml(cls,students,startDate,endDate,sigs){
             const inT=att?.inTime||'';
             const outT=(att?.outTime&&/^\d/.test(att.outTime))?att.outTime:'';
             const inM=timeToMinutes(inT),outM=timeToMinutes(outT);
-            if(inM>0&&outM>inM)cumMinsPerStu[String(stu.kakaoId)]+=outM-inM;
+            if(inM>0&&outM>inM){const dayS=clsTt?clsTt[date]:null;const sMs=dayS?timeToMinutes(dayS.start):9*60;const effIn=Math.max(inM,sMs);const rawM=outM-effIn;const netM=rawM>=240?rawM-30:rawM;const wh=Math.min(Math.floor(netM/60),8);if(wh>0)cumMinsPerStu[String(stu.kakaoId)]+=wh*60;}
         }
         const totalChunks=Math.max(1,Math.ceil(students.length/30));
         for(let pi=0;pi<totalChunks;pi++){
