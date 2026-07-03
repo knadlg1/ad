@@ -711,6 +711,11 @@ body{font-family:'Pretendard',system-ui,sans-serif;background:var(--canvas);colo
         <div class="nav-cls-list" id="nav-cls-list"></div>
       </div>
 
+      <!-- 누락 인증 -->
+      <div class="nav-section" style="margin-top:8px;">
+        <button class="nav-item" id="nav-missing-log" onclick="showPage('missing-log',this);loadMissingLog()">누락 인증</button>
+      </div>
+
       <!-- 설정 + 로그아웃 -->
       <div class="sidebar-bottom">
         <button class="btn-settings" id="btn-settings-nav" onclick="showPage('settings',this)">설정</button>
@@ -1118,6 +1123,16 @@ body{font-family:'Pretendard',system-ui,sans-serif;background:var(--canvas);colo
         </div>
       </div>
 
+      <!-- ── 누락 인증 로그 ── -->
+      <div id="page-missing-log" class="page">
+        <div style="padding:24px 20px;">
+          <div style="font-size:18px;font-weight:800;color:#1e293b;margin-bottom:16px;">📋 누락 인증 로그</div>
+          <div id="missing-log-content">
+            <div style="text-align:center;color:#94a3b8;font-size:14px;padding:40px;">불러오는 중...</div>
+          </div>
+        </div>
+      </div>
+
     </div><!-- /main -->
   </div><!-- /body -->
 </div><!-- /app -->
@@ -1280,6 +1295,44 @@ function showScreen(id){
     document.querySelectorAll('#auth-wrap > div').forEach(d=>d.style.display='none');
     const s=document.getElementById('screen-'+id);
     if(s)s.style.display='';
+}
+async function loadMissingLog(){
+    const el=document.getElementById('missing-log-content');
+    const esc=s=>String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    el.innerHTML='<div style="text-align:center;color:#94a3b8;font-size:14px;padding:40px;">불러오는 중...</div>';
+    try{
+        const acId=directorData?.academyId;
+        if(!acId){el.innerHTML='<div style="text-align:center;color:#ef4444;font-size:14px;padding:40px;">원장 정보를 불러올 수 없습니다.</div>';return;}
+        const q=window.fsQuery(window.fsCollection(window.db,'missingVerifications'),window.fsWhere('academyId','==',acId));
+        const snap=await window.fsGetDocs(q);
+        if(snap.empty){el.innerHTML='<div style="text-align:center;color:#94a3b8;font-size:14px;padding:40px;">누락 인증 내역이 없습니다.</div>';return;}
+        const rows=[];
+        snap.forEach(d=>rows.push(d.data()));
+        rows.sort((a,b)=>(b.verifiedAt||'').localeCompare(a.verifiedAt||''));
+        const fmt=iso=>{if(!iso)return'-';const d=new Date(iso);return d.toLocaleDateString('ko-KR',{month:'2-digit',day:'2-digit'})+' '+d.toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'});};
+        const fmtPhone=p=>p?esc(p).replace(/(\d{3})(\d{3,4})(\d{4})/,'$1-$2-$3'):'-';
+        const typeColor=t=>t==='퇴근'?'background:#fef2f2;color:#dc2626;':t==='출근'?'background:#eff6ff;color:#2563eb;':'background:#fefce8;color:#ca8a04;';
+        el.innerHTML='<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:13px;">'
+        +'<thead><tr style="background:#f1f5f9;border-bottom:2px solid #e2e8f0;">'
+        +'<th style="padding:10px 8px;text-align:left;font-weight:700;color:#475569;">학생명</th>'
+        +'<th style="padding:10px 8px;text-align:left;font-weight:700;color:#475569;">날짜</th>'
+        +'<th style="padding:10px 8px;text-align:left;font-weight:700;color:#475569;">유형</th>'
+        +'<th style="padding:10px 8px;text-align:left;font-weight:700;color:#475569;">출근</th>'
+        +'<th style="padding:10px 8px;text-align:left;font-weight:700;color:#475569;">퇴근</th>'
+        +'<th style="padding:10px 8px;text-align:left;font-weight:700;color:#475569;">담당자번호</th>'
+        +'<th style="padding:10px 8px;text-align:left;font-weight:700;color:#475569;">인증시간</th>'
+        +'</tr></thead><tbody>'
+        +rows.map((r,i)=>'<tr style="border-bottom:1px solid #e2e8f0;'+(i%2===0?'':'background:#f8fafc;')+'">'
+        +'<td style="padding:10px 8px;font-weight:600;color:#1e293b;">'+esc(r.name)+'</td>'
+        +'<td style="padding:10px 8px;color:#334155;">'+esc(r.date)+'</td>'
+        +'<td style="padding:10px 8px;"><span style="'+typeColor(r.type)+'border-radius:6px;padding:2px 8px;font-size:12px;font-weight:700;">'+esc(r.type)+'</span></td>'
+        +'<td style="padding:10px 8px;color:#334155;">'+esc(r.inTime||'-')+'</td>'
+        +'<td style="padding:10px 8px;color:#334155;">'+esc(r.outTime||'-')+'</td>'
+        +'<td style="padding:10px 8px;color:#334155;">'+fmtPhone(r.managerPhone)+'</td>'
+        +'<td style="padding:10px 8px;color:#64748b;font-size:12px;">'+fmt(r.verifiedAt)+'</td>'
+        +'</tr>').join('')
+        +'</tbody></table></div>';
+    }catch(e){el.innerHTML='<div style="text-align:center;color:#ef4444;font-size:14px;padding:40px;">불러오기 실패</div>';}
 }
 
 // ── Init ─────────────────────────────────────────────────

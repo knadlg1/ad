@@ -817,6 +817,14 @@
             <div id="missing-date-badge" style="text-align:center;margin-top:6px;margin-bottom:2px;font-size:15px;font-weight:900;color:#1e293b;background:#f1f5f9;border-radius:10px;padding:6px 0;"></div>
             <div id="missing-alert-text" style="margin-top:8px;"></div>
         </div>
+        <div id="missing-in-time-box" style="display:none;background:#f0fdf4;border:2px solid #10b981;border-radius:12px;padding:12px 14px;margin-bottom:10px;text-align:center;">
+            <div style="font-size:13px;font-weight:900;color:#059669;margin-bottom:8px;">🕐 출근 시간 선택 <span style="color:#ef4444;font-size:12px;">★ 필수</span></div>
+            <div class="time-select-group" id="in-time-dropdowns"></div>
+        </div>
+        <div id="missing-out-time-box" style="display:none;background:#fff5f5;border:2px solid #ef4444;border-radius:12px;padding:12px 14px;margin-bottom:10px;text-align:center;">
+            <div style="font-size:13px;font-weight:900;color:#dc2626;margin-bottom:8px;">🕐 퇴근 시간 선택 <span style="color:#ef4444;font-size:12px;">★ 필수</span></div>
+            <div class="time-select-group" id="out-time-dropdowns"></div>
+        </div>
         <div style="display:flex;gap:10px;margin-bottom:10px;">
             <div id="missing-student-sig-area" style="flex:1;min-height:120px;border:1.5px dashed #cbd5e1;border-radius:12px;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden;padding:6px;">
                 <button class="btn missing-btn-a" style="width:100%;margin-bottom:0;padding:18px 0;" onclick="openMissingStudentPad()">학생 서명</button>
@@ -857,14 +865,6 @@
             </div>
             <button onclick="clearCanvas('missing-manager-canvas')" style="background:none;border:none;color:#64748b;font-size:13px;cursor:pointer;">지우기</button>
         </div>
-        <div id="missing-in-time-box" style="display:none;background:#f0fdf4;border:2px solid #10b981;border-radius:12px;padding:12px 14px;margin-bottom:10px;text-align:center;">
-                <div style="font-size:13px;font-weight:900;color:#059669;margin-bottom:8px;">🕐 출근 시간 선택 <span style="color:#ef4444;font-size:12px;">★ 필수</span></div>
-                <div class="time-select-group" id="in-time-dropdowns"></div>
-            </div>
-            <div id="missing-out-time-box" style="display:none;background:#fff5f5;border:2px solid #ef4444;border-radius:12px;padding:12px 14px;margin-bottom:10px;text-align:center;">
-                <div style="font-size:13px;font-weight:900;color:#dc2626;margin-bottom:8px;">🕐 퇴근 시간 선택 <span style="color:#ef4444;font-size:12px;">★ 필수</span></div>
-                <div class="time-select-group" id="out-time-dropdowns"></div>
-            </div>
         <canvas id="missing-manager-canvas" class="modal-canvas"></canvas>
         <button class="btn" style="background:#3b82f6;color:white;margin-top:15px;" onclick="completeMissingManagerSig()">담당자 서명 완료</button>
     </div>
@@ -1439,10 +1439,15 @@ let missingManagerPhone = '';
         const studentSnap = await window.fsGetDoc(studentRef);
         let practiceStart = '2026-02-02';
         let practiceEnd   = '2026-07-18';
+        let scheduleStart = '09:00';
+        let scheduleEnd   = '16:30';
         if (studentSnap.exists()) {
             const sd = studentSnap.data();
-            if (sd.practiceStart) practiceStart = sd.practiceStart;
-            if (sd.practiceEnd)   practiceEnd   = sd.practiceEnd;
+            if (sd.practiceStart)  practiceStart  = sd.practiceStart;
+            if (sd.practiceEnd)    practiceEnd    = sd.practiceEnd;
+            if (sd.scheduleStart)  scheduleStart  = sd.scheduleStart;
+            if (sd.scheduleEnd)    scheduleEnd    = sd.scheduleEnd;
+            currentUser.academyId = sd.academyId || CONFIG.ACADEMY_ID;
             updateCertBubble(sd.certStatus || '');
             if (sd.pendingRequest) {
                 currentPendingRequest = sd.pendingRequest;
@@ -1489,28 +1494,60 @@ let missingManagerPhone = '';
         );
         const snap = await window.fsGetDocs(q);
 
-                let totalMinutes = 0, tardyCount = 0, earlyCount = 0;
+                const [schSH, schSM] = scheduleStart.split(':').map(Number);
+        const [schEH, schEM] = scheduleEnd.split(':').map(Number);
+        const schStartMins = schSH * 60 + schSM;
+        const schEndMins   = schEH * 60 + schEM;
+        let totalMinutes = 0, tardyCount = 0, earlyCount = 0, absentCount = 0;
+        // 누락 배너용 항목 수집
+        const today0 = todayKST();
+        const missingItems = [];
         snap.forEach(d => {
             const rec = d.data();
-            if (!rec.inTime || !rec.outTime) return;
-            // 실습 기간 범위 밖은 제외
             if (!rec.date || rec.date < practiceStart || rec.date > practiceEnd) return;
+            // 누락 감지 (오늘 제외, 평일만)
+            if (rec.date < today0) {
+                const dowM = new Date(rec.date + 'T00:00:00').getDay();
+                if (dowM !== 0 && dowM !== 6) {
+                    if (rec.inTime && !rec.outTime)        missingItems.push({ date: rec.date, type: '퇴근' });
+                    else if (!rec.inTime && rec.outTime)  missingItems.push({ date: rec.date, type: '출근' });
+                    else if (!rec.inTime && !rec.outTime) missingItems.push({ date: rec.date, type: '출,퇴근' });
+                }
+            }
+            if (!rec.inTime || !rec.outTime) return;
             const [inH, inM]   = rec.inTime.split(':').map(Number);
             const [outH, outM] = rec.outTime.split(':').map(Number);
-            const effectiveIn  = Math.max(inH * 60 + inM, 540); // 09:00 이전 출근은 09:00 기준
-            const rawMins = (outH * 60 + outM) - effectiveIn;
-            if (rawMins <= 0) return;
-            // 휴게 차감: 4시간 초과~8시간=30분, 8시간 초과=60분
-            const workMins = rawMins > 480 ? rawMins - 60 : rawMins > 240 ? rawMins - 30 : rawMins;
-            totalMinutes += workMins;
-            // 주말 제외하고 지각/조퇴 판단
+            const effectiveIn  = Math.max(inH * 60 + inM, schStartMins);
+            const outMins      = outH * 60 + outM;
+            if (outMins <= schStartMins) return;
+            // 휴게 차감: 4시간(240분) 이상 실습 시 30분 차감
+            const rawMins = outMins - effectiveIn;
+            const netMins = rawMins >= 240 ? rawMins - 30 : rawMins;
+            // 최대 8시간, 1시간 단위
+            const workHours = Math.min(Math.floor(netMins / 60), 8);
+            if (workHours <= 0) return;
+            totalMinutes += workHours * 60;
             const dow = new Date(rec.date + 'T00:00:00').getDay();
             const isWeekend = dow === 0 || dow === 6;
             if (!isWeekend) {
-                if (effectiveIn > 540)        tardyCount++; // 09:01 이상
-                if (outH * 60 + outM < 989)   earlyCount++; // 16:29 미만
+                if (effectiveIn > schStartMins) tardyCount++;
+                if (outMins < schEndMins)       earlyCount++;
+                if (netMins < 240)              absentCount++; // 순 실습 4시간 미만 = 결석
             }
         });
+        // 누락 배너 렌더링
+        const bannerContainer = document.getElementById('missing-banner-container');
+        if (bannerContainer) {
+            bannerContainer.innerHTML = '';
+            missingItems.sort((a, b) => a.date.localeCompare(b.date));
+            missingItems.forEach(item => {
+                const div = document.createElement('div');
+                div.className = 'missing-banner-item';
+                div.textContent = `⚠️ ${item.date.replace(/-/g,'.')} ${item.type} 기록 누락 → 입력하기`;
+                div.onclick = () => openMissingModal(item);
+                bannerContainer.appendChild(div);
+            });
+        }
         const totalHours = Math.round(totalMinutes / 60 * 10) / 10;
 
         // 정석 기준시간 계산 (주말 + 한국 공휴일 제외, 1일=7시간)
@@ -2887,21 +2924,64 @@ function goBackToStep1() {
         document.getElementById('missing-student-sig-area').innerHTML='<button class="btn missing-btn-a" style="width:100%;margin-bottom:0;padding:18px 0;" onclick="openMissingStudentPad()">학생 서명</button>';
         document.getElementById('missing-submit-btn').style.display='none';
     }
+    function openMissingModal(item) {
+        window.currentMissingRecord = item;
+        resetMissingSig();
+        const inBox  = document.getElementById('missing-in-time-box');
+        const outBox = document.getElementById('missing-out-time-box');
+        inBox.style.display='none'; outBox.style.display='none';
+        if (item.type==='출근'||item.type==='출,퇴근') { inBox.style.display='block'; document.getElementById('in-time-dropdowns').innerHTML=buildTimeDropdowns('in'); }
+        if (item.type==='퇴근'||item.type==='출,퇴근') { outBox.style.display='block'; document.getElementById('out-time-dropdowns').innerHTML=buildTimeDropdowns('out'); }
+        document.getElementById('missing-date-badge').textContent = item.date.replace(/-/g,'.') + ' ' + item.type + ' 누락';
+        document.getElementById('missing-alert-text').textContent = '시간을 선택 후 담당자 휴대폰 인증을 받아주세요.';
+        document.getElementById('missing-alert-modal').style.display='flex';
+    }
     function openMissingManagerPad() {
-        openSigOTPModal(function(phone) {
+        const missing = window.currentMissingRecord;
+        if (!missing) return;
+        if (missing.type==='출근'||missing.type==='출,퇴근') {
+            if (!document.getElementById('in-hour')?.value) { showToast('출근 시간을 선택해주세요.', 'info'); return; }
+        }
+        if (missing.type==='퇴근'||missing.type==='출,퇴근') {
+            if (!document.getElementById('out-hour')?.value) { showToast('퇴근 시간을 선택해주세요.', 'info'); return; }
+        }
+        openSigOTPModal(async function(phone) {
             missingManagerPhone = phone;
+            const ok = await saveMissingToFirestore(missing, phone);
+            if (!ok) return;
             document.getElementById('missing-alert-modal').style.display='none';
             openMissingManagerSig();
         });
     }
+    async function saveMissingToFirestore(missing, phone) {
+        try {
+            const inTime  = (missing.type==='출근'||missing.type==='출,퇴근')
+                ? (document.getElementById('in-hour')?.value||'') + ':' + (document.getElementById('in-min')?.value||'00')
+                : '';
+            const outTime = (missing.type==='퇴근'||missing.type==='출,퇴근')
+                ? (document.getElementById('out-hour')?.value||'') + ':' + (document.getElementById('out-min')?.value||'00')
+                : '';
+            const verifiedAt = new Date().toISOString();
+            const docKey     = String(currentUser.kakaoId) + '_' + missing.date;
+            const academyId  = currentUser.academyId || CONFIG.ACADEMY_ID;
+            const attUpdate  = { managerPhone: phone, managerVerifiedAt: verifiedAt };
+            if (inTime)  attUpdate.inTime  = inTime;
+            if (outTime) attUpdate.outTime = outTime;
+            await window.fsSetDoc(window.fsDoc(window.db, 'attendance', docKey), attUpdate, { merge: true });
+            await window.fsSetDoc(window.fsDoc(window.db, 'missingVerifications', docKey), {
+                kakaoId: String(currentUser.kakaoId), name: currentUser.name,
+                date: missing.date, type: missing.type,
+                inTime, outTime, managerPhone: phone, verifiedAt, academyId
+            });
+            return true;
+        } catch(e) {
+            console.error('Firestore 누락 저장 실패:', e);
+            showToast('저장 중 오류가 발생했습니다.', 'error');
+            return false;
+        }
+    }
     function openMissingManagerSig() {
-        const missing = window.currentMissingRecord;
-        if (!missing) return;
-        const inBox  = document.getElementById('missing-in-time-box');
-        const outBox = document.getElementById('missing-out-time-box');
-        inBox.style.display='none'; outBox.style.display='none';
-        if (missing.type==='출근'||missing.type==='출,퇴근') { inBox.style.display='block'; document.getElementById('in-time-dropdowns').innerHTML=buildTimeDropdowns('in'); }
-        if (missing.type==='퇴근'||missing.type==='출,퇴근') { outBox.style.display='block'; document.getElementById('out-time-dropdowns').innerHTML=buildTimeDropdowns('out'); }
+        if (!window.currentMissingRecord) return;
         document.getElementById('missing-manager-sig-modal').style.display='flex';
         setupCanvas('missing-manager-canvas');
     }
@@ -2936,19 +3016,6 @@ function goBackToStep1() {
         for(let m=0;m<60;m+=5) mins+=`<option value="${String(m).padStart(2,'0')}">${String(m).padStart(2,'0')}분</option>`;
         return `<select class="time-select" id="${prefix}-hour">${hours}</select><span>:</span><select class="time-select" id="${prefix}-min">${mins}</select>`;
     }
-    function checkMissingTimeSelected() {
-        let ok = true;
-        const outBox = document.getElementById('missing-out-time-box');
-        const inBox  = document.getElementById('missing-in-time-box');
-        if (outBox && outBox.style.display !== 'none') {
-            if (!document.getElementById('out-hour').value || !document.getElementById('out-min').value) ok = false;
-        }
-        if (inBox && inBox.style.display !== 'none') {
-            if (!document.getElementById('in-hour').value || !document.getElementById('in-min').value) ok = false;
-        }
-        const btn = document.getElementById('missing-final-btn');
-        if (btn) { btn.disabled = !ok; btn.style.opacity = ok ? '1' : '0.4'; }
-    }
     async function submitMissingVacation() {
         document.getElementById('missing-alert-modal').style.display='none';
         showLoader(true);
@@ -2958,32 +3025,6 @@ function goBackToStep1() {
             showLoader(false);
             if (result.status==='success') { showToast('제출 완료!', 'success'); location.reload(); }
             else { showToast('제출 실패: '+(result.message||''), 'error'); }
-        } catch(e) { showLoader(false); showToast('서버 오류.', 'error'); }
-    }
-    async function requestManagerOTP() {
-        const phone = document.getElementById('manager-phone-input').value.trim();
-        if (!phone) { showToast('담당자 휴대폰 번호를 입력해주세요.', 'info'); return; }
-        missingManagerPhone = phone;
-        showLoader(true);
-        try {
-            const response = await fetchWithRetry(CONFIG.FUNC_URL + '/requestOTP', { body: JSON.stringify({ phone }) });
-            const result = await response.json();
-            showLoader(false);
-            if (result.status==='success') { document.getElementById('otp-request-section').style.display='none'; document.getElementById('otp-verify-section').style.display='block'; showToast('인증번호가 발송되었습니다.', 'success'); }
-            else { showToast('발송 실패: '+result.message, 'error'); }
-        } catch(e) { showLoader(false); showToast('서버 오류.', 'error'); }
-    }
-            async function verifyManagerOTP() {
-        const otp = document.getElementById('manager-otp-input').value.trim();
-        if (!otp) { showToast('인증번호를 입력해주세요.', 'info'); return; }
-        if (!document.getElementById('otp-consent-check').checked) { showToast('개인정보 수집 동의를 체크해주세요.', 'info'); return; }
-        showLoader(true);
-        try {
-            const response = await fetchWithRetry(CONFIG.FUNC_URL + '/verifyOTP', { body: JSON.stringify({ otp, phone:missingManagerPhone }) });
-            const result = await response.json();
-            showLoader(false);
-            if (result.status==='success') { showToast('인증 완료. 서명을 진행해주세요.', 'success'); document.getElementById('otp-request-section').style.display='none'; document.getElementById('otp-verify-section').style.display='none'; document.getElementById('manager-signature-section').style.display='block'; checkMissingTimeSelected(); }
-            else { showToast('인증번호가 일치하지 않습니다.', 'info'); }
         } catch(e) { showLoader(false); showToast('서버 오류.', 'error'); }
     }
         async function submitMissingSignature() {
@@ -3006,8 +3047,8 @@ function goBackToStep1() {
         if (!managerSig) { showToast('담당자 서명이 없습니다.', 'error'); return; }
 
         let inTime='', outTime='';
-        if (missing.type==='출근'||missing.type==='출,퇴근') inTime=(document.getElementById('in-hour')||{}).value+':'+(document.getElementById('in-min')||{}).value;
-        if (missing.type==='퇴근'||missing.type==='출,퇴근') outTime=(document.getElementById('out-hour')||{}).value+':'+(document.getElementById('out-min')||{}).value;
+        if (missing.type==='출근'||missing.type==='출,퇴근') inTime=(document.getElementById('in-hour')?.value||'')+(':'+(document.getElementById('in-min')?.value||'00'));
+        if (missing.type==='퇴근'||missing.type==='출,퇴근') outTime=(document.getElementById('out-hour')?.value||'')+(':'+(document.getElementById('out-min')?.value||'00'));
 
         const btn = document.getElementById('missing-submit-btn');
         btn.disabled=true; btn.textContent='처리 중...';
