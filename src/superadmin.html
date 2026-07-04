@@ -212,6 +212,9 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--canvas);color:var
       <button class="nav-item" id="nav-authreqs" onclick="showPage('authreqs',this)">
         <span class="nav-icon">🔐</span>출결 인증 요청
       </button>
+      <button class="nav-item" id="nav-presence" onclick="showPage('presence',this);loadPresenceLogs()">
+        <span class="nav-icon">📡</span>프레즌스 로그
+      </button>
       <div class="nav-version">v1.0 · 최고관리자</div>
     </div>
 
@@ -436,6 +439,29 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--canvas);color:var
         </div>
         <div id="authreqs-count" style="font-size:13px;color:var(--muted);margin-bottom:10px;"></div>
         <div id="authreqs-list"></div>
+      </div>
+
+      <!-- 프레즌스 로그 -->
+      <div class="page" id="page-presence">
+        <div class="section-header">
+          <div>
+            <div class="section-title">프레즌스 로그</div>
+            <div class="section-subtitle">30분 WiFi 체크 기록 · iOS 지오펜스 이탈 이벤트</div>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <select id="presence-filter-type" onchange="loadPresenceLogs()" style="padding:8px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;">
+              <option value="">전체</option>
+              <option value="presenceLogs">WiFi 체크</option>
+              <option value="geofenceEvents">지오펜스</option>
+              <option value="scoringLogs">점수 이력</option>
+            </select>
+            <input type="date" id="presence-filter-date" onchange="loadPresenceLogs()" style="padding:8px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;">
+            <button onclick="loadPresenceLogs()" style="padding:8px 16px;background:var(--accent);color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600;">새로고침</button>
+          </div>
+        </div>
+        <div id="presence-log-container" style="overflow-x:auto;">
+          <div id="presence-log-content" style="color:var(--muted);text-align:center;padding:40px;">조회 중...</div>
+        </div>
       </div>
 
     </div><!-- .main -->
@@ -711,6 +737,80 @@ function showApp(){
     document.getElementById('auth-wrap').style.display = 'none';
     document.getElementById('app').style.display = 'flex';
     loadDirectors();
+}
+
+// ── 프레즌스 로그 ──────────────────────────────────────────
+async function loadPresenceLogs() {
+  const esc = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  const el = document.getElementById('presence-log-content');
+  el.innerHTML = '<div style="text-align:center;padding:30px;color:var(--muted);">로딩 중...</div>';
+
+  const typeFilter = document.getElementById('presence-filter-type')?.value || '';
+  const dateFilter = document.getElementById('presence-filter-date')?.value || '';
+
+  const collections = typeFilter
+    ? [typeFilter]
+    : ['presenceLogs', 'geofenceEvents', 'scoringLogs'];
+
+  const allRows = [];
+  try {
+    for (const col of collections) {
+      let q = window.fsCollection(window.db, col);
+      if (dateFilter) q = window.fsQuery(q, window.fsWhere('date', '==', dateFilter));
+      q = window.fsQuery(q, window.fsOrderBy('timestamp', 'desc'), window.fsLimit(200));
+      const snap = await window.fsGetDocs(q);
+      snap.forEach(d => allRows.push({ _col: col, ...d.data() }));
+    }
+  } catch(e) {
+    el.innerHTML = '<div style="color:#ef4444;padding:20px;">데이터 로드 실패</div>';
+    return;
+  }
+
+  if (!allRows.length) {
+    el.innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted);">데이터 없음</div>';
+    return;
+  }
+
+  allRows.sort((a,b) => b.timestamp > a.timestamp ? 1 : -1);
+
+  const colLabel = { presenceLogs: 'WiFi체크', geofenceEvents: '지오펜스', scoringLogs: '점수이력' };
+  const colColor = { presenceLogs: '#3b82f6', geofenceEvents: '#f59e0b', scoringLogs: '#10b981' };
+
+  const rows = allRows.map((r,i) => {
+    const bg = i%2===0?'':'background:#f8fafc;';
+    const badge = `<span style="background:${colColor[r._col]||'#999'};color:#fff;font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;">${esc(colLabel[r._col]||r._col)}</span>`;
+    const platform = r.platform ? `<span style="font-size:11px;color:var(--muted);">${esc(r.platform)}</span>` : '';
+    let detail = '';
+    if (r._col === 'presenceLogs') {
+      const inHosp = r.isInHospital ? '<span style="color:#10b981;font-weight:700;">✓ 병원내</span>' : '<span style="color:#ef4444;font-weight:700;">✗ 이탈</span>';
+      detail = `일치율: <b>${esc(r.wifiMatchPct)}%</b> | 주변AP: ${esc(r.currentBssidCount)}개 | ${inHosp}`;
+    } else if (r._col === 'geofenceEvents') {
+      const ev = r.event === 'EXIT'
+        ? '<span style="color:#ef4444;font-weight:700;">🚨 이탈</span>'
+        : '<span style="color:#10b981;font-weight:700;">✓ 복귀</span>';
+      detail = ev;
+    } else if (r._col === 'scoringLogs') {
+      detail = `${esc(r.type)} | 점수: <b>${esc(r.fingerprintScore)}</b> | 일치율: ${esc(r.matchPct)}% | GPS정확도: ${esc(r.gpsAccuracy)}m | 단계: ${esc(r.phase)} | CF: ${esc(r.cfStatus)}`;
+    }
+    return `<tr style="${bg}">
+      <td style="padding:8px 12px;">${badge}</td>
+      <td style="padding:8px 12px;">${esc(r.name||r.kakaoId||'-')}</td>
+      <td style="padding:8px 12px;white-space:nowrap;">${esc(r.date||'')} ${esc(r.time||'')}</td>
+      <td style="padding:8px 12px;">${platform}</td>
+      <td style="padding:8px 12px;font-size:13px;">${detail}</td>
+    </tr>`;
+  }).join('');
+
+  el.innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:13px;">
+    <thead><tr style="background:#f1f5f9;font-weight:700;">
+      <th style="padding:10px 12px;text-align:left;">유형</th>
+      <th style="padding:10px 12px;text-align:left;">학생</th>
+      <th style="padding:10px 12px;text-align:left;">일시</th>
+      <th style="padding:10px 12px;text-align:left;">기기</th>
+      <th style="padding:10px 12px;text-align:left;">상세</th>
+    </tr></thead>
+    <tbody>${rows}</tbody>
+  </table>`;
 }
 
 // ── Navigation ─────────────────────────────────────────────
