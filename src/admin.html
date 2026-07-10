@@ -599,6 +599,34 @@ body{font-family:'Pretendard',system-ui,sans-serif;background:var(--canvas);colo
 .stu-dropout-btn.active{background:#ef4444;color:#fff;border-color:#ef4444;}
 .doc-stu-row.dropped{opacity:0.45;}
 .doc-stu-row.dropped span{text-decoration:line-through;}
+/* ── 3-세그먼트 진행 바 ── */
+.prog-wrap-s{display:flex;flex-direction:column;gap:3px;min-width:130px;}
+.prog-bar-track-s{height:8px;border-radius:4px;overflow:hidden;display:flex;background:#e2e8f0;}
+.prog-label-s{font-size:10px;color:var(--muted);font-weight:600;white-space:nowrap;font-variant-numeric:tabular-nums;}
+/* ── 퇴근 누락 섹션 ── */
+.att-missing-section{background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:10px 12px;margin-bottom:10px;}
+.att-missing-head{display:flex;align-items:center;gap:8px;margin-bottom:6px;}
+.att-missing-title{font-size:12px;font-weight:700;color:#c2410c;}
+.att-missing-count{font-size:12px;font-weight:800;color:#c2410c;background:#ffedd5;border-radius:10px;padding:1px 7px;}
+.att-missing-body{display:flex;flex-wrap:wrap;gap:5px;}
+.att-missing-row{display:flex;align-items:center;gap:5px;font-size:11px;background:#fff;border:1px solid #fed7aa;border-radius:6px;padding:3px 8px;}
+.att-missing-name{font-weight:700;color:#1e293b;}
+.att-missing-date{color:#c2410c;}
+.att-missing-in{color:#64748b;}
+/* ── 반코드 빌더 ── */
+.cls-code-builder{display:flex;align-items:center;gap:4px;flex-wrap:wrap;}
+.cls-code-fixed{font-size:13px;font-weight:700;color:var(--brand);white-space:nowrap;}
+.cls-code-sep{font-size:13px;color:var(--muted);font-weight:700;}
+.cls-code-year,.cls-code-d{padding:8px 6px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;outline:none;background:#fff;transition:.15s;}
+.cls-code-year:focus,.cls-code-d:focus{border-color:var(--brand);}
+.cls-code-digits{width:72px;padding:8px 8px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;outline:none;background:#fff;transition:.15s;letter-spacing:1px;}
+.cls-code-digits:focus{border-color:var(--brand);}
+/* ── 직인 관리 ── */
+.sb-seal-status{font-size:11px;color:var(--muted);margin-top:2px;}
+.sb-seal-status.ok{color:#10b981;font-weight:700;}
+.seal-preview-wrap{display:flex;align-items:center;gap:12px;margin:10px 0;}
+.seal-preview-img{width:80px;height:80px;border:1px solid var(--border);border-radius:8px;object-fit:contain;background:#f8f9fa;}
+.seal-preview-placeholder{width:80px;height:80px;border:2px dashed var(--border);border-radius:8px;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:22px;}
 </style>
 </head>
 <body>
@@ -702,6 +730,7 @@ body{font-family:'Pretendard',system-ui,sans-serif;background:var(--canvas);colo
           <div class="sb-academy-name" id="topbar-academy-name">-</div>
           <div class="sb-director-name" id="topbar-director-name">-</div>
           <div class="sb-invite-code" id="topbar-invite-code"></div>
+          <div class="sb-seal-status" id="sb-seal-status"></div>
         </div>
       </div>
 
@@ -714,6 +743,11 @@ body{font-family:'Pretendard',system-ui,sans-serif;background:var(--canvas);colo
       <!-- 누락 인증 -->
       <div class="nav-section" style="margin-top:8px;">
         <button class="nav-item" id="nav-missing-log" onclick="showPage('missing-log',this);loadMissingLog()">누락 인증</button>
+      </div>
+
+      <!-- 중도탈락 -->
+      <div class="nav-section" style="margin-top:8px;">
+        <button class="nav-item" id="nav-dropout" onclick="showPage('dropout',this);renderDropoutPage()">중도탈락</button>
       </div>
 
       <!-- 설정 + 로그아웃 -->
@@ -822,6 +856,14 @@ body{font-family:'Pretendard',system-ui,sans-serif;background:var(--canvas);colo
                   </div>
                 </div>
               </div>
+              <!-- 퇴근 누락 섹션 -->
+              <div id="att-missing-section" class="att-missing-section" style="display:none;">
+                <div class="att-missing-head">
+                  <div class="att-missing-title">퇴근 누락</div>
+                  <div class="att-missing-count" id="att-missing-count">0</div>
+                </div>
+                <div class="att-missing-body" id="att-missing-list"></div>
+              </div>
               <!-- 하단 75% : 전체 현황 테이블 -->
               <div class="att-table-section">
                 <!-- 단일 날짜 테이블 -->
@@ -831,7 +873,6 @@ body{font-family:'Pretendard',system-ui,sans-serif;background:var(--canvas);colo
                       <th>반</th>
                       <th>이름</th>
                       <th>실습병원</th>
-                      <th>실습기간</th>
                       <th class="prog-cell">누적시간</th>
                       <th>출근</th>
                       <th>퇴근</th>
@@ -949,6 +990,9 @@ body{font-family:'Pretendard',system-ui,sans-serif;background:var(--canvas);colo
               <div style="font-size:12px;color:var(--muted);margin-bottom:10px;">퇴근 누락 신청 승인 시 해당 날짜 출퇴근 기록에 자동 반영됩니다.</div>
               <div id="missingout-list"><div class="empty-state" style="padding:8px;">대기 중인 출결 신청 없음</div></div>
 
+              <div class="approve-section-head" style="margin-top:18px;">승인 내역</div>
+              <div id="missingout-approved-list"><div class="empty-state" style="padding:8px;">승인된 내역 없음</div></div>
+
               <div class="approve-section-head" style="margin-top:18px;">신규 가입 승인</div>
               <!-- 일괄 선택 바 -->
               <div class="pending-bulk-bar" id="pending-bulk-bar">
@@ -1004,7 +1048,31 @@ body{font-family:'Pretendard',system-ui,sans-serif;background:var(--canvas);colo
                 <div class="cls-section-title">반 생성</div>
                 <div class="cls-create-form">
                   <input class="cls-input" id="cls-name" placeholder="반 이름 (예: 2026년 1반)" oninput="updateClsAddBtn()">
-                  <input class="cls-input" id="cls-code" placeholder="반 코드 (예: 26-1)" oninput="updateClsAddBtn()">
+                  <div class="cls-code-builder">
+                    <span class="cls-code-fixed">AIG</span>
+                    <span class="cls-code-sep">-</span>
+                    <select class="cls-code-year" id="cls-code-year" onchange="updateClassCode()">
+                      <option value="">연도</option>
+                      <option value="2024">2024</option>
+                      <option value="2025">2025</option>
+                      <option value="2026">2026</option>
+                      <option value="2027">2027</option>
+                      <option value="2028">2028</option>
+                    </select>
+                    <span class="cls-code-sep">-0000-</span>
+                    <input class="cls-code-digits" id="cls-code-digits" type="text" inputmode="numeric" maxlength="6" placeholder="123456" oninput="this.value=this.value.replace(/\D/g,'').slice(0,6);updateClassCode()">
+                    <span class="cls-code-sep">-</span>
+                    <select class="cls-code-d" id="cls-code-d" onchange="updateClassCode()">
+                      <option value="">D</option>
+                      <option value="1">1</option>
+                      <option value="2">2</option>
+                      <option value="3">3</option>
+                      <option value="4">4</option>
+                      <option value="5">5</option>
+                      <option value="6">6</option>
+                    </select>
+                  </div>
+                  <input type="hidden" id="cls-code">
                   <div class="cls-file-row">
                     <button class="btn btn-outline btn-sm" onclick="selectClsTimetableFile()">📅 전자시간표 선택</button>
                     <span class="cls-file-label" id="cls-file-label">선택된 파일 없음</span>
@@ -1066,6 +1134,7 @@ body{font-family:'Pretendard',system-ui,sans-serif;background:var(--canvas);colo
             <button class="stab-btn active" onclick="showSettingsTab('card',this)">등록 카드</button>
             <button class="stab-btn" onclick="showSettingsTab('subs',this)">구독 현황</button>
             <button class="stab-btn" onclick="showSettingsTab('pw',this)">비밀번호 변경</button>
+            <button class="stab-btn" onclick="showSettingsTab('seal',this)">직인 관리</button>
           </div>
 
           <div id="stab-card" class="stab-panel active">
@@ -1120,6 +1189,27 @@ body{font-family:'Pretendard',system-ui,sans-serif;background:var(--canvas);colo
             </div>
           </div>
 
+          <div id="stab-seal" class="stab-panel">
+            <div class="card">
+              <div class="card-title">직인 관리</div>
+              <div style="font-size:13px;color:var(--muted);margin-bottom:14px;">업로드된 직인은 직권입력관리대장에 자동으로 삽입됩니다.</div>
+              <div class="seal-preview-wrap">
+                <div id="seal-preview-container">
+                  <div class="seal-preview-placeholder" id="seal-preview-placeholder">도장</div>
+                  <img id="seal-preview-img" class="seal-preview-img" style="display:none;" alt="직인">
+                </div>
+                <div>
+                  <div style="font-size:13px;font-weight:700;margin-bottom:8px;" id="seal-status-text">등록된 직인 없음</div>
+                  <div style="display:flex;gap:8px;">
+                    <button class="btn btn-primary btn-sm" onclick="document.getElementById('seal-file-input').click()">업로드</button>
+                    <button class="btn btn-danger btn-sm" id="seal-delete-btn" style="display:none;" onclick="deleteSealImage()">삭제</button>
+                  </div>
+                  <input type="file" id="seal-file-input" accept="image/*" style="display:none;" onchange="onSealFileSelect(this)">
+                </div>
+              </div>
+            </div>
+          </div>
+
         </div>
       </div>
 
@@ -1129,6 +1219,16 @@ body{font-family:'Pretendard',system-ui,sans-serif;background:var(--canvas);colo
           <div style="font-size:18px;font-weight:800;color:#1e293b;margin-bottom:16px;">📋 누락 인증 로그</div>
           <div id="missing-log-content">
             <div style="text-align:center;color:#94a3b8;font-size:14px;padding:40px;">불러오는 중...</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── 중도탈락 ── -->
+      <div id="page-dropout" class="page">
+        <div style="padding:24px 20px;">
+          <div style="font-size:18px;font-weight:800;color:#1e293b;margin-bottom:16px;">중도탈락 학생 목록</div>
+          <div id="dropout-list-content">
+            <div style="text-align:center;color:#94a3b8;font-size:14px;padding:40px;">중도탈락 학생 없음</div>
           </div>
         </div>
       </div>
@@ -1570,7 +1670,7 @@ async function loadAll(){
     showLoader(true);
     try{
         await Promise.all([loadStudents(),loadClasses(),loadAcademyHospitals()]);
-        await Promise.all([loadAttendance(),loadPendingStudents(),loadMissingOutRequests(),loadAttendanceAuthRequests()]);
+        await Promise.all([loadAttendance(),loadPendingStudents(),loadMissingOutRequests(),loadAttendanceAuthRequests(),loadSealImage(),loadMissingOutApproved()]);
         renderStudents();
         initDocTab();
         renderAuthReqStuDropdown();
@@ -1751,7 +1851,7 @@ function renderAttendance(){
 
     // 테이블 학생 목록 필터
     const emptyEl=document.getElementById('att-empty');
-    let filtered=studentsList.filter(s=>(!classFilter||s.classId===classFilter)&&(!stuFilter||String(s.kakaoId)===stuFilter)&&(!attStuNameFilter||(s.name||'').includes(attStuNameFilter)));
+    let filtered=studentsList.filter(s=>!s.droppedOut&&(!classFilter||s.classId===classFilter)&&(!stuFilter||String(s.kakaoId)===stuFilter)&&(!attStuNameFilter||(s.name||'').includes(attStuNameFilter)));
     filtered.sort((a,b)=>{
         const ca=(classesList.find(c=>c.id===a.classId)||{name:'ㅎ'}).name;
         const cb=(classesList.find(c=>c.id===b.classId)||{name:'ㅎ'}).name;
@@ -1797,7 +1897,8 @@ function renderAttendance(){
                 const out=oh*60+(om||0);
                 if(out<=adjIn)return;
                 const rawMins=out-adjIn;
-                const netMins=rawMins>=240?rawMins-30:rawMins;
+                const lunchM=cls?.lunchBreakMins||30;
+                const netMins=rawMins>=240?rawMins-lunchM:rawMins;
                 const wh=Math.min(Math.floor(netMins/60),8);
                 if(wh<=0)return;
                 totalMins+=wh*60;
@@ -1829,15 +1930,28 @@ function renderAttendance(){
                 const isPDay=clsTt?(selDate in clsTt):practiceDays.includes(selDate);
                 if(isPDay){statusHtml='<span class="status-badge sb-before">출근전</span>';rowClass='att-tr-before';}
             }
-            function fmtD(d){return d.slice(2,4)+'/'+parseInt(d.slice(5,7))+'/'+parseInt(d.slice(8,10));}
-            const period=formatPracticePeriods(cls)||(stu.practiceStart&&stu.practiceEnd?`${fmtD(stu.practiceStart)}~${fmtD(stu.practiceEnd)}`:(stu.practiceStart?fmtD(stu.practiceStart):'-'));
-            const pct=Math.min(100,Math.round(accH/TOTAL*100));
-            const accBar=`<div class="prog-wrap"><div class="prog-bar-track"><div class="prog-bar-fill" style="width:${pct}%"></div></div><div class="prog-label">${accH}h / 780h</div></div>`;
+            let stdMins=0;
+            if(clsTt){
+                const lunchM=cls?.lunchBreakMins||30;
+                Object.entries(clsTt).forEach(([d,sched])=>{
+                    if(d>selDate)return;
+                    if(effStart&&d<effStart)return;
+                    const s2=toMins(sched.start),e2=toMins(sched.end);
+                    const rM=e2-s2,nM=rM>=240?rM-lunchM:rM;
+                    const wh=Math.min(Math.floor(nM/60),8);
+                    if(wh>0)stdMins+=wh*60;
+                });
+            }
+            const stdH=Math.round(stdMins/6)/10;
+            const actualPct=Math.min(100,Math.round(accH/TOTAL*100));
+            const stdPct=Math.min(100,Math.round(stdH/TOTAL*100));
+            const gapPct=Math.max(0,stdPct-actualPct);
+            const remainPct=Math.max(0,100-Math.max(actualPct,stdPct));
+            const accBar=`<div class="prog-wrap-s"><div class="prog-bar-track-s"><div style="background:var(--brand);width:${actualPct}%;height:100%;"></div><div style="background:#c4b5fd;width:${gapPct}%;height:100%;"></div><div style="background:#e2e8f0;width:${remainPct}%;height:100%;"></div></div><div class="prog-label-s">${accH}h / ${stdH}h / 780h</div></div>`;
             return `<tr class="${rowClass}">
                 <td class="att-td-cls">${escHtml(clsName)}</td>
                 <td class="att-td-name">${escHtml(stu.name||'-')}</td>
                 <td class="att-td-hosp">${escHtml(stu.hospital||'-')}</td>
-                <td class="att-td-period">${period}</td>
                 <td class="prog-cell">${accBar}</td>
                 <td class="att-td-time">${inT||'-'}</td>
                 <td class="att-td-time">${outT||'-'}</td>
@@ -1877,7 +1991,8 @@ function renderAttendance(){
                     if(outMins>eMs)extCount++;
                     const adjIn=Math.max(inMins,sMs);
                     const rawMins=outMins-adjIn;
-                    const netMins=rawMins>=240?rawMins-30:rawMins;
+                    const lunchM=cls?.lunchBreakMins||30;
+                    const netMins=rawMins>=240?rawMins-lunchM:rawMins;
                     const wh=Math.min(Math.floor(netMins/60),8);
                     if(wh>0)totalMins+=wh*60;
                 }
@@ -1934,6 +2049,7 @@ function renderAttendance(){
             return summaryRow+sectionHeader+detailRows;
         }).join('');
     }
+    renderMissingSection();
 }
 
 function renderAuthReqStuDropdown(){
@@ -2354,6 +2470,7 @@ async function approveMissingOut(docId,kakaoId,date,outTime){
         });
     },{successMsg:'퇴근 누락 승인 완료 ✓',delay:1000,onSuccess:async()=>{
         await loadMissingOutRequests();
+        await loadMissingOutApproved();
     }});
 }
 
@@ -2365,6 +2482,7 @@ async function rejectMissingOut(docId){
         });
     },{successMsg:'거절 완료 ✓',delay:800,onSuccess:async()=>{
         await loadMissingOutRequests();
+        await loadMissingOutApproved();
     }});
 }
 
@@ -3014,7 +3132,7 @@ function renderVtabClasses(){
 }
 
 // vtab-cls 반 생성용 전자시간표 변수
-let clsTtHolidays=[], clsTtPracticeDays=[], clsTtFileName='', clsTtData={}, clsTtTrainStart=null, clsTtTrainEnd=null;
+let clsTtHolidays=[], clsTtPracticeDays=[], clsTtFileName='', clsTtData={}, clsTtTrainStart=null, clsTtTrainEnd=null, clsTtLunchMins=30;
 function toMins(t){const p=(t||'').split(':').map(Number);return(p[0]||0)*60+(p[1]||0);}
 function normDate(d){if(d&&/^\d{8}$/.test(d))return`${d.slice(0,4)}-${d.slice(4,6)}-${d.slice(6,8)}`;return d||'';}
 function getClsPracticePeriod(cls){
@@ -3112,15 +3230,28 @@ function parseClsTimetable(e){
                 clsTtPracticeDays.push(date);
             });
 
+            // 중식 시간 감지
+            clsTtLunchMins=30;
+            rows.forEach(row=>{
+                const subj=((row[8]||'').toString()).trim();
+                if(subj.includes('중식')||subj.includes('점심')){
+                    const ls=parseTime(row[1]),le=parseTime(row[2]);
+                    if(ls&&le){
+                        const lm=timeToMinutes(le)-timeToMinutes(ls);
+                        if(lm>0&&lm<=120)clsTtLunchMins=lm;
+                    }
+                }
+            });
+
             document.getElementById('cls-file-label').textContent=clsTtFileName;
             const parseEl=document.getElementById('cls-tt-parse');
             if(clsTtPracticeDays.length){
                 const sorted=clsTtPracticeDays.slice().sort();
                 const firstSched=clsTtData[sorted[0]];
-                const lastSched=clsTtData[sorted[sorted.length-1]];
                 const timeRange=firstSched?`${firstSched.start}~${firstSched.end}`:'';
-                document.getElementById('cls-tt-summary').textContent=`현장실습 ${clsTtPracticeDays.length}일 | ${timeRange}`;
-                document.getElementById('cls-tt-class-label').textContent=`${sorted[0]} ~ ${sorted[sorted.length-1]}`;
+                const trainRange=clsTtTrainStart&&clsTtTrainEnd?`${clsTtTrainStart} ~ ${clsTtTrainEnd}`:'';
+                document.getElementById('cls-tt-summary').textContent=`현장실습 ${clsTtPracticeDays.length}일 | ${timeRange} | 점심 ${clsTtLunchMins}분`;
+                document.getElementById('cls-tt-class-label').textContent=`현장: ${sorted[0]} ~ ${sorted[sorted.length-1]}${trainRange?'  |  전체: '+trainRange:''}`;
                 parseEl.style.display='block';
             } else {
                 showToast('현장실습 항목을 찾지 못했습니다. 엑셀 I열(교과목코드)을 확인해주세요','info');
@@ -3134,7 +3265,7 @@ function parseClsTimetable(e){
 }
 
 function resetClsTimetable(){
-    clsTtHolidays=[];clsTtPracticeDays=[];clsTtFileName='';clsTtData={};clsTtTrainStart=null;clsTtTrainEnd=null;
+    clsTtHolidays=[];clsTtPracticeDays=[];clsTtFileName='';clsTtData={};clsTtTrainStart=null;clsTtTrainEnd=null;clsTtLunchMins=30;
     document.getElementById('cls-file-label').textContent='선택된 파일 없음';
     document.getElementById('cls-tt-parse').style.display='none';
     document.getElementById('cls-tt-file').value='';
@@ -3164,6 +3295,7 @@ async function createClassFromVtab(){
             practiceStart:sortedDays.length?sortedDays[0]:null,
             practiceEnd:sortedDays.length?sortedDays[sortedDays.length-1]:null,
             trainStart:clsTtTrainStart,trainEnd:clsTtTrainEnd,
+            lunchBreakMins:clsTtLunchMins,
             students:[],createdAt:Date.now()
         });
         showToast('반 추가 완료','success');
@@ -3246,11 +3378,196 @@ async function toggleDropout(kakaoId){
         await window.fsUpdateDoc(window.fsDoc(window.db,'students',String(kakaoId)),{droppedOut:newVal});
         stu.droppedOut=newVal;
         filterStudentsPanel();
+        renderAttendance();
         showToast(newVal?'중도탈락 처리됐습니다.':'중도탈락이 해제됐습니다.','success');
     }catch(e){
         showToast('저장 실패: '+e.message,'error');
     }
 }
+
+// ── 퇴근 누락 섹션 ──────────────────────────────────────────
+function renderMissingSection(){
+    const section=document.getElementById('att-missing-section');
+    const countEl=document.getElementById('att-missing-count');
+    const listEl=document.getElementById('att-missing-list');
+    if(!section||!countEl||!listEl)return;
+    const missing=[];
+    studentsList.forEach(stu=>{
+        if(stu.droppedOut)return;
+        attendanceRecords.filter(r=>String(r.kakaoId)===String(stu.kakaoId)&&r.inTime&&(!r.outTime||!/^\d/.test(r.outTime))).forEach(rec=>{
+            missing.push({stu,date:normDate(rec.date),inTime:rec.inTime});
+        });
+    });
+    missing.sort((a,b)=>b.date.localeCompare(a.date));
+    countEl.textContent=missing.length;
+    if(!missing.length){section.style.display='none';return;}
+    section.style.display='';
+    listEl.innerHTML=missing.map(m=>`<div class="att-missing-row"><span class="att-missing-name">${escHtml(m.stu.name||'-')}</span><span class="att-missing-date">${m.date}</span><span class="att-missing-in">${m.inTime.slice(0,5)}</span></div>`).join('');
+}
+
+// ── 중도탈락 페이지 ──────────────────────────────────────────
+function renderDropoutPage(){
+    const el=document.getElementById('dropout-list-content');
+    if(!el)return;
+    const dropouts=studentsList.filter(s=>s.droppedOut);
+    if(!dropouts.length){el.innerHTML='<div style="text-align:center;color:#94a3b8;font-size:14px;padding:40px;">중도탈락 학생 없음</div>';return;}
+    const rows=dropouts.map(s=>{
+        const cls=classesList.find(c=>c.id===s.classId);
+        const clsName=cls?cls.name:'미배정';
+        const stuRecs=attendanceRecords.filter(r=>String(r.kakaoId)===String(s.kakaoId));
+        const clsTt=cls?.timetableData||null;
+        let totalMins=0;
+        stuRecs.forEach(rec=>{
+            if(!rec.inTime||!rec.outTime||!/^\d/.test(rec.outTime))return;
+            const nd=normDate(rec.date);
+            const dayS=clsTt?clsTt[nd]:null;
+            if(clsTt&&!dayS)return;
+            const sMs=dayS?toMins(dayS.start):9*60;
+            const adjIn=Math.max(toMins(rec.inTime),sMs);
+            const out=toMins(rec.outTime);
+            if(out<=adjIn)return;
+            const lunchM=cls?.lunchBreakMins||30;
+            const rawMins=out-adjIn,netMins=rawMins>=240?rawMins-lunchM:rawMins;
+            const wh=Math.min(Math.floor(netMins/60),8);
+            if(wh>0)totalMins+=wh*60;
+        });
+        const accH=Math.round(totalMins/6)/10;
+        return`<tr><td style="font-weight:700">${escHtml(s.name||'-')}</td><td>${escHtml(clsName)}</td><td>${escHtml(s.hospital||'-')}</td><td>${accH}h</td></tr>`;
+    }).join('');
+    el.innerHTML=`<table class="att-table"><thead><tr><th>이름</th><th>반</th><th>실습병원</th><th>누적시간</th></tr></thead><tbody>${rows}</tbody></table>`;
+}
+
+// ── 직인 관리 ────────────────────────────────────────────────
+let sealImageBase64=null;
+
+async function loadSealImage(){
+    const acId=directorData?.academyId;
+    if(!acId)return;
+    try{
+        const snap=await window.fsGetDoc(window.fsDoc(window.db,'academies',acId));
+        if(snap.exists()){
+            sealImageBase64=snap.data().sealImage||null;
+            renderSealStatus();
+            renderSealPanel();
+        }
+    }catch(e){console.error('직인 로드 실패',e);}
+}
+
+function renderSealStatus(){
+    const el=document.getElementById('sb-seal-status');
+    if(!el)return;
+    if(sealImageBase64){el.textContent='직인 등록됨';el.className='sb-seal-status ok';}
+    else{el.textContent='직인 미등록';el.className='sb-seal-status';}
+}
+
+function renderSealPanel(){
+    const placeholder=document.getElementById('seal-preview-placeholder');
+    const img=document.getElementById('seal-preview-img');
+    const statusText=document.getElementById('seal-status-text');
+    const deleteBtn=document.getElementById('seal-delete-btn');
+    if(!placeholder||!img)return;
+    if(sealImageBase64){
+        placeholder.style.display='none';
+        img.src=`data:image/png;base64,${sealImageBase64}`;
+        img.style.display='';
+        if(statusText)statusText.textContent='직인 등록됨';
+        if(deleteBtn)deleteBtn.style.display='';
+    }else{
+        placeholder.style.display='';
+        img.style.display='none';
+        if(statusText)statusText.textContent='등록된 직인 없음';
+        if(deleteBtn)deleteBtn.style.display='none';
+    }
+}
+
+function onSealFileSelect(input){
+    const file=input.files[0];
+    if(!file)return;
+    if(!file.type.startsWith('image/')){showToast('이미지 파일만 업로드 가능합니다','error');return;}
+    const reader=new FileReader();
+    reader.onload=async e=>{
+        const base64=e.target.result.split(',')[1];
+        await saveSealImage(base64);
+    };
+    reader.readAsDataURL(file);
+}
+
+async function saveSealImage(base64){
+    const acId=directorData?.academyId;
+    if(!acId){showToast('학원 정보 없음','error');return;}
+    showLoader(true);
+    try{
+        await window.fsUpdateDoc(window.fsDoc(window.db,'academies',acId),{sealImage:base64});
+        sealImageBase64=base64;
+        renderSealStatus();
+        renderSealPanel();
+        showToast('직인이 저장됐습니다','success');
+    }catch(e){showToast('저장 실패: '+e.message,'error');}
+    showLoader(false);
+}
+
+async function deleteSealImage(){
+    if(!confirm('직인을 삭제하시겠습니까?'))return;
+    const acId=directorData?.academyId;
+    if(!acId)return;
+    showLoader(true);
+    try{
+        await window.fsUpdateDoc(window.fsDoc(window.db,'academies',acId),{sealImage:null});
+        sealImageBase64=null;
+        renderSealStatus();
+        renderSealPanel();
+        showToast('직인이 삭제됐습니다','success');
+    }catch(e){showToast('삭제 실패: '+e.message,'error');}
+    showLoader(false);
+}
+
+// ── 승인 내역 ────────────────────────────────────────────────
+let missingOutApproved=[];
+
+async function loadMissingOutApproved(){
+    const acId=directorData?.academyId;
+    if(!acId){missingOutApproved=[];renderMissingOutApproved();return;}
+    try{
+        const kakaoIds=studentsList.map(s=>String(s.kakaoId));
+        if(!kakaoIds.length){missingOutApproved=[];renderMissingOutApproved();return;}
+        const q=window.fsQuery(
+            window.fsCollection(window.db,'missingOut'),
+            window.fsWhere('status','in',['approved','rejected'])
+        );
+        const snap=await window.fsGetDocs(q);
+        missingOutApproved=[];
+        snap.forEach(d=>{
+            const data=d.data();
+            if(kakaoIds.includes(String(data.kakaoId)))missingOutApproved.push({id:d.id,...data});
+        });
+        missingOutApproved.sort((a,b)=>(b.approvedAt?.seconds||b.rejectedAt?.seconds||0)-(a.approvedAt?.seconds||a.rejectedAt?.seconds||0));
+        renderMissingOutApproved();
+    }catch(e){console.error('승인 내역 로드 실패',e);}
+}
+
+function renderMissingOutApproved(){
+    const el=document.getElementById('missingout-approved-list');
+    if(!el)return;
+    if(!missingOutApproved.length){el.innerHTML='<div class="empty-state" style="padding:8px;">승인된 내역 없음</div>';return;}
+    el.innerHTML=missingOutApproved.map(r=>{
+        const stu=studentsList.find(s=>String(s.kakaoId)===String(r.kakaoId));
+        const name=stu?.name||r.kakaoId;
+        const isApproved=r.status==='approved';
+        return`<div class="pending-row" style="opacity:0.75;"><div class="pending-info"><div class="pending-name">${escHtml(name)} <span style="font-size:11px;font-weight:700;color:${isApproved?'#10b981':'#ef4444'}">[${isApproved?'승인':'거절'}]</span></div><div class="pending-phone">${r.date} · 출근 ${r.inTime} → 퇴근 ${r.outTime||'?'}</div></div></div>`;
+    }).join('');
+}
+
+// ── 반코드 빌더 ──────────────────────────────────────────────
+function updateClassCode(){
+    const year=document.getElementById('cls-code-year')?.value||'';
+    const digits=document.getElementById('cls-code-digits')?.value||'';
+    const d=document.getElementById('cls-code-d')?.value||'';
+    const code=(year&&digits.length===6&&d)?`AIG-${year}-0000-${digits}-${d}`:'';
+    const inp=document.getElementById('cls-code');
+    if(inp)inp.value=code;
+    updateClsAddBtn();
+}
+
 function decodeNumericEntities(str){
     return str.replace(/&#(\d+);/g,(_,n)=>String.fromCodePoint(Number(n)));
 }
@@ -3297,6 +3614,38 @@ async function generateFromTemplate(templateUrl,cls,stu,practiceDates,sigs,getMa
         ?`${fmtDocDate(cls.trainStart)} ~ ${fmtDocDate(cls.trainEnd)}`
         :(cls?.practiceStart&&cls?.practiceEnd?`${fmtDocDate(cls.practiceStart)} ~ ${fmtDocDate(cls.practiceEnd)}`:'');
     const clsTt=cls?.timetableData||null;
+    // 정석 누적시간 (날짜별 누적 scheduled hours)
+    const stdCumByDate={};
+    const lunchMinsGen=cls?.lunchBreakMins||30;
+    if(clsTt){
+        let stdRunning=0;
+        Object.keys(clsTt).sort().forEach(d=>{
+            const dayS=clsTt[d];
+            const sMs=timeToMinutes(dayS.start),eMs=timeToMinutes(dayS.end);
+            const rawM=eMs-sMs,netM=rawM>=240?rawM-lunchMinsGen:rawM;
+            const wh=Math.min(Math.floor(netM/60),8);
+            if(wh>0)stdRunning+=wh*60;
+            stdCumByDate[d]=stdRunning;
+        });
+    }
+    // 선택 범위 이전의 실제 누적시간 (사전 이력 포함)
+    let cumMins=0;
+    const firstDate=practiceDates[0]||null;
+    if(firstDate){
+        attendanceRecords.filter(r=>String(r.kakaoId)===String(stu.kakaoId)&&normDate(r.date)<firstDate).forEach(rec=>{
+            const nd=normDate(rec.date);
+            const inM2=timeToMinutes(rec.inTime||'');
+            const outM2=timeToMinutes((rec.outTime&&/^\d/.test(rec.outTime))?rec.outTime:'');
+            if(inM2>0&&outM2>inM2){
+                const dayS2=clsTt?clsTt[nd]:null;
+                const sMs2=dayS2?timeToMinutes(dayS2.start):9*60;
+                const effIn2=Math.max(inM2,sMs2);
+                const rawM2=outM2-effIn2,netM2=rawM2>=240?rawM2-lunchMinsGen:rawM2;
+                const wh2=Math.min(Math.floor(netM2/60),8);
+                if(wh2>0)cumMins+=wh2*60;
+            }
+        });
+    }
     const pages=[];
     const totalChunks=Math.max(1,Math.ceil(practiceDates.length/30));
     for(let pi=0;pi<totalChunks;pi++){
@@ -3307,7 +3656,6 @@ async function generateFromTemplate(templateUrl,cls,stu,practiceDates,sigs,getMa
             '기간시작일':chunk[0]?fmtDocDate(chunk[0]):'',
             '기간종료일':chunk[chunk.length-1]?fmtDocDate(chunk[chunk.length-1]):'',
         };
-        let cumMins=0;
         for(let i=1;i<=30;i++){
             const date=chunk[i-1]||null;
             if(date){
@@ -3316,17 +3664,37 @@ async function generateFromTemplate(templateUrl,cls,stu,practiceDates,sigs,getMa
                 const inT=att?.inTime||'';
                 const outT=(att?.outTime&&/^\d/.test(att.outTime))?att.outTime:'';
                 const inM=timeToMinutes(inT),outM=timeToMinutes(outT);
-                const hasAtt=inT||outT;
-                if(inM>0&&outM>inM){const dayS=clsTt?clsTt[date]:null;const sMs=dayS?timeToMinutes(dayS.start):9*60;const effIn=Math.max(inM,sMs);const rawM=outM-effIn;const netM=rawM>=240?rawM-30:rawM;const wh=Math.min(Math.floor(netM/60),8);if(wh>0)cumMins+=wh*60;}
+                const hasAtt=!!(inT||outT);
+                const dayS=clsTt?clsTt[date]:null;
+                const isScheduled=clsTt?!!clsTt[date]:true;
+                if(inM>0&&outM>inM){
+                    const sMs=dayS?timeToMinutes(dayS.start):9*60;
+                    const effIn=Math.max(inM,sMs);
+                    const rawM=outM-effIn,netM=rawM>=240?rawM-lunchMinsGen:rawM;
+                    const wh=Math.min(Math.floor(netM/60),8);
+                    if(wh>0)cumMins+=wh*60;
+                }
+                // 사유 계산
+                let statusText;
+                if(!hasAtt&&isScheduled){statusText='<span style="color:#aaa">결석</span>';}
+                else if(hasAtt&&!isScheduled){statusText='<span style="color:#aaa">보강</span>';}
+                else if(hasAtt&&inM>0&&outM>0){
+                    const schedStart=dayS?timeToMinutes(dayS.start):9*60;
+                    const schedEnd=dayS?timeToMinutes(dayS.end):16*60+30;
+                    if(inM>schedStart){statusText='<span style="color:#aaa">지각</span>';}
+                    else if(outM<schedEnd){statusText='<span style="color:#aaa">조퇴</span>';}
+                    else{statusText='출석';}
+                }else{statusText=hasAtt?'출석':'';}
+                const stdCumMins=clsTt?(stdCumByDate[date]||0):0;
                 const stuSig=sigData?.studentSig||att?.studentSig||'';
                 const mgrSig=getManagerSig(att,sigData);
                 map[`ROW_CELL_STYLE_${i}`]=hasAtt?'':'style="background-color:#e8e8e8"';
                 map[`단위기간시작일${i}`]=fmtDocDate(date);
                 map[`이름_${i}`]=stu.name||'';
-                map[`사유_${i}`]='실습';
+                map[`사유_${i}`]=statusText;
                 map[`출근시간${i}`]=inT;
                 map[`퇴근시간${i}`]=outT;
-                map[`누적시간${i}`]=minutesToHM(cumMins);
+                map[`누적시간${i}`]=stdCumMins>0?`${minutesToHM(cumMins)}/${minutesToHM(stdCumMins)}`:minutesToHM(cumMins);
                 map[`학생서명${i}`]=stuSig?`<img src="data:image/png;base64,${stuSig}" style="max-height:28px;max-width:70px;vertical-align:middle;">`:' ';
                 map[`담당자서명${i}`]=mgrSig?`<img src="data:image/png;base64,${mgrSig}" style="max-height:28px;max-width:70px;vertical-align:middle;">`:' ';
             }else{
@@ -3336,15 +3704,17 @@ async function generateFromTemplate(templateUrl,cls,stu,practiceDates,sigs,getMa
                 map[`누적시간${i}`]='';map[`학생서명${i}`]='';map[`담당자서명${i}`]='';
             }
         }
-        map['실습시간']=minutesToHM(cumMins);
+        const lastDate=chunk[chunk.length-1];
+        const stdTotal=clsTt&&lastDate?(stdCumByDate[lastDate]||0):0;
+        map['실습시간']=stdTotal>0?`${minutesToHM(cumMins)}/${minutesToHM(stdTotal)}`:minutesToHM(cumMins);
         pages.push(fillTemplate(rawHtml,map));
     }
     return pages;
 }
 function openDocWindow(pages){
     if(!pages.length){showToast('출력할 데이터가 없습니다','info');return;}
-    const headMatch=pages[0].match(/<head[^>]*>([\s\S]*?)<\/head>/i);
-    const headContent=headMatch?headMatch[1]:'';
+    // 모든 페이지에서 <head> 수집 (요약 페이지 포함 시 CSS 누락 방지)
+    const headContent=pages.map(html=>{const m=html.match(/<head[^>]*>([\s\S]*?)<\/head>/i);return m?m[1]:''}).join('\n');
     const bodyParts=pages.map((html,i)=>{
         const bm=html.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
         const content=bm?bm[1]:html;
@@ -3420,7 +3790,15 @@ function getAttForDate(kakaoId,date){
 async function generatePracticeCardHtml(cls,students,startDate,endDate,sigs){
     const allDates=getDatesInRange(startDate,endDate);
     const clsTt=cls?.timetableData||null;
-    const practiceDates=clsTt?allDates.filter(d=>clsTt[d]):allDates;
+    let practiceDates;
+    if(clsTt){
+        const stuKids=students.map(s=>String(s.kakaoId));
+        // 시간표 날짜 + 보강(비시간표일 출근 기록 있는 날) 포함
+        const extraDays=allDates.filter(d=>!clsTt[d]&&attendanceRecords.some(r=>stuKids.includes(String(r.kakaoId))&&normDate(r.date)===d&&r.inTime));
+        practiceDates=[...allDates.filter(d=>clsTt[d]),...extraDays].sort();
+    }else{
+        practiceDates=allDates;
+    }
     const pages=[];
     for(const stu of students){
         const stuPages=await generateFromTemplate(
@@ -3459,17 +3837,58 @@ async function generateDirectEntryHtml(cls,students,startDate,endDate,sigs){
         ?`${fmtDocDate(cls.trainStart)} ~ ${fmtDocDate(cls.trainEnd)}`
         :(cls?.practiceStart&&cls?.practiceEnd?`${fmtDocDate(cls.practiceStart)} ~ ${fmtDocDate(cls.practiceEnd)}`:'');
 
+    const lunchMinsDir=cls?.lunchBreakMins||30;
+    // 선택 범위 이전 이력 포함 누적시간 초기화
+    const firstPracticeDate=practiceDates[0]||null;
     const cumMinsPerStu={};
-    students.forEach(stu=>{cumMinsPerStu[String(stu.kakaoId)]=0;});
+    students.forEach(stu=>{
+        let preRangeMins=0;
+        if(firstPracticeDate){
+            attendanceRecords.filter(r=>String(r.kakaoId)===String(stu.kakaoId)&&normDate(r.date)<firstPracticeDate).forEach(rec=>{
+                const nd=normDate(rec.date);
+                const inM2=timeToMinutes(rec.inTime||'');
+                const outM2=timeToMinutes((rec.outTime&&/^\d/.test(rec.outTime))?rec.outTime:'');
+                if(inM2>0&&outM2>inM2){
+                    const dayS2=clsTt?clsTt[nd]:null;
+                    const sMs2=dayS2?timeToMinutes(dayS2.start):9*60;
+                    const effIn2=Math.max(inM2,sMs2);
+                    const rawM2=outM2-effIn2,netM2=rawM2>=240?rawM2-lunchMinsDir:rawM2;
+                    const wh2=Math.min(Math.floor(netM2/60),8);
+                    if(wh2>0)preRangeMins+=wh2*60;
+                }
+            });
+        }
+        cumMinsPerStu[String(stu.kakaoId)]=preRangeMins;
+    });
 
+    // Task 9: 비출석 요약 페이지 데이터 수집
+    const summaryEvents=[];
     const pages=[];
     for(const date of practiceDates){
+        const dayS=clsTt?clsTt[date]:null;
         for(const stu of students){
             const att=getAttForDate(stu.kakaoId,date);
             const inT=att?.inTime||'';
             const outT=(att?.outTime&&/^\d/.test(att.outTime))?att.outTime:'';
             const inM=timeToMinutes(inT),outM=timeToMinutes(outT);
-            if(inM>0&&outM>inM){const dayS=clsTt?clsTt[date]:null;const sMs=dayS?timeToMinutes(dayS.start):9*60;const effIn=Math.max(inM,sMs);const rawM=outM-effIn;const netM=rawM>=240?rawM-30:rawM;const wh=Math.min(Math.floor(netM/60),8);if(wh>0)cumMinsPerStu[String(stu.kakaoId)]+=wh*60;}
+            if(inM>0&&outM>inM){
+                const sMs=dayS?timeToMinutes(dayS.start):9*60;
+                const effIn=Math.max(inM,sMs);
+                const rawM=outM-effIn,netM=rawM>=240?rawM-lunchMinsDir:rawM;
+                const wh=Math.min(Math.floor(netM/60),8);
+                if(wh>0)cumMinsPerStu[String(stu.kakaoId)]+=wh*60;
+            }
+            // 비출석 이벤트 수집 (Task 9)
+            const hasAtt=!!(inT||outT);
+            let evStatus=null;
+            if(!hasAtt){evStatus='결석';}
+            else if(inM>0&&outM>0){
+                const schedStart=dayS?timeToMinutes(dayS.start):9*60;
+                const schedEnd=dayS?timeToMinutes(dayS.end):16*60+30;
+                if(inM>schedStart)evStatus='지각';
+                else if(outM<schedEnd)evStatus='조퇴';
+            }
+            if(evStatus)summaryEvents.push({date,name:stu.name||'-',status:evStatus,inT,outT});
         }
         const totalChunks=Math.max(1,Math.ceil(students.length/30));
         for(let pi=0;pi<totalChunks;pi++){
@@ -3477,6 +3896,7 @@ async function generateDirectEntryHtml(cls,students,startDate,endDate,sigs){
             const map={
                 '학원명':acName,'전체훈련기간':totalPeriod,
                 '원장님이름':dirName,'실습시간':'',
+                '학원직인':sealImageBase64?`<img src="data:image/png;base64,${sealImageBase64}" style="max-height:60px;max-width:100px;vertical-align:middle;">`:'',
                 '기간시작일':practiceDates[0]?fmtDocDate(practiceDates[0]):'',
                 '기간종료일':practiceDates[practiceDates.length-1]?fmtDocDate(practiceDates[practiceDates.length-1]):'',
             };
@@ -3487,11 +3907,23 @@ async function generateDirectEntryHtml(cls,students,startDate,endDate,sigs){
                     const sigData=sigs[String(stu.kakaoId)]?.[date]||null;
                     const inT=att?.inTime||'';
                     const outT=(att?.outTime&&/^\d/.test(att.outTime))?att.outTime:'';
+                    const inM=timeToMinutes(inT),outM=timeToMinutes(outT);
+                    const hasAtt=!!(inT||outT);
                     const stuSig=sigData?.studentSig||att?.studentSig||'';
-                    map[`ROW_CELL_STYLE_${i}`]=(inT||outT)?'':'style="background-color:#e8e8e8"';
+                    // 사유 계산
+                    let statusText;
+                    if(!hasAtt){statusText='<span style="color:#aaa">결석</span>';}
+                    else if(inM>0&&outM>0){
+                        const schedStart=dayS?timeToMinutes(dayS.start):9*60;
+                        const schedEnd=dayS?timeToMinutes(dayS.end):16*60+30;
+                        if(inM>schedStart){statusText='<span style="color:#aaa">지각</span>';}
+                        else if(outM<schedEnd){statusText='<span style="color:#aaa">조퇴</span>';}
+                        else{statusText='출석';}
+                    }else{statusText='출석';}
+                    map[`ROW_CELL_STYLE_${i}`]=hasAtt?'':'style="background-color:#e8e8e8"';
                     map[`단위기간시작일${i}`]=fmtDocDate(date);
                     map[`이름_${i}`]=stu.name||'';
-                    map[`사유_${i}`]='실습';
+                    map[`사유_${i}`]=statusText;
                     map[`출근시간${i}`]=inT;
                     map[`퇴근시간${i}`]=outT;
                     map[`누적시간${i}`]=minutesToHM(cumMinsPerStu[String(stu.kakaoId)]);
@@ -3506,6 +3938,13 @@ async function generateDirectEntryHtml(cls,students,startDate,endDate,sigs){
             }
             pages.push(fillTemplate(rawHtml,map));
         }
+    }
+    // Task 9: 요약 첫 페이지 prepend
+    if(summaryEvents.length){
+        const statusColor={결석:'#ef4444',지각:'#f59e0b',조퇴:'#8b5cf6'};
+        const summaryRows=summaryEvents.map(e=>`<tr><td>${e.date}</td><td style="font-weight:700">${escHtml(e.name)}</td><td style="color:${statusColor[e.status]||'#333'};font-weight:700">${e.status}</td><td>${e.inT||'—'}</td><td>${e.outT||'—'}</td></tr>`).join('');
+        const summaryPage=`<!DOCTYPE html><html><head><meta charset="utf-8"><style>body{font-family:'맑은 고딕',sans-serif;padding:24px;font-size:12px;}h2{font-size:15px;text-align:center;margin-bottom:4px;}p{text-align:center;color:#666;margin-bottom:16px;font-size:11px;}table{width:100%;border-collapse:collapse;}th,td{border:1px solid #ccc;padding:5px 8px;text-align:center;}th{background:#f0f0f0;font-weight:700;}</style></head><body><h2>${escHtml(acName)} 직권입력관리대장 — 비출석 요약</h2><p>${practiceDates[0]?fmtDocDate(practiceDates[0]):''} ~ ${practiceDates[practiceDates.length-1]?fmtDocDate(practiceDates[practiceDates.length-1]):''}</p><table><thead><tr><th>날짜</th><th>이름</th><th>사유</th><th>출근</th><th>퇴근</th></tr></thead><tbody>${summaryRows}</tbody></table></body></html>`;
+        pages.unshift(summaryPage);
     }
     return pages;
 }
