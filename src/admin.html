@@ -3391,10 +3391,11 @@ function renderMissingSection(){
     const countEl=document.getElementById('att-missing-count');
     const listEl=document.getElementById('att-missing-list');
     if(!section||!countEl||!listEl)return;
+    const todayStr=new Date().toISOString().slice(0,10);
     const missing=[];
     studentsList.forEach(stu=>{
         if(stu.droppedOut)return;
-        attendanceRecords.filter(r=>String(r.kakaoId)===String(stu.kakaoId)&&r.inTime&&(!r.outTime||!/^\d/.test(r.outTime))&&r.hospital!=='사하제일간호학원').forEach(rec=>{
+        attendanceRecords.filter(r=>String(r.kakaoId)===String(stu.kakaoId)&&r.inTime&&(!r.outTime||!/^\d/.test(r.outTime))&&r.hospital!=='사하제일간호학원'&&normDate(r.date)!==todayStr).forEach(rec=>{
             missing.push({stu,date:normDate(rec.date),inTime:rec.inTime});
         });
     });
