@@ -3394,7 +3394,7 @@ function renderMissingSection(){
     const missing=[];
     studentsList.forEach(stu=>{
         if(stu.droppedOut)return;
-        attendanceRecords.filter(r=>String(r.kakaoId)===String(stu.kakaoId)&&r.inTime&&(!r.outTime||!/^\d/.test(r.outTime))).forEach(rec=>{
+        attendanceRecords.filter(r=>String(r.kakaoId)===String(stu.kakaoId)&&r.inTime&&(!r.outTime||!/^\d/.test(r.outTime))&&r.hospital!=='사하제일간호학원').forEach(rec=>{
             missing.push({stu,date:normDate(rec.date),inTime:rec.inTime});
         });
     });
