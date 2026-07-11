@@ -3724,17 +3724,25 @@ async function generateFromTemplate(templateUrl,cls,stu,practiceDates,sigs,getMa
 }
 function openDocWindow(pages){
     if(!pages.length){showToast('출력할 데이터가 없습니다','info');return;}
-    // 모든 페이지에서 <head> 수집 (요약 페이지 포함 시 CSS 누락 방지)
     const headContent=pages.map(html=>{const m=html.match(/<head[^>]*>([\s\S]*?)<\/head>/i);return m?m[1]:''}).join('\n');
     const bodyParts=pages.map((html,i)=>{
         const bm=html.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
         const content=bm?bm[1]:html;
         return i>0?`<div style="page-break-before:always">${content}</div>`:`<div>${content}</div>`;
     });
+    const printCss=`<style>
+@media print{
+  @page{size:A4 portrait;margin:8mm 6mm;}
+  body,.c27,.c70{max-width:100%!important;padding:4pt!important;margin:0!important;}
+  .c38,.c66{margin-left:0!important;margin-right:0!important;}
+  tr{page-break-inside:avoid;}
+  h1,h2{page-break-after:avoid;}
+}
+</style>`;
     const w=window.open('','_blank');
     if(!w){showToast('팝업이 차단되었습니다. 팝업 허용 후 다시 시도해주세요','error');return;}
     w.document.open();
-    w.document.write(`<!DOCTYPE html><html><head>${headContent}</head><body>${bodyParts.join('')}</body></html>`);
+    w.document.write(`<!DOCTYPE html><html><head>${headContent}${printCss}</head><body>${bodyParts.join('')}</body></html>`);
     w.document.close();
 }
 async function previewDoc(type){
