@@ -740,6 +740,7 @@ body{font-family:'Pretendard',system-ui,sans-serif;background:var(--canvas);colo
           <div class="sb-director-name" id="topbar-director-name">-</div>
           <div class="sb-invite-code" id="topbar-invite-code"></div>
           <div class="sb-seal-status" id="sb-seal-status"></div>
+          <div id="sb-seal-btns" style="margin-top:4px;display:flex;gap:4px;"></div>
         </div>
       </div>
 
@@ -3469,6 +3470,14 @@ function renderSealStatus(){
     if(!el)return;
     if(sealImageBase64){el.textContent='직인 등록됨';el.className='sb-seal-status ok';}
     else{el.textContent='직인 미등록';el.className='sb-seal-status';}
+    const btns=document.getElementById('sb-seal-btns');
+    if(btns){
+        if(sealImageBase64){
+            btns.innerHTML='<button class="btn btn-ghost btn-sm" style="font-size:10px;padding:2px 6px;" onclick="showPage(\'settings\',null);showSettingsTab(\'seal\',null)">직인 수정</button>';
+        }else{
+            btns.innerHTML='<button class="btn btn-primary btn-sm" style="font-size:10px;padding:2px 6px;" onclick="showPage(\'settings\',null);showSettingsTab(\'seal\',null)">직인 등록</button>';
+        }
+    }
 }
 
 function renderSealPanel(){
@@ -3762,6 +3771,12 @@ async function previewDoc(type){
         showLoader(false);
         openDocWindow(pages);
     }else{
+        if(!sealImageBase64){
+            showToast('직인을 먼저 등록해주세요','error');
+            showPage('settings',null);
+            showSettingsTab('seal',null);
+            return;
+        }
         const clsId=document.getElementById('doc-entry-cls')?.value;
         const startDate=document.getElementById('doc-entry-start')?.value;
         const endDate=document.getElementById('doc-entry-end')?.value||startDate;
@@ -3885,6 +3900,7 @@ async function generateDirectEntryHtml(cls,students,startDate,endDate,sigs){
     // Task 9: 비출석 요약 페이지 데이터 수집
     const summaryEvents=[];
     const pages=[];
+    const sealHtml=sealImageBase64?`<img src="data:image/png;base64,${sealImageBase64}" style="max-height:40px;max-width:70px;vertical-align:middle;">`:'';
     for(const date of practiceDates){
         const dayS=clsTt?clsTt[date]:null;
         for(const stu of students){
@@ -3949,12 +3965,12 @@ async function generateDirectEntryHtml(cls,students,startDate,endDate,sigs){
                     map[`퇴근시간${i}`]=outT;
                     map[`누적시간${i}`]=minutesToHM(cumMinsPerStu[String(stu.kakaoId)]);
                     map[`학생서명${i}`]=stuSig?`<img src="data:image/png;base64,${stuSig}" style="max-height:28px;max-width:70px;vertical-align:middle;">`:' ';
-                    map[`담당자서명${i}`]='';
+                    map[`담당자서명${i}`]=sealHtml;
                 }else{
                     map[`ROW_CELL_STYLE_${i}`]='style="background-color:#e8e8e8"';
                     map[`단위기간시작일${i}`]='';map[`이름_${i}`]='';map[`사유_${i}`]='';
                     map[`출근시간${i}`]='';map[`퇴근시간${i}`]='';
-                    map[`누적시간${i}`]='';map[`학생서명${i}`]='';map[`담당자서명${i}`]='';
+                    map[`누적시간${i}`]='';map[`학생서명${i}`]='';map[`담당자서명${i}`]=sealHtml;
                 }
             }
             pages.push(fillTemplate(rawHtml,map));
