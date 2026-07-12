@@ -486,8 +486,9 @@ body{font-family:'Pretendard',system-ui,sans-serif;background:var(--canvas);colo
 .loading-overlay.success .loading-success-icon{display:flex;}
 .spinner{width:38px;height:38px;border:3px solid rgba(255,255,255,0.25);border-top-color:#fff;border-radius:50%;animation:spin 0.7s linear infinite;}
 @keyframes spin{to{transform:rotate(360deg);}}
-@keyframes sealHighlight{0%,100%{transform:scale(1);background:transparent;box-shadow:none;}30%{transform:scale(1.12);background:rgba(254,226,226,0.95);box-shadow:0 0 0 6px rgba(239,68,68,0.45);}70%{transform:scale(1.06);background:rgba(254,226,226,0.6);box-shadow:0 0 0 3px rgba(239,68,68,0.25);}}
-.seal-btn-highlight{animation:sealHighlight 0.55s ease 4;border-radius:6px;}
+#seal-spotlight-overlay{position:fixed;inset:0;background:rgba(0,0,0,0);z-index:9000;pointer-events:none;transition:background 0.3s;}
+#seal-spotlight-overlay.active{background:rgba(0,0,0,0.45);pointer-events:auto;}
+.seal-btn-spotlight{position:relative;z-index:9001;background:#fff!important;border-radius:8px;padding:4px 8px;box-shadow:0 4px 28px rgba(0,0,0,0.35);}
 .loading-success-icon{display:none;width:52px;height:52px;background:rgba(255,255,255,0.2);border-radius:50%;align-items:center;justify-content:center;font-size:28px;animation:popIn 0.25s cubic-bezier(.34,1.56,.64,1);}
 @keyframes popIn{from{transform:scale(0.5);opacity:0;}to{transform:scale(1);opacity:1;}}
 .loading-text{color:#fff;font-size:13px;font-weight:600;}
@@ -3775,12 +3776,18 @@ async function previewDoc(type){
     }else{
         if(!sealImageBase64){
             showToast('직인을 먼저 등록해주세요','error');
+            const overlay=document.getElementById('seal-spotlight-overlay');
             const sealBtns=document.getElementById('sb-seal-btns');
-            if(sealBtns){
-                sealBtns.classList.remove('seal-btn-highlight');
-                void sealBtns.offsetWidth;
-                sealBtns.classList.add('seal-btn-highlight');
-                setTimeout(()=>sealBtns.classList.remove('seal-btn-highlight'),2300);
+            if(overlay&&sealBtns){
+                overlay.classList.add('active');
+                sealBtns.classList.add('seal-btn-spotlight');
+                const dismiss=()=>{
+                    overlay.classList.remove('active');
+                    sealBtns.classList.remove('seal-btn-spotlight');
+                    overlay.removeEventListener('click',dismiss);
+                };
+                overlay.addEventListener('click',dismiss);
+                setTimeout(dismiss,3000);
             }
             return;
         }
@@ -4313,5 +4320,6 @@ if(params.get('billing')==='success'){
 
 init();
 </script>
+<div id="seal-spotlight-overlay"></div>
 </body>
 </html>
