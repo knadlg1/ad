@@ -3576,7 +3576,23 @@ function renderMissingOutApproved(){
         const stu=studentsList.find(s=>String(s.kakaoId)===String(r.kakaoId));
         const name=stu?.name||r.kakaoId;
         const isApproved=r.status==='approved';
-        return`<div class="pending-row" style="opacity:0.75;"><div class="pending-info"><div class="pending-name">${escHtml(name)} <span style="font-size:11px;font-weight:700;color:${isApproved?'#10b981':'#ef4444'}">[${isApproved?'승인':'거절'}]</span></div><div class="pending-phone">${r.date} · 출근 ${r.inTime} → 퇴근 ${r.outTime||'?'}</div></div></div>`;
+        const mgrInfo=[r.managerName,r.managerTitle].filter(Boolean).join(' · ');
+        const mgrPhone=r.managerPhone||'';
+        return`<div class="pending-row" style="opacity:0.85;flex-direction:column;align-items:stretch;gap:6px;">
+  <div style="display:flex;align-items:center;justify-content:space-between;">
+    <div class="pending-info">
+      <div class="pending-name">${escHtml(name)} <span style="font-size:11px;font-weight:700;color:${isApproved?'#10b981':'#ef4444'}">[${isApproved?'승인':'거절'}]</span></div>
+      <div class="pending-phone">${r.date} · 출근 ${r.inTime} → 퇴근 ${r.outTime||'?'}</div>
+    </div>
+  </div>
+  ${(mgrInfo||mgrPhone||r.managerSig)?`<div style="display:flex;align-items:center;gap:8px;padding-top:4px;border-top:1px solid var(--border);flex-wrap:wrap;">
+    ${r.managerSig?`<img src="data:image/png;base64,${r.managerSig}" style="height:36px;border:1px solid var(--border);border-radius:4px;background:#fff;">`:''}
+    <div style="font-size:11px;color:var(--muted);line-height:1.6;">
+      ${mgrInfo?`<div>${escHtml(mgrInfo)}</div>`:''}
+      ${mgrPhone?`<div>${escHtml(mgrPhone)}</div>`:''}
+    </div>
+  </div>`:''}
+</div>`;
     }).join('');
 }
 

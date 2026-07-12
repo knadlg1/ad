@@ -865,6 +865,10 @@
             </div>
             <button onclick="clearCanvas('missing-manager-canvas')" style="background:none;border:none;color:#64748b;font-size:13px;cursor:pointer;">지우기</button>
         </div>
+        <div style="display:flex;gap:8px;margin-bottom:10px;">
+            <input type="text" id="missing-manager-name" placeholder="담당자 이름" style="flex:1;padding:8px 10px;border:1.5px solid #cbd5e1;border-radius:8px;font-size:13px;">
+            <input type="text" id="missing-manager-title" placeholder="직위 (예: 수간호사)" style="flex:1;padding:8px 10px;border:1.5px solid #cbd5e1;border-radius:8px;font-size:13px;">
+        </div>
         <canvas id="missing-manager-canvas" class="modal-canvas"></canvas>
         <button class="btn" style="background:#3b82f6;color:white;margin-top:15px;" onclick="completeMissingManagerSig()">담당자 서명 완료</button>
     </div>
@@ -1067,6 +1071,8 @@
     let bsCurrentInterval = null;
 let bsManagerPhone = '';
 let missingManagerPhone = '';
+let missingManagerName = '';
+let missingManagerTitle = '';
         let stepCtx = {}, stepDrawing = {};
     let sigOtpPhone = '';
     let sigOtpCallback = null;
@@ -2971,7 +2977,9 @@ function goBackToStep1() {
             await window.fsSetDoc(window.fsDoc(window.db, 'missingVerifications', docKey), {
                 kakaoId: String(currentUser.kakaoId), name: currentUser.name,
                 date: missing.date, type: missing.type,
-                inTime, outTime, managerPhone: phone, verifiedAt, academyId
+                inTime, outTime, managerPhone: phone,
+                managerName: missingManagerName, managerTitle: missingManagerTitle,
+                verifiedAt, academyId
             });
             return true;
         } catch(e) {
@@ -2988,6 +2996,8 @@ function goBackToStep1() {
     function completeMissingManagerSig() {
         const canvas = document.getElementById('missing-manager-canvas');
         if (isBlankCanvas(canvas)) { showToast('서명을 입력해주세요.', 'info'); return; }
+        missingManagerName = document.getElementById('missing-manager-name')?.value.trim() || '';
+        missingManagerTitle = document.getElementById('missing-manager-title')?.value.trim() || '';
         missingManagerSigned = true;
         const dataUrl = canvas.toDataURL('image/png');
         document.getElementById('missing-manager-sig-area').innerHTML=`<div style="position:relative;width:100%;"><img src="${dataUrl}" style="width:100%;border-radius:8px;display:block;"><button onclick="clearMissingManagerSig()" style="position:absolute;top:2px;right:2px;background:#ef4444;color:white;border:none;border-radius:50%;width:22px;height:22px;font-size:12px;font-weight:bold;cursor:pointer;line-height:1;">✕</button></div>`;
@@ -3008,6 +3018,12 @@ function goBackToStep1() {
     function resetMissingSig() {
         clearMissingStudentSig();
         clearMissingManagerSig();
+        const nameEl = document.getElementById('missing-manager-name');
+        const titleEl = document.getElementById('missing-manager-title');
+        if(nameEl) nameEl.value = '';
+        if(titleEl) titleEl.value = '';
+        missingManagerName = '';
+        missingManagerTitle = '';
     }
     function openMissingStudentSig() { openMissingStudentPad(); }
         function buildTimeDropdowns(prefix) {
