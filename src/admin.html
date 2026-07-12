@@ -486,6 +486,8 @@ body{font-family:'Pretendard',system-ui,sans-serif;background:var(--canvas);colo
 .loading-overlay.success .loading-success-icon{display:flex;}
 .spinner{width:38px;height:38px;border:3px solid rgba(255,255,255,0.25);border-top-color:#fff;border-radius:50%;animation:spin 0.7s linear infinite;}
 @keyframes spin{to{transform:rotate(360deg);}}
+@keyframes sealHighlight{0%,100%{box-shadow:0 0 0 0 rgba(239,68,68,0);}50%{box-shadow:0 0 0 6px rgba(239,68,68,0.5);}}
+.seal-btn-highlight{animation:sealHighlight 0.5s ease 3;outline:2px solid #ef4444!important;}
 .loading-success-icon{display:none;width:52px;height:52px;background:rgba(255,255,255,0.2);border-radius:50%;align-items:center;justify-content:center;font-size:28px;animation:popIn 0.25s cubic-bezier(.34,1.56,.64,1);}
 @keyframes popIn{from{transform:scale(0.5);opacity:0;}to{transform:scale(1);opacity:1;}}
 .loading-text{color:#fff;font-size:13px;font-weight:600;}
@@ -3773,8 +3775,13 @@ async function previewDoc(type){
     }else{
         if(!sealImageBase64){
             showToast('직인을 먼저 등록해주세요','error');
-            showPage('settings',null);
-            showSettingsTab('seal',null);
+            const sealBtns=document.getElementById('sb-seal-btns');
+            if(sealBtns){
+                sealBtns.classList.remove('seal-btn-highlight');
+                void sealBtns.offsetWidth;
+                sealBtns.classList.add('seal-btn-highlight');
+                setTimeout(()=>sealBtns.classList.remove('seal-btn-highlight'),1600);
+            }
             return;
         }
         const clsId=document.getElementById('doc-entry-cls')?.value;
