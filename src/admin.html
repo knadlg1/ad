@@ -10,6 +10,9 @@
 <meta name="application-name" content="Here 관리">
 <meta name="msapplication-TileImage" content="../assets/icon.png">
 <meta name="msapplication-TileColor" content="#6c63ff">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/ko.js"></script>
 <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
 <script src="https://js.tosspayments.com/v1/payment"></script>
 <script type="module">
@@ -485,6 +488,8 @@ body{font-family:'Pretendard',system-ui,sans-serif;background:var(--canvas);colo
 .loading-overlay.success .spinner{display:none;}
 .loading-overlay.success .loading-success-icon{display:flex;}
 .spinner{width:38px;height:38px;border:3px solid rgba(255,255,255,0.25);border-top-color:#fff;border-radius:50%;animation:spin 0.7s linear infinite;}
+.doc-daterange-input{width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px;cursor:pointer;background:#fff;color:var(--text);box-sizing:border-box;}
+.doc-daterange-input:focus{outline:none;border-color:var(--brand);}
 @keyframes spin{to{transform:rotate(360deg);}}
 #seal-spotlight-overlay{position:fixed;inset:0;background:rgba(0,0,0,0);z-index:9000;pointer-events:none;transition:background 0.3s;}
 #seal-spotlight-overlay.active{background:rgba(0,0,0,0.45);pointer-events:auto;}
@@ -960,11 +965,9 @@ body{font-family:'Pretendard',system-ui,sans-serif;background:var(--canvas);colo
                 </div>
                 <div>
                   <div class="doc-sel-label">날짜 선택</div>
-                  <div class="doc-date-row">
-                    <input type="date" id="doc-card-start">
-                    <span>~</span>
-                    <input type="date" id="doc-card-end">
-                  </div>
+                  <input type="text" id="doc-card-daterange" class="doc-daterange-input" placeholder="날짜 범위를 선택하세요" readonly>
+                  <input type="hidden" id="doc-card-start">
+                  <input type="hidden" id="doc-card-end">
                 </div>
                 <button class="doc-preview-btn" onclick="previewDoc('card')">미리보기</button>
               </div>
@@ -983,11 +986,9 @@ body{font-family:'Pretendard',system-ui,sans-serif;background:var(--canvas);colo
                 </div>
                 <div>
                   <div class="doc-sel-label">날짜 선택</div>
-                  <div class="doc-date-row">
-                    <input type="date" id="doc-entry-start">
-                    <span>~</span>
-                    <input type="date" id="doc-entry-end">
-                  </div>
+                  <input type="text" id="doc-entry-daterange" class="doc-daterange-input" placeholder="날짜 범위를 선택하세요" readonly>
+                  <input type="hidden" id="doc-entry-start">
+                  <input type="hidden" id="doc-entry-end">
                 </div>
                 <button class="doc-preview-btn" onclick="previewDoc('entry')">미리보기</button>
               </div>
@@ -1472,6 +1473,24 @@ async function init(){
     }
     document.getElementById('auth-wrap').style.display='flex';
     showScreen('login');
+    // 문서발급 달력 초기화
+    if(typeof flatpickr!=='undefined'){
+        const fpOpts={
+            mode:'range',locale:'ko',dateFormat:'Y-m-d',
+            onClose(dates){
+                document.getElementById('doc-card-start').value=dates[0]?flatpickr.formatDate(dates[0],'Y-m-d'):'';
+                document.getElementById('doc-card-end').value=dates[1]?flatpickr.formatDate(dates[1],'Y-m-d'):'';
+            }
+        };
+        flatpickr('#doc-card-daterange',fpOpts);
+        flatpickr('#doc-entry-daterange',{
+            mode:'range',locale:'ko',dateFormat:'Y-m-d',
+            onClose(dates){
+                document.getElementById('doc-entry-start').value=dates[0]?flatpickr.formatDate(dates[0],'Y-m-d'):'';
+                document.getElementById('doc-entry-end').value=dates[1]?flatpickr.formatDate(dates[1],'Y-m-d'):'';
+            }
+        });
+    }
 }
 
 // ── Login ────────────────────────────────────────────────
