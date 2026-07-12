@@ -936,8 +936,8 @@ body{font-family:'Pretendard',system-ui,sans-serif;background:var(--canvas);colo
                   <div class="doc-type-btn-desc">실습 병원 담당자 서명과 학생 서명 관련 서류</div>
                 </button>
                 <button class="doc-type-btn entry-btn" id="doc-type-entry" onclick="selectDocType('entry')">
-                  <img src="../assets/pdf.png" alt="직권입력대장">
-                  <div class="doc-type-btn-label">직권입력대장</div>
+                  <img src="../assets/pdf.png" alt="출석입력요청대장">
+                  <div class="doc-type-btn-label">출석입력요청대장</div>
                   <div class="doc-type-btn-desc">실습에 대한 학원 담당자의 확인 서류</div>
                 </button>
               </div>
@@ -965,7 +965,7 @@ body{font-family:'Pretendard',system-ui,sans-serif;background:var(--canvas);colo
                 <button class="doc-preview-btn" onclick="previewDoc('card')">미리보기</button>
               </div>
 
-              <!-- 직권입력대장 폼 -->
+              <!-- 출석입력요청대장 폼 -->
               <div class="doc-form-section" id="doc-form-entry">
                 <div>
                   <div class="doc-sel-label">반 선택</div>
@@ -3731,13 +3731,11 @@ function openDocWindow(pages){
         return i>0?`<div style="page-break-before:always">${content}</div>`:`<div>${content}</div>`;
     });
     const printCss=`<style>
-/* screen: 팝업 미리보기에서도 올바르게 표시 */
-body,.c27,.c70{max-width:100%!important;padding:6pt 8pt!important;margin:0!important;}
+body{max-width:100%!important;padding:6pt 8pt!important;margin:0!important;}
 .c38,.c66{margin-left:0!important;margin-right:0!important;}
-/* print */
 @page{size:A4 portrait;margin:8mm 6mm;}
 @media print{
-  body,.c27,.c70{padding:4pt!important;margin:0!important;}
+  body{padding:4pt!important;margin:0!important;}
   .c38,.c66{margin-left:0!important;margin-right:0!important;}
   tr{page-break-inside:avoid;}
   h1,h2{page-break-after:avoid;}
