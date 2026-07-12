@@ -4274,8 +4274,9 @@ async function saveEditClsInfo(clsId){
 function showSettingsTab(id,el){
     document.querySelectorAll('.stab-btn').forEach(b=>b.classList.remove('active'));
     document.querySelectorAll('.stab-panel').forEach(p=>p.classList.remove('active'));
-    el.classList.add('active');
-    document.getElementById('stab-'+id).classList.add('active');
+    const btn=el||document.querySelector(`.stab-btn[onclick*="'${id}'"]`);
+    if(btn)btn.classList.add('active');
+    document.getElementById('stab-'+id)?.classList.add('active');
 }
 
 // ── 비밀번호 변경 ─────────────────────────────────────────
