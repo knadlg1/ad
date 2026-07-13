@@ -1045,15 +1045,6 @@ body{font-family:'Pretendard',system-ui,sans-serif;background:var(--canvas);colo
                 </div>
               </div>
 
-              <!-- 하단 3: 실습병원 추가 -->
-              <div class="stuedit-bottom">
-                <div class="stuedit-section-head">실습병원 추가</div>
-                <div class="hosp-search-row">
-                  <input class="hosp-input" id="hosp-search-input" placeholder="병원명 검색..." onkeydown="if(event.key==='Enter')searchHospitalAdmin()">
-                  <button class="btn btn-primary btn-sm" onclick="searchHospitalAdmin()">검색</button>
-                </div>
-                <div id="hosp-search-results" style="overflow-y:auto;flex:1;"></div>
-              </div>
 
             </div>
 
@@ -1112,21 +1103,6 @@ body{font-family:'Pretendard',system-ui,sans-serif;background:var(--canvas);colo
                 <div id="cls-reg-list"><div class="empty-state" style="padding:8px;">등록된 반 없음</div></div>
               </div>
 
-              <div class="cls-section">
-                <div class="cls-section-title">반 미배정 학생 <span id="unassigned-count" style="font-weight:500;color:var(--muted);font-size:12px;"></span></div>
-                <!-- 일괄배정 바 -->
-                <div class="unassigned-bulk-bar" id="unassigned-bulk-bar" style="display:none;">
-                  <label style="display:flex;align-items:center;gap:5px;font-size:12px;font-weight:700;cursor:pointer;color:var(--brand);">
-                    <input type="checkbox" id="unassigned-check-all" onchange="toggleAllUnassigned(this)"> 전체
-                  </label>
-                  <span class="unassigned-bulk-sel-count" id="unassigned-sel-count">0명 선택</span>
-                  <select class="unassigned-bulk-cls" id="unassigned-bulk-cls">
-                    <option value="">반 선택...</option>
-                  </select>
-                  <button class="btn btn-primary btn-sm" onclick="bulkAssignStudents()">배정</button>
-                </div>
-                <div id="unassigned-list"><div class="empty-state" style="padding:8px;">미배정 학생 없음</div></div>
-              </div>
             </div>
 
           </div>
@@ -2235,7 +2211,7 @@ function filterStudentsPanel(){
             <td>${dropoutBtn}</td>
         </tr>`;
     }).join('');
-    listEl.innerHTML=`<table class="stu-edit-table"><thead><tr><th>반</th><th>이름</th><th>실습병원</th><th>상태</th></tr></thead><tbody>${rows}</tbody></table>`;
+    listEl.innerHTML=`<table class="stu-edit-table"><colgroup><col style="width:38%"><col style="width:18%"><col style="width:30%"><col style="width:14%"></colgroup><thead><tr><th>반</th><th>이름</th><th>실습병원</th><th>상태</th></tr></thead><tbody>${rows}</tbody></table>`;
 }
 
 async function onInlineClsChange(kakaoId,sel){
