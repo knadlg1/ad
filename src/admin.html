@@ -490,6 +490,8 @@ body{font-family:'Pretendard',system-ui,sans-serif;background:var(--canvas);colo
 .spinner{width:38px;height:38px;border:3px solid rgba(255,255,255,0.25);border-top-color:#fff;border-radius:50%;animation:spin 0.7s linear infinite;}
 .doc-daterange-input{display:none;}
 .flatpickr-calendar.inline{width:100%;box-shadow:none;border:1px solid var(--border);border-radius:8px;}
+.flatpickr-calendar.inline .flatpickr-days,.flatpickr-calendar.inline .dayContainer{width:100%!important;max-width:100%!important;min-width:0!important;}
+.flatpickr-calendar.inline .flatpickr-day{flex-basis:calc(100% / 7)!important;max-width:calc(100% / 7)!important;}
 @keyframes spin{to{transform:rotate(360deg);}}
 #seal-spotlight-overlay{position:fixed;inset:0;background:rgba(0,0,0,0);z-index:9000;pointer-events:none;transition:background 0.3s;}
 #seal-spotlight-overlay.active{background:rgba(0,0,0,0.45);pointer-events:auto;}
