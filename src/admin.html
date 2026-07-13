@@ -1010,15 +1010,15 @@ body{font-family:'Pretendard',system-ui,sans-serif;background:var(--canvas);colo
                 </select>
                 <button class="btn btn-primary btn-sm" onclick="bulkApprovePending()">일괄 승인</button>
               </div>
-              <div id="pending-list"><div class="empty-state" style="padding:8px;">대기 중인 신청 없음</div></div>
+              <div id="pending-list" style="max-height:200px;overflow-y:auto;"><div class="empty-state" style="padding:8px;">대기 중인 신청 없음</div></div>
 
               <div class="approve-section-head" style="margin-top:18px;">출결 인증 요청</div>
               <div style="font-size:12px;color:var(--muted);margin-bottom:10px;">원장님이 요청한 출결 인증을 학생이 제출하면 여기서 확인할 수 있습니다.</div>
-              <div id="auth-requests-list"><div class="empty-state" style="padding:8px;">제출된 인증 없음</div></div>
+              <div id="auth-requests-list" style="max-height:200px;overflow-y:auto;"><div class="empty-state" style="padding:8px;">제출된 인증 없음</div></div>
 
               <div class="approve-section-head" style="margin-top:18px;">출결 승인</div>
               <div style="font-size:12px;color:var(--muted);margin-bottom:10px;">퇴근 누락 신청 승인 시 해당 날짜 출퇴근 기록에 자동 반영됩니다.</div>
-              <div id="missingout-list"><div class="empty-state" style="padding:8px;">대기 중인 출결 신청 없음</div></div>
+              <div id="missingout-list" style="max-height:200px;overflow-y:auto;"><div class="empty-state" style="padding:8px;">대기 중인 출결 신청 없음</div></div>
 
               <div class="approve-section-head" style="margin-top:18px;">승인 내역</div>
               <div id="missingout-approved-list" style="max-height:280px;overflow-y:auto;"><div class="empty-state" style="padding:8px;">승인된 내역 없음</div></div>
@@ -2206,11 +2206,12 @@ function filterStudentsPanel(){
         const dropoutBtn=`<button class="stu-dropout-btn${s.droppedOut?' active':''}" onclick="toggleDropout('${s.kakaoId}')">${s.droppedOut?'탈락해제':'중도탈락'}</button>`;
         return `<tr data-id="${s.kakaoId}"${s.droppedOut?' style="opacity:0.55;"':''}>
             <td><select class="stu-edit-inline-sel" onchange="onInlineClsChange('${s.kakaoId}',this)">${clsOpts}</select></td>
-            <td style="font-weight:700;white-space:nowrap;">${escHtml(s.name||'-')}${dropoutBadge}</td>
+            <td style="font-weight:700;white-space:nowrap;">${escHtml(s.name||'-')}</td>
             <td><select class="stu-edit-inline-sel" onchange="onInlineHospChange('${s.kakaoId}',this)">${hospOpts}</select></td>
+            <td>${dropoutBtn}</td>
         </tr>`;
     }).join('');
-    listEl.innerHTML=`<table class="stu-edit-table"><colgroup><col style="width:45%"><col style="width:13%"><col style="width:42%"></colgroup><thead><tr><th>반</th><th>이름</th><th>실습병원</th></tr></thead><tbody>${rows}</tbody></table>`;
+    listEl.innerHTML=`<table class="stu-edit-table"><colgroup><col style="width:40%"><col style="width:12%"><col style="width:38%"><col style="width:10%"></colgroup><thead><tr><th>반</th><th>이름</th><th>실습병원</th><th>탈락</th></tr></thead><tbody>${rows}</tbody></table>`;
 }
 
 async function onInlineClsChange(kakaoId,sel){
@@ -2451,8 +2452,9 @@ function renderMissingOutRequests(){
                     <img src="data:image/png;base64,${r.studentSig}" style="width:100%;max-height:50px;object-fit:contain;border:1px solid var(--border);border-radius:6px;background:#fff;">
                 </div>
                 <div style="flex:1;text-align:center;">
-                    <div style="font-size:10px;color:var(--muted);margin-bottom:3px;font-weight:700;">담당자 서명 (${r.managerPhone||''})</div>
+                    <div style="font-size:10px;color:var(--muted);margin-bottom:3px;font-weight:700;">담당자 서명</div>
                     <img src="data:image/png;base64,${r.managerSig}" style="width:100%;max-height:50px;object-fit:contain;border:1px solid var(--border);border-radius:6px;background:#fff;">
+                    ${(r.managerName||r.managerTitle||r.managerPhone)?`<div style="font-size:10px;color:var(--muted);margin-top:3px;">${[r.managerName,r.managerTitle,r.managerPhone].filter(Boolean).join(' · ')}</div>`:''}
                 </div>
             </div>`:'<div style="font-size:11px;color:#ef4444;padding-top:4px;">⚠ 서명 없음 (불완전한 제출)</div>'}
         </div>`}).join('');
@@ -2578,8 +2580,9 @@ function renderAttendanceAuthRequests(){
                     ${r.studentSig?`<img src="data:image/png;base64,${r.studentSig}">`:'<span style="font-size:11px;color:var(--muted);">없음</span>'}
                 </div>
                 <div class="auth-req-card-sig">
-                    <div class="auth-req-card-sig-label">담당자 서명 (${escHtml(phone)})</div>
+                    <div class="auth-req-card-sig-label">담당자 서명</div>
                     ${r.managerSig?`<img src="data:image/png;base64,${r.managerSig}">`:'<span style="font-size:11px;color:var(--muted);">없음</span>'}
+                    ${(r.managerName||r.managerTitle||phone)?`<div style="font-size:10px;color:var(--muted);margin-top:3px;line-height:1.5;">${[r.managerName,r.managerTitle,phone].filter(Boolean).join(' · ')}</div>`:''}
                 </div>
             </div>`:''}
         </div>`;
@@ -3659,7 +3662,7 @@ async function generateFromTemplate(templateUrl,cls,stu,practiceDates,sigs,getMa
         rowSlice=rowSlice.replace('<tr',`<tr {{ROW_TR_STYLE_${i}}}`);
         rowSlice=rowSlice.replace(/<td/g,`<td {{ROW_CELL_STYLE_${i}}}`);
         rowSlice=rowSlice.replace('{{이름}}',`{{이름_${i}}}`);
-        rowSlice=rowSlice.replace(/>실습</,`>{{사유_${i}}}<`);
+        rowSlice=rowSlice.replace(/>현장훈련</,`>{{사유_${i}}}<`);
         rawHtml=rawHtml.slice(0,trStart)+rowSlice+rawHtml.slice(trEnd+5);
     }
     const acName=directorData?.academyName||'';
@@ -3704,11 +3707,19 @@ async function generateFromTemplate(templateUrl,cls,stu,practiceDates,sigs,getMa
     const totalChunks=Math.max(1,Math.ceil(practiceDates.length/30));
     for(let pi=0;pi<totalChunks;pi++){
         const chunk=practiceDates.slice(pi*30,(pi+1)*30);
+        // 전자시간표 실습시간: timetableData 첫 날 start~end 추출
+        const ttFirstDay=clsTt?Object.values(clsTt)[0]:null;
+        const ttPracticeTime=ttFirstDay?`${ttFirstDay.start}~${ttFirstDay.end}`:'';
         const map={
-            '학원명':acName,'이름':stu.name||'','전체훈련기간':totalPeriod,
+            '학원명':acName,'이름':stu.name||'','전체훈련기간':totalPeriod,'현장훈련기간':totalPeriod,
             '원장님이름':dirName,
-            '기간시작일':chunk[0]?fmtDocDate(chunk[0]):'',
-            '기간종료일':chunk[chunk.length-1]?fmtDocDate(chunk[chunk.length-1]):'',
+            '반 코드':cls?.code||'',
+            '실습병원':stu?.hospital||'',
+            '상태':stu?.droppedOut?'중도탈락':'',
+            '담당자이름':'',
+            '담당자직위':'',
+            '전자시간표 상 실습시간':ttPracticeTime,
+            '전자시간표 상 점심시간':(cls?.lunchBreakMins||30)+'분',
         };
         for(let i=1;i<=30;i++){
             const date=chunk[i-1]||null;
@@ -3901,20 +3912,6 @@ async function generateDirectEntryHtml(cls,students,startDate,endDate,sigs){
 
     const resp=await fetch('./template-entry.html');
     let rawHtml=decodeNumericEntities(await resp.text());
-    for(let i=1;i<=30;i++){
-        const marker=`{{단위기간시작일${i}}}`;
-        const mi=rawHtml.indexOf(marker);
-        if(mi===-1)continue;
-        const trStart=rawHtml.lastIndexOf('<tr',mi);
-        const trEnd=rawHtml.indexOf('</tr>',mi);
-        if(trStart===-1||trEnd===-1)continue;
-        let rowSlice=rawHtml.slice(trStart,trEnd+5);
-        rowSlice=rowSlice.replace('<tr',`<tr {{ROW_TR_STYLE_${i}}}`);
-        rowSlice=rowSlice.replace(/<td/g,`<td {{ROW_CELL_STYLE_${i}}}`);
-        rowSlice=rowSlice.replace('{{이름}}',`{{이름_${i}}}`);
-        rowSlice=rowSlice.replace(/>실습</,`>{{사유_${i}}}<`);
-        rawHtml=rawHtml.slice(0,trStart)+rowSlice+rawHtml.slice(trEnd+5);
-    }
 
     const acName=directorData?.academyName||'';
     const dirName=directorData?.name||'';
@@ -3946,10 +3943,13 @@ async function generateDirectEntryHtml(cls,students,startDate,endDate,sigs){
         cumMinsPerStu[String(stu.kakaoId)]=preRangeMins;
     });
 
+    // 전자시간표 실습시간: timetableData 첫 날 start~end 추출
+    const ttFirstDayDir=clsTt?Object.values(clsTt)[0]:null;
+    const ttPracticeTimeDir=ttFirstDayDir?`${ttFirstDayDir.start}~${ttFirstDayDir.end}`:'';
+
     // Task 9: 비출석 요약 페이지 데이터 수집
     const summaryEvents=[];
     const pages=[];
-    const sealHtml=sealImageBase64?`<img src="data:image/png;base64,${sealImageBase64}" style="max-height:40px;max-width:70px;vertical-align:middle;">`:'';
     for(const date of practiceDates){
         const dayS=clsTt?clsTt[date]:null;
         for(const stu of students){
@@ -3980,11 +3980,12 @@ async function generateDirectEntryHtml(cls,students,startDate,endDate,sigs){
         for(let pi=0;pi<totalChunks;pi++){
             const chunk=students.slice(pi*30,(pi+1)*30);
             const map={
-                '학원명':acName,'전체훈련기간':totalPeriod,
-                '원장님이름':dirName,'실습시간':'',
-                '학원직인':sealImageBase64?`<img src="data:image/png;base64,${sealImageBase64}" style="max-height:60px;max-width:100px;vertical-align:middle;">`:'',
-                '기간시작일':practiceDates[0]?fmtDocDate(practiceDates[0]):'',
-                '기간종료일':practiceDates[practiceDates.length-1]?fmtDocDate(practiceDates[practiceDates.length-1]):'',
+                '학원명':acName,'전체훈련기간':totalPeriod,'현장훈련기간':totalPeriod,
+                '원장님이름':dirName,
+                '반 코드':cls?.code||'',
+                '단위기간시작일':fmtDocDate(date),
+                '전자시간표 상 실습시간':ttPracticeTimeDir,
+                '전자시간표 상 점심시간':(cls?.lunchBreakMins||30)+'분',
             };
             for(let i=1;i<=30;i++){
                 const stu=chunk[i-1]||null;
@@ -3993,35 +3994,16 @@ async function generateDirectEntryHtml(cls,students,startDate,endDate,sigs){
                     const sigData=sigs[String(stu.kakaoId)]?.[date]||null;
                     const inT=att?.inTime||'';
                     const outT=(att?.outTime&&/^\d/.test(att.outTime))?att.outTime:'';
-                    const inM=timeToMinutes(inT),outM=timeToMinutes(outT);
                     const hasAtt=!!(inT||outT);
                     const stuSig=sigData?.studentSig||att?.studentSig||'';
-                    // 사유 계산
-                    let statusText;
-                    if(!hasAtt){statusText='<span style="color:#aaa">결석</span>';}
-                    else if(inM>0&&outM>0){
-                        const schedStart=dayS?timeToMinutes(dayS.start):9*60;
-                        const schedEnd=dayS?timeToMinutes(dayS.end):16*60+30;
-                        if(inM>schedStart){statusText='<span style="color:#aaa">지각</span>';}
-                        else if(outM<schedEnd){statusText='<span style="color:#aaa">조퇴</span>';}
-                        else{statusText='출석';}
-                    }else{statusText='출석';}
-                    map[`ROW_CELL_STYLE_${i}`]=hasAtt?'':'style="background-color:#e8e8e8"';
-                    map[`ROW_TR_STYLE_${i}`]=hasAtt?'':'style="display:none"';
-                    map[`단위기간시작일${i}`]=fmtDocDate(date);
-                    map[`이름_${i}`]=stu.name||'';
-                    map[`사유_${i}`]=statusText;
+                    map[`이름${i}`]=stu.name||'';
                     map[`출근시간${i}`]=inT;
                     map[`퇴근시간${i}`]=outT;
-                    map[`누적시간${i}`]=minutesToHM(cumMinsPerStu[String(stu.kakaoId)]);
-                    map[`학생서명${i}`]=stuSig?`<img src="data:image/png;base64,${stuSig}" style="max-height:28px;max-width:70px;vertical-align:middle;">`:' ';
-                    map[`담당자서명${i}`]=hasAtt?sealHtml:'';
+                    map[`해당날짜에 이름${i}서명`]=stuSig?`<img src="data:image/png;base64,${stuSig}" style="max-height:28px;max-width:70px;vertical-align:middle;">`:' ';
                 }else{
-                    map[`ROW_CELL_STYLE_${i}`]='style="background-color:#e8e8e8"';
-                    map[`ROW_TR_STYLE_${i}`]='style="display:none"';
-                    map[`단위기간시작일${i}`]='';map[`이름_${i}`]='';map[`사유_${i}`]='';
+                    map[`이름${i}`]='';
                     map[`출근시간${i}`]='';map[`퇴근시간${i}`]='';
-                    map[`누적시간${i}`]='';map[`학생서명${i}`]='';map[`담당자서명${i}`]='';
+                    map[`해당날짜에 이름${i}서명`]='';
                 }
             }
             const pageHasData=chunk.some(stu2=>{const att2=getAttForDate(stu2.kakaoId,date);return !!(att2?.inTime||att2?.outTime);});
