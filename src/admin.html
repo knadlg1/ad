@@ -1579,9 +1579,12 @@ function showApp(){
     }
     renderPaymentInfo();
     setDateRange('today');
-    if(typeof flatpickr!=='undefined'){
+    if(!_flatpickrInited&&typeof flatpickr!=='undefined'){
+        _flatpickrInited=true;
         const mkOpts=cb=>({mode:'range',locale:'ko',dateFormat:'Y-m-d',onClose(dates){
-            cb(dates[0]?flatpickr.formatDate(dates[0],'Y-m-d'):'',dates[1]?flatpickr.formatDate(dates[1],'Y-m-d'):'');
+            const s=dates[0]?flatpickr.formatDate(dates[0],'Y-m-d'):'';
+            const e=dates[1]?flatpickr.formatDate(dates[1],'Y-m-d'):s;
+            cb(s,e);
         }});
         flatpickr('#doc-card-daterange',mkOpts((s,e)=>{
             document.getElementById('doc-card-start').value=s;
@@ -3468,6 +3471,7 @@ function renderDropoutPage(){
 
 // ── 직인 관리 ────────────────────────────────────────────────
 let sealImageBase64=null;
+let _flatpickrInited=false;
 
 async function loadSealImage(){
     const acId=directorData?.academyId;
