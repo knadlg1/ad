@@ -2526,6 +2526,7 @@ async function sendAuthRequest(){
         });
     },{successMsg:'인증 요청 전송 완료 ✓',onSuccess:()=>{
         document.getElementById('auth-request-modal').classList.remove('open');
+        loadAttendanceAuthRequests();
     }});
 }
 
@@ -2538,7 +2539,7 @@ async function loadAttendanceAuthRequests(){
         const q=window.fsQuery(
             window.fsCollection(window.db,'attendanceAuthRequests'),
             window.fsWhere('academyId','==',acId),
-            window.fsWhere('status','==','submitted')
+            window.fsWhere('status','in',['pending','submitted'])
         );
         const snap=await window.fsGetDocs(q);
         authRequests=[];
@@ -2551,16 +2552,19 @@ async function loadAttendanceAuthRequests(){
 function renderAttendanceAuthRequests(){
     const el=document.getElementById('auth-requests-list');
     if(!el)return;
-    if(!authRequests.length){el.innerHTML='<div class="empty-state" style="padding:8px;">제출된 인증 없음</div>';return;}
+    if(!authRequests.length){el.innerHTML='<div class="empty-state" style="padding:8px;">인증 요청 없음</div>';return;}
     const typeLabel={in:'출근',out:'퇴근',both:'출+퇴근'};
     el.innerHTML=authRequests.map(r=>{
         const stu=studentsList.find(s=>String(s.kakaoId)===String(r.kakaoId));
         const name=stu?.name||r.kakaoId;
         const phone=maskPhone(r.managerPhone||'');
+        const statusBadge=r.status==='pending'
+            ?'<span style="font-size:10px;font-weight:700;color:#f59e0b;background:#fffbeb;border:1px solid #fde68a;border-radius:4px;padding:1px 6px;">대기중</span>'
+            :'<span style="font-size:10px;font-weight:700;color:#10b981;background:#f0fdf4;border:1px solid #a7f3d0;border-radius:4px;padding:1px 6px;">학생 제출</span>';
         return `<div class="auth-req-card">
             <div class="auth-req-card-head">
                 <div>
-                    <div class="auth-req-card-name">${escHtml(name)}</div>
+                    <div class="auth-req-card-name">${escHtml(name)} ${statusBadge}</div>
                     <div class="auth-req-card-meta">${r.date} · ${typeLabel[r.type]||r.type}</div>
                 </div>
                 <div class="auth-req-card-meta">출근 ${r.inTime||'-'} 퇴근 ${r.outTime||'-'}</div>
