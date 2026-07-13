@@ -488,8 +488,8 @@ body{font-family:'Pretendard',system-ui,sans-serif;background:var(--canvas);colo
 .loading-overlay.success .spinner{display:none;}
 .loading-overlay.success .loading-success-icon{display:flex;}
 .spinner{width:38px;height:38px;border:3px solid rgba(255,255,255,0.25);border-top-color:#fff;border-radius:50%;animation:spin 0.7s linear infinite;}
-.doc-daterange-input{width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px;cursor:pointer;background:#fff;color:var(--text);box-sizing:border-box;}
-.doc-daterange-input:focus{outline:none;border-color:var(--brand);}
+.doc-daterange-input{display:none;}
+.flatpickr-calendar.inline{width:100%;box-shadow:none;border:1px solid var(--border);border-radius:8px;}
 @keyframes spin{to{transform:rotate(360deg);}}
 #seal-spotlight-overlay{position:fixed;inset:0;background:rgba(0,0,0,0);z-index:9000;pointer-events:none;transition:background 0.3s;}
 #seal-spotlight-overlay.active{background:rgba(0,0,0,0.45);pointer-events:auto;}
@@ -1581,7 +1581,7 @@ function showApp(){
     setDateRange('today');
     if(!_flatpickrInited&&typeof flatpickr!=='undefined'){
         _flatpickrInited=true;
-        const mkOpts=cb=>({mode:'range',locale:'ko',dateFormat:'Y-m-d',onClose(dates){
+        const mkOpts=cb=>({mode:'range',locale:'ko',dateFormat:'Y-m-d',inline:true,onClose(dates){
             const s=dates[0]?flatpickr.formatDate(dates[0],'Y-m-d'):'';
             const e=dates[1]?flatpickr.formatDate(dates[1],'Y-m-d'):s;
             cb(s,e);
