@@ -2567,7 +2567,10 @@ function renderAttendanceAuthRequests(){
                     <div class="auth-req-card-name">${escHtml(name)} ${statusBadge}</div>
                     <div class="auth-req-card-meta">${r.date} · ${typeLabel[r.type]||r.type}</div>
                 </div>
-                <div class="auth-req-card-meta">출근 ${r.inTime||'-'} 퇴근 ${r.outTime||'-'}</div>
+                <div style="display:flex;align-items:center;gap:6px;">
+                    <div class="auth-req-card-meta">출근 ${r.inTime||'-'} 퇴근 ${r.outTime||'-'}</div>
+                    ${r.status==='pending'?`<button class="btn btn-danger btn-sm" style="font-size:10px;padding:2px 8px;" onclick="cancelAuthRequest('${r.id}','${r.kakaoId}')">취소</button>`:''}
+                </div>
             </div>
             ${(r.studentSig||r.managerSig)?`<div class="auth-req-card-sigs">
                 <div class="auth-req-card-sig">
@@ -2581,6 +2584,18 @@ function renderAttendanceAuthRequests(){
             </div>`:''}
         </div>`;
     }).join('');
+}
+
+async function cancelAuthRequest(docId,kakaoId){
+    if(!confirm('인증 요청을 취소하시겠습니까?'))return;
+    showLoader(true);
+    try{
+        await window.fsDeleteDoc(window.fsDoc(window.db,'attendanceAuthRequests',docId));
+        await window.fsUpdateDoc(window.fsDoc(window.db,'students',String(kakaoId)),{pendingAuthRequestId:null});
+        showToast('요청이 취소됐습니다','info');
+        await loadAttendanceAuthRequests();
+    }catch(e){showToast('취소 실패: '+e.message,'error');}
+    showLoader(false);
 }
 
 // ── Render: 신규가입관리 ──────────────────────────────────
