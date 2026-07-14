@@ -1010,18 +1010,18 @@ body{font-family:'Pretendard',system-ui,sans-serif;background:var(--canvas);colo
                 </select>
                 <button class="btn btn-primary btn-sm" onclick="bulkApprovePending()">일괄 승인</button>
               </div>
-              <div id="pending-list" style="max-height:200px;overflow-y:auto;"><div class="empty-state" style="padding:8px;">대기 중인 신청 없음</div></div>
+              <div id="pending-list" style="max-height:260px;overflow-y:auto;"><div class="empty-state" style="padding:8px;">대기 중인 신청 없음</div></div>
 
               <div class="approve-section-head" style="margin-top:18px;">출결 인증 요청</div>
               <div style="font-size:12px;color:var(--muted);margin-bottom:10px;">원장님이 요청한 출결 인증을 학생이 제출하면 여기서 확인할 수 있습니다.</div>
-              <div id="auth-requests-list" style="max-height:200px;overflow-y:auto;"><div class="empty-state" style="padding:8px;">제출된 인증 없음</div></div>
+              <div id="auth-requests-list" style="max-height:260px;overflow-y:auto;"><div class="empty-state" style="padding:8px;">제출된 인증 없음</div></div>
 
               <div class="approve-section-head" style="margin-top:18px;">출결 승인</div>
               <div style="font-size:12px;color:var(--muted);margin-bottom:10px;">퇴근 누락 신청 승인 시 해당 날짜 출퇴근 기록에 자동 반영됩니다.</div>
-              <div id="missingout-list" style="max-height:200px;overflow-y:auto;"><div class="empty-state" style="padding:8px;">대기 중인 출결 신청 없음</div></div>
+              <div id="missingout-list" style="max-height:260px;overflow-y:auto;"><div class="empty-state" style="padding:8px;">대기 중인 출결 신청 없음</div></div>
 
               <div class="approve-section-head" style="margin-top:18px;">승인 내역</div>
-              <div id="missingout-approved-list" style="max-height:280px;overflow-y:auto;"><div class="empty-state" style="padding:8px;">승인된 내역 없음</div></div>
+              <div id="missingout-approved-list" style="max-height:140px;overflow-y:auto;"><div class="empty-state" style="padding:8px;">승인된 내역 없음</div></div>
             </div>
 
             <!-- 학생정보변경 탭 (7:3 split) -->
@@ -3662,7 +3662,7 @@ async function generateFromTemplate(templateUrl,cls,stu,practiceDates,sigs,getMa
         rowSlice=rowSlice.replace('<tr',`<tr {{ROW_TR_STYLE_${i}}}`);
         rowSlice=rowSlice.replace(/<td/g,`<td {{ROW_CELL_STYLE_${i}}}`);
         rowSlice=rowSlice.replace('{{이름}}',`{{이름_${i}}}`);
-        rowSlice=rowSlice.replace(/>현장훈련</,`>{{사유_${i}}}<`);
+        rowSlice=rowSlice.replace('{{상태}}',`{{상태_${i}}}`);
         rawHtml=rawHtml.slice(0,trStart)+rowSlice+rawHtml.slice(trEnd+5);
     }
     const acName=directorData?.academyName||'';
@@ -3715,11 +3715,10 @@ async function generateFromTemplate(templateUrl,cls,stu,practiceDates,sigs,getMa
             '원장님이름':dirName,
             '반 코드':cls?.code||'',
             '실습병원':stu?.hospital||'',
-            '상태':stu?.droppedOut?'중도탈락':'',
             '담당자이름':'',
             '담당자직위':'',
             '전자시간표 상 실습시간':ttPracticeTime,
-            '전자시간표 상 점심시간':(cls?.lunchBreakMins||30)+'분',
+            '전자시간표 상 점심시간':(()=>{const mins=cls?.lunchBreakMins||30;const start=cls?.lunchStart;if(start){const[h,m]=start.split(':').map(Number);const endTotal=h*60+m+mins;const endH=Math.floor(endTotal/60);const endM=endTotal%60;return `${start}~${String(endH).padStart(2,'0')}:${String(endM).padStart(2,'0')}`;}return mins+'분';})(),// TODO: cls.lunchStart 필드 추가 시 HH:MM~HH:MM 형식으로 자동 표시
         };
         for(let i=1;i<=30;i++){
             const date=chunk[i-1]||null;
@@ -3757,16 +3756,16 @@ async function generateFromTemplate(templateUrl,cls,stu,practiceDates,sigs,getMa
                 map[`ROW_TR_STYLE_${i}`]=hasAtt?'':'style="display:none"';
                 map[`단위기간시작일${i}`]=fmtDocDate(date);
                 map[`이름_${i}`]=stu.name||'';
-                map[`사유_${i}`]=statusText;
+                map[`상태_${i}`]=statusText;
                 map[`출근시간${i}`]=inT;
                 map[`퇴근시간${i}`]=outT;
-                map[`누적시간${i}`]=stdCumMins>0?`${minutesToHM(cumMins)}/${minutesToHM(stdCumMins)}`:minutesToHM(cumMins);
+                map[`누적시간${i}`]=minutesToHM(cumMins);
                 map[`학생서명${i}`]=stuSig?`<img src="data:image/png;base64,${stuSig}" style="max-height:28px;max-width:70px;vertical-align:middle;">`:' ';
                 map[`담당자서명${i}`]=mgrSig?`<img src="data:image/png;base64,${mgrSig}" style="max-height:28px;max-width:70px;vertical-align:middle;">`:' ';
             }else{
                 map[`ROW_CELL_STYLE_${i}`]='style="background-color:#e8e8e8"';
                 map[`ROW_TR_STYLE_${i}`]='style="display:none"';
-                map[`단위기간시작일${i}`]='';map[`이름_${i}`]='';map[`사유_${i}`]='';
+                map[`단위기간시작일${i}`]='';map[`이름_${i}`]='';map[`상태_${i}`]='';
                 map[`출근시간${i}`]='';map[`퇴근시간${i}`]='';
                 map[`누적시간${i}`]='';map[`학생서명${i}`]='';map[`담당자서명${i}`]='';
             }
