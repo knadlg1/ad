@@ -3790,10 +3790,10 @@ function openDocWindow(pages){
         return i>0?`<div style="page-break-before:always">${content}</div>`:`<div>${content}</div>`;
     });
     const printCss=`<style>
-body{max-width:451.3pt!important;padding:6pt 8pt!important;margin:0 auto!important;}
-@page{size:A4 portrait;margin:15mm;}
+body{max-width:none!important;padding:8px 16px!important;margin:0!important;}
+@page{size:A4 landscape;margin:8mm;}
 @media print{
-  body{max-width:451.3pt!important;padding:6pt!important;margin:0 auto!important;}
+  body{padding:0!important;margin:0!important;}
   tr{page-break-inside:avoid;}
   h1,h2{page-break-after:avoid;}
 }
