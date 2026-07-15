@@ -3781,7 +3781,7 @@ async function generateFromTemplate(templateUrl,cls,stu,practiceDates,sigs,getMa
     }
     return pages;
 }
-function openDocWindow(pages){
+function openDocWindow(pages,orientation='landscape'){
     if(!pages.length){showToast('출력할 데이터가 없습니다','info');return;}
     const headContent=pages.map(html=>{const m=html.match(/<head[^>]*>([\s\S]*?)<\/head>/i);return m?m[1]:''}).join('\n');
     const bodyParts=pages.map((html,i)=>{
@@ -3789,11 +3789,12 @@ function openDocWindow(pages){
         const content=bm?bm[1]:html;
         return i>0?`<div style="page-break-before:always">${content}</div>`:`<div>${content}</div>`;
     });
+    const isPortrait=orientation==='portrait';
     const printCss=`<style>
-body{max-width:none!important;padding:8px 16px!important;margin:0!important;}
-@page{size:A4 landscape;margin:8mm;}
+body{max-width:${isPortrait?'740px':'none'}!important;padding:8px 16px!important;margin:${isPortrait?'0 auto':'0'}!important;}
+@page{size:A4 ${orientation};margin:8mm;}
 @media print{
-  body{padding:0!important;margin:0!important;}
+  body{max-width:none!important;padding:0!important;margin:0!important;}
   tr{page-break-inside:avoid;}
   h1,h2{page-break-after:avoid;}
 }
@@ -3847,7 +3848,7 @@ async function previewDoc(type){
         const sigs=await loadWeeklySigsForRange(students.map(s=>s.kakaoId),startDate,endDate);
         const pages=await generateDirectEntryHtml(cls,students,startDate,endDate,sigs);
         showLoader(false);
-        openDocWindow(pages);
+        openDocWindow(pages,'portrait');
     }
 }
 
