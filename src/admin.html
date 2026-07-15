@@ -3715,7 +3715,7 @@ async function generateFromTemplate(templateUrl,cls,stu,practiceDates,sigs,getMa
         const ttPracticeTime=ttFirstDay?`${ttFirstDay.start}~${ttFirstDay.end}`:'';
         const map={
             '학원명':acName,'이름':stu.name||'','전체훈련기간':totalPeriod,'현장훈련기간':practicePeriod,
-            '원장님이름':dirName,
+            '원장이름':dirName,
             '반 코드':cls?.code||'',
             '실습병원':stu?.hospital||'',
             '담당자이름':'',
@@ -3986,7 +3986,7 @@ async function generateDirectEntryHtml(cls,students,startDate,endDate,sigs){
             const chunk=students.slice(pi*30,(pi+1)*30);
             const map={
                 '학원명':acName,'전체훈련기간':totalPeriod,'현장훈련기간':practicePeriodDir,
-                '원장님이름':dirName,
+                '원장이름':dirName,
                 '반 코드':cls?.code||'',
                 '단위기간시작일':fmtDocDate(date),
                 '전자시간표 상 실습시간':ttPracticeTimeDir,
