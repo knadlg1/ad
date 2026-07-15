@@ -3824,9 +3824,11 @@ function openDocWindow(pages,orientation='landscape'){
     const isPortrait=orientation==='portrait';
     const printCss=`<style>
 body{max-width:${isPortrait?'740px':'none'}!important;padding:8px 16px!important;margin:${isPortrait?'0 auto':'0'}!important;}
+${isPortrait?'.c31{margin-left:0!important;margin-right:auto!important;}.c66{padding-left:8px!important;padding-right:8px!important;}table{max-width:100%!important;}':''}
 @page{size:A4 ${orientation};margin:8mm;}
 @media print{
   body{${isPortrait?'max-width:740px!important;margin:0 auto!important;':'max-width:none!important;margin:0!important;'}padding:0!important;}
+  ${isPortrait?'.c31{margin-left:0!important;}.c66{padding-left:0!important;padding-right:0!important;}':''}
   tr{page-break-inside:avoid;}
   h1,h2{page-break-after:avoid;}
 }
@@ -4022,6 +4024,7 @@ async function generateDirectEntryHtml(cls,students,startDate,endDate,sigs){
                 '단위기간시작일':fmtDocDate(date),
                 '전자시간표 상 실습시간':ttPracticeTimeDir,
                 '전자시간표 상 점심시간':(()=>{const mins=cls?.lunchBreakMins||30;const start=cls?.lunchStart;if(start){const[h,m]=start.split(':').map(Number);const endTotal=h*60+m+mins;const endH=Math.floor(endTotal/60);const endM=endTotal%60;return `${start}~${String(endH).padStart(2,'0')}:${String(endM).padStart(2,'0')}`;}return mins+'분';})(),
+                '학원직인':sealImageBase64?`<img src="data:image/png;base64,${sealImageBase64}" style="max-width:72px;max-height:72px;display:block;margin:auto;">`:''
             };
             for(let i=1;i<=30;i++){
                 const stu=chunk[i-1]||null;
@@ -4050,11 +4053,13 @@ async function generateDirectEntryHtml(cls,students,startDate,endDate,sigs){
                     map[`상태${i}`]=statusText||'';
                     map[`실습병원${i}`]=stu.hospital||'';
                     map[`해당날짜에 이름${i}서명`]=stuSig?`<img src="data:image/png;base64,${stuSig}" style="max-height:28px;max-width:70px;vertical-align:middle;">`:' ';
+                    map[`ROW_HIDDEN_${i}`]='';
                 }else{
                     map[`이름${i}`]='';
                     map[`출근시간${i}`]='';map[`퇴근시간${i}`]='';
                     map[`상태${i}`]='';map[`실습병원${i}`]='';
                     map[`해당날짜에 이름${i}서명`]='';
+                    map[`ROW_HIDDEN_${i}`]='style="display:none"';
                 }
             }
             const pageHasData=chunk.some(stu2=>{const att2=getAttForDate(stu2.kakaoId,date);return !!(att2?.inTime||att2?.outTime);});
