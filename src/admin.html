@@ -3787,8 +3787,9 @@ async function generateFromTemplate(templateUrl,cls,stu,practiceDates,sigs,getMa
                 const stdCumMins=clsTt?(stdCumByDate[date]||0):0;
                 const stuSig=sigData?.studentSig||att?.studentSig||'';
                 const mgrSig=getManagerSig(att,sigData);
-                map[`ROW_CELL_STYLE_${i}`]=hasAtt?'':'style="background-color:#e8e8e8"';
-                map[`ROW_TR_STYLE_${i}`]=hasAtt?'':'style="display:none"';
+                const isAbsOrLate=(!hasAtt&&isScheduled)||(statusText&&statusText.includes('지각'));
+                map[`ROW_CELL_STYLE_${i}`]=isAbsOrLate?'style="background-color:#f0f0f0"':'';
+                map[`ROW_TR_STYLE_${i}`]='';
                 map[`단위기간시작일${i}`]=fmtDocDate(date);
                 map[`이름_${i}`]=stu.name||'';
                 map[`상태_${i}`]=statusText;
@@ -4054,12 +4055,14 @@ async function generateDirectEntryHtml(cls,students,startDate,endDate,sigs){
                     map[`실습병원${i}`]=stu.hospital||'';
                     map[`해당날짜에 이름${i}서명`]=stuSig?`<img src="data:image/png;base64,${stuSig}" style="max-height:28px;max-width:70px;vertical-align:middle;">`:' ';
                     map[`ROW_HIDDEN_${i}`]='';
+                    map[`ROW_BG_${i}`]=(statusText==='결석'||statusText==='지각')?'style="background-color:#f0f0f0"':'';
                 }else{
                     map[`이름${i}`]='';
                     map[`출근시간${i}`]='';map[`퇴근시간${i}`]='';
                     map[`상태${i}`]='';map[`실습병원${i}`]='';
                     map[`해당날짜에 이름${i}서명`]='';
                     map[`ROW_HIDDEN_${i}`]='style="display:none"';
+                    map[`ROW_BG_${i}`]='';
                 }
             }
             const pageHasData=chunk.some(stu2=>{const att2=getAttForDate(stu2.kakaoId,date);return !!(att2?.inTime||att2?.outTime);});
