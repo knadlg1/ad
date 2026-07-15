@@ -2541,7 +2541,7 @@ async function loadAttendanceAuthRequests(){
         const q=window.fsQuery(
             window.fsCollection(window.db,'attendanceAuthRequests'),
             window.fsWhere('academyId','==',acId),
-            window.fsWhere('status','in',['pending','submitted'])
+            window.fsWhere('status','in',['pending','submitted','approved'])
         );
         const snap=await window.fsGetDocs(q);
         authRequests=[];
@@ -2562,6 +2562,8 @@ function renderAttendanceAuthRequests(){
         const phone=maskPhone(r.managerPhone||'');
         const statusBadge=r.status==='pending'
             ?'<span style="font-size:10px;font-weight:700;color:#f59e0b;background:#fffbeb;border:1px solid #fde68a;border-radius:4px;padding:1px 6px;">대기중</span>'
+            :r.status==='approved'
+            ?'<span style="font-size:10px;font-weight:700;color:#6366f1;background:#f0f0ff;border:1px solid #c7d2fe;border-radius:4px;padding:1px 6px;">승인완료</span>'
             :'<span style="font-size:10px;font-weight:700;color:#10b981;background:#f0fdf4;border:1px solid #a7f3d0;border-radius:4px;padding:1px 6px;">학생 제출</span>';
         return `<div class="auth-req-card">
             <div class="auth-req-card-head">
@@ -2571,7 +2573,11 @@ function renderAttendanceAuthRequests(){
                 </div>
                 <div style="display:flex;align-items:center;gap:6px;">
                     <div class="auth-req-card-meta">출근 ${r.inTime||'-'} 퇴근 ${r.outTime||'-'}</div>
-                    ${r.status==='pending'?`<button class="btn btn-danger btn-sm" style="font-size:10px;padding:2px 8px;" onclick="cancelAuthRequest('${r.id}','${r.kakaoId}')">취소</button>`:''}
+                    ${r.status==='pending'
+                    ?`<button class="btn btn-danger btn-sm" style="font-size:10px;padding:2px 8px;" onclick="cancelAuthRequest('${r.id}','${r.kakaoId}')">취소</button>`
+                    :r.status==='submitted'
+                    ?`<button class="btn btn-primary btn-sm" style="font-size:10px;padding:2px 8px;background:#4f46e5;border-color:#4f46e5;" onclick="approveAuthRequest('${r.id}','${r.kakaoId}','${r.date}')">승인</button>`
+                    :''}
                 </div>
             </div>
             ${(r.studentSig||r.managerSig)?`<div class="auth-req-card-sigs">
@@ -2598,6 +2604,32 @@ async function cancelAuthRequest(docId,kakaoId){
         showToast('요청이 취소됐습니다','info');
         await loadAttendanceAuthRequests();
     }catch(e){showToast('취소 실패: '+e.message,'error');}
+    showLoader(false);
+}
+
+async function approveAuthRequest(docId,kakaoId,date){
+    if(!confirm('출결 인증을 승인하시겠습니까? 해당 날짜 출퇴근 기록에 반영됩니다.'))return;
+    showLoader(true);
+    try{
+        const reqSnap=await window.fsGetDoc(window.fsDoc(window.db,'attendanceAuthRequests',docId));
+        if(!reqSnap.exists()){showToast('요청을 찾을 수 없습니다','error');return;}
+        const req=reqSnap.data();
+        const docKey=String(kakaoId)+'_'+date;
+        const attUpdate={kakaoId:String(kakaoId)};
+        if(req.inTime)attUpdate.inTime=req.inTime;
+        if(req.outTime)attUpdate.outTime=req.outTime;
+        if(req.studentSig)attUpdate.studentSig=req.studentSig;
+        if(req.managerSig)attUpdate.managerSig=req.managerSig;
+        if(req.managerName)attUpdate.managerName=req.managerName;
+        if(req.managerTitle)attUpdate.managerTitle=req.managerTitle;
+        if(req.managerPhone)attUpdate.managerPhone=req.managerPhone;
+        await window.fsSetDoc(window.fsDoc(window.db,'attendance',docKey),attUpdate,{merge:true});
+        await window.fsUpdateDoc(window.fsDoc(window.db,'attendanceAuthRequests',docId),{status:'approved'});
+        await window.fsUpdateDoc(window.fsDoc(window.db,'students',String(kakaoId)),{pendingAuthRequestId:null});
+        showToast('승인 완료 ✓','success');
+        await loadAttendanceAuthRequests();
+        loadAttendance();
+    }catch(e){showToast('승인 실패: '+e.message,'error');}
     showLoader(false);
 }
 
@@ -3794,7 +3826,7 @@ function openDocWindow(pages,orientation='landscape'){
 body{max-width:${isPortrait?'740px':'none'}!important;padding:8px 16px!important;margin:${isPortrait?'0 auto':'0'}!important;}
 @page{size:A4 ${orientation};margin:8mm;}
 @media print{
-  body{max-width:none!important;padding:0!important;margin:0!important;}
+  body{${isPortrait?'max-width:740px!important;margin:0 auto!important;':'max-width:none!important;margin:0!important;'}padding:0!important;}
   tr{page-break-inside:avoid;}
   h1,h2{page-break-after:avoid;}
 }
@@ -4000,13 +4032,28 @@ async function generateDirectEntryHtml(cls,students,startDate,endDate,sigs){
                     const outT=(att?.outTime&&/^\d/.test(att.outTime))?att.outTime:'';
                     const hasAtt=!!(inT||outT);
                     const stuSig=sigData?.studentSig||att?.studentSig||'';
+                    const inM=timeToMinutes(inT),outM=timeToMinutes(outT);
+                    const isScheduled=clsTt?!!clsTt[date]:true;
+                    let statusText;
+                    if(!hasAtt&&isScheduled){statusText='결석';}
+                    else if(hasAtt&&!isScheduled){statusText='보강';}
+                    else if(hasAtt&&inM>0&&outM>0){
+                        const schedStart=dayS?timeToMinutes(dayS.start):9*60;
+                        const schedEnd=dayS?timeToMinutes(dayS.end):16*60+30;
+                        if(inM>schedStart){statusText='지각';}
+                        else if(outM<schedEnd){statusText='조퇴';}
+                        else{statusText='출석';}
+                    }else{statusText=hasAtt?'출석':'';}
                     map[`이름${i}`]=stu.name||'';
                     map[`출근시간${i}`]=inT;
                     map[`퇴근시간${i}`]=outT;
+                    map[`상태${i}`]=statusText||'';
+                    map[`실습병원${i}`]=stu.hospital||'';
                     map[`해당날짜에 이름${i}서명`]=stuSig?`<img src="data:image/png;base64,${stuSig}" style="max-height:28px;max-width:70px;vertical-align:middle;">`:' ';
                 }else{
                     map[`이름${i}`]='';
                     map[`출근시간${i}`]='';map[`퇴근시간${i}`]='';
+                    map[`상태${i}`]='';map[`실습병원${i}`]='';
                     map[`해당날짜에 이름${i}서명`]='';
                 }
             }
