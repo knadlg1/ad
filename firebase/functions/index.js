@@ -309,7 +309,13 @@ exports.processAttendance = functions.https.onRequest(async (req, res) => {
         log.errorType = obj.type    || null;
         log.errorMsg  = obj.message || null;
         await db.collection('attendanceLogs').add(log).catch(() => {});
-        res.json(obj);
+        res.json({
+            ...obj,
+            dist:          log.dist          ?? null,
+            effectiveDist: log.effectiveDist ?? null,
+            scoreA:        log.scoreA        ?? null,
+            scoreB:        log.scoreB        ?? null,
+        });
     };
 
     try {
