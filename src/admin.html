@@ -1419,8 +1419,8 @@ async function loadMissingLog(){
         +'<td style="padding:10px 8px;font-weight:600;color:#1e293b;">'+esc(r.name)+'</td>'
         +'<td style="padding:10px 8px;color:#334155;">'+esc(r.date)+'</td>'
         +'<td style="padding:10px 8px;"><span style="'+typeColor(r.type)+'border-radius:6px;padding:2px 8px;font-size:12px;font-weight:700;">'+esc(r.type)+'</span></td>'
-        +'<td style="padding:10px 8px;color:#334155;">'+esc(r.inTime||'-')+'</td>'
-        +'<td style="padding:10px 8px;color:#334155;">'+esc(r.outTime||'-')+'</td>'
+        +'<td style="padding:10px 8px;color:#334155;">'+esc(trimToMinutes(r.inTime)||'-')+'</td>'
+        +'<td style="padding:10px 8px;color:#334155;">'+esc(trimToMinutes(r.outTime)||'-')+'</td>'
         +'<td style="padding:10px 8px;color:#334155;">'+fmtPhone(r.managerPhone)+'</td>'
         +'<td style="padding:10px 8px;color:#64748b;font-size:12px;">'+fmt(r.verifiedAt)+'</td>'
         +'</tr>').join('')
@@ -2149,7 +2149,7 @@ function renderSidebarAuthReqs(pending,done){
         doneEl.innerHTML=done.length
             ?done.map(r=>{
                 const name=studentsList.find(s=>String(s.kakaoId)===String(r.kakaoId))?.name||r.kakaoId;
-                return `<div class="att-authreq-list-item" style="opacity:.7;"><div class="att-authreq-list-item-name">✓ ${escHtml(name)}</div><div class="att-authreq-list-item-meta">${r.date} · ${typeLabel[r.type]||r.type}${r.inTime?' · '+r.inTime+'~'+(r.outTime||'?'):''}</div></div>`;
+                return `<div class="att-authreq-list-item" style="opacity:.7;"><div class="att-authreq-list-item-name">✓ ${escHtml(name)}</div><div class="att-authreq-list-item-meta">${r.date} · ${typeLabel[r.type]||r.type}${r.inTime?' · '+trimToMinutes(r.inTime)+'~'+(trimToMinutes(r.outTime)||'?'):''}</div></div>`;
             }).join('')
             :'<div class="att-authreq-list-empty">없음</div>';
     }
@@ -2438,7 +2438,7 @@ function renderMissingOutRequests(){
             <div style="display:flex;align-items:center;justify-content:space-between;">
                 <div class="pending-info">
                     <div class="pending-name">${name}</div>
-                    <div class="pending-phone">${r.date} · 출근 ${r.inTime} → 퇴근 ${r.outTime||'?'}</div>
+                    <div class="pending-phone">${r.date} · 출근 ${trimToMinutes(r.inTime)} → 퇴근 ${trimToMinutes(r.outTime)||'?'}</div>
                 </div>
                 <div class="pending-actions">
                     <button class="btn btn-primary btn-sm mo-approve-btn" data-id="${r.id}" data-kid="${r.kakaoId}" data-date="${r.date}" data-out="${r.outTime&&/^\d/.test(r.outTime)?r.outTime:''}" ${!r.outTime||!/^\d/.test(r.outTime)?'disabled title="퇴근시간 없음"':''}>승인</button>
@@ -2572,7 +2572,7 @@ function renderAttendanceAuthRequests(){
                     <div class="auth-req-card-meta">${r.date} · ${typeLabel[r.type]||r.type}</div>
                 </div>
                 <div style="display:flex;align-items:center;gap:6px;">
-                    <div class="auth-req-card-meta">출근 ${r.inTime||'-'} 퇴근 ${r.outTime||'-'}</div>
+                    <div class="auth-req-card-meta">출근 ${trimToMinutes(r.inTime)||'-'} 퇴근 ${trimToMinutes(r.outTime)||'-'}</div>
                     ${r.status==='pending'
                     ?`<button class="btn btn-danger btn-sm" style="font-size:10px;padding:2px 8px;" onclick="cancelAuthRequest('${r.id}','${r.kakaoId}')">취소</button>`
                     :r.status==='submitted'
@@ -2928,7 +2928,7 @@ function renderClassCards(){
             <div class="class-card-body">
                 <div>
                     <div class="cc-label">반 코드</div>
-                    <input class="cc-input" value="${escHtml(c.code||'')}" onchange="saveClassCode('${c.id}',this.value)" placeholder="예: 26-1">
+                    <input class="cc-input" value="${escHtml(c.code||'')}" oninput="this.value=normalizeClassCode(this.value)" onchange="saveClassCode('${c.id}',this.value)" placeholder="예: 26-1">
                 </div>
                 <div>
                     <div class="cc-label">전자시간표</div>
@@ -2951,6 +2951,8 @@ async function saveClassName(classId,name){
     try{await window.fsUpdateDoc(window.fsDoc(window.db,'classes',classId),{name:name.trim()});const c=classesList.find(c=>c.id===classId);if(c)c.name=name.trim();}
     catch(e){showToast('저장 실패','error');}
 }
+
+function trimToMinutes(t){if(!t)return'';return t.length>5?t.slice(0,5):t;}
 
 function normalizeClassCode(code){
     if(!code||!code.trim().toUpperCase().startsWith('AIG'))return code;
@@ -3379,7 +3381,7 @@ function updateClsAddBtn(){
 
 async function createClassFromVtab(){
     const name=(document.getElementById('cls-name')?.value||'').trim();
-    const code=(document.getElementById('cls-code')?.value||'').trim();
+    const code=normalizeClassCode((document.getElementById('cls-code')?.value||'').trim());
     if(!name||!code||!clsTtFileName){showToast('반이름, 반코드, 전자시간표를 모두 입력해주세요','info');return;}
     showLoader(true);
     try{
@@ -3666,7 +3668,7 @@ function renderMissingOutApproved(){
   <div style="display:flex;align-items:center;justify-content:space-between;">
     <div class="pending-info">
       <div class="pending-name">${escHtml(name)} <span style="font-size:11px;font-weight:700;color:${isApproved?'#10b981':'#ef4444'}">[${isApproved?'승인':'거절'}]</span></div>
-      <div class="pending-phone">${r.date} · 출근 ${r.inTime} → 퇴근 ${r.outTime||'?'}</div>
+      <div class="pending-phone">${r.date} · 출근 ${trimToMinutes(r.inTime)} → 퇴근 ${trimToMinutes(r.outTime)||'?'}</div>
     </div>
   </div>
   ${(mgrInfo||mgrPhone||r.managerSig)?`<div style="display:flex;align-items:center;gap:8px;padding-top:4px;border-top:1px solid var(--border);flex-wrap:wrap;">
@@ -3795,8 +3797,8 @@ async function generateFromTemplate(templateUrl,cls,stu,practiceDates,sigs,getMa
             if(date){
                 const att=getAttForDate(stu.kakaoId,date);
                 const sigData=sigs[String(stu.kakaoId)]?.[date]||null;
-                const inT=att?.inTime||'';
-                const outT=(att?.outTime&&/^\d/.test(att.outTime))?att.outTime:'';
+                const inT=trimToMinutes(att?.inTime||'');
+                const outT=trimToMinutes((att?.outTime&&/^\d/.test(att.outTime))?att.outTime:'');
                 const inM=timeToMinutes(inT),outM=timeToMinutes(outT);
                 const hasAtt=!!(inT||outT);
                 const dayS=clsTt?clsTt[date]:null;
@@ -4072,8 +4074,8 @@ async function generateDirectEntryHtml(cls,students,startDate,endDate,sigs){
                 if(stu){
                     const att=getAttForDate(stu.kakaoId,date);
                     const sigData=sigs[String(stu.kakaoId)]?.[date]||null;
-                    const inT=att?.inTime||'';
-                    const outT=(att?.outTime&&/^\d/.test(att.outTime))?att.outTime:'';
+                    const inT=trimToMinutes(att?.inTime||'');
+                    const outT=trimToMinutes((att?.outTime&&/^\d/.test(att.outTime))?att.outTime:'');
                     const hasAtt=!!(inT||outT);
                     const stuSig=sigData?.studentSig||att?.studentSig||'';
                     const inM=timeToMinutes(inT),outM=timeToMinutes(outT);
@@ -4147,7 +4149,7 @@ function renderRegisteredClasses(){
             <div class="cls-edit-info-area" id="clsedit-info-${cls.id}">
                 <div class="cls-info-field">
                     <span class="cls-info-label">반코드</span>
-                    <input class="cls-info-text" id="cls-info-code-${cls.id}" value="${cls.code||''}" placeholder="AIG-2025-0000-123456-1">
+                    <input class="cls-info-text" id="cls-info-code-${cls.id}" value="${cls.code||''}" placeholder="AIG-2025-0000-123456-1" oninput="this.value=normalizeClassCode(this.value)">
                 </div>
                 <div class="cls-info-tt-row">
                     <button class="btn btn-outline btn-sm" onclick="selectEditClsInfoTimetable('${cls.id}')">📅 전자시간표 업로드</button>
@@ -4358,7 +4360,7 @@ function parseEditClsInfoTimetable(e){
     e.target.value='';
 }
 async function saveEditClsInfo(clsId){
-    const code=(document.getElementById(`cls-info-code-${clsId}`)?.value||'').trim();
+    const code=normalizeClassCode((document.getElementById(`cls-info-code-${clsId}`)?.value||'').trim());
     const hasTt=editInfoTtPracticeDays.length>0;
     if(!code&&!hasTt){showToast('반코드를 입력하거나 전자시간표를 업로드해주세요','info');return;}
     showLoader(true);
