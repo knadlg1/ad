@@ -2891,7 +2891,7 @@ function toggleAddClassForm(){
 
 async function createClass(){
     const name=document.getElementById('new-class-name').value.trim();
-    const code=document.getElementById('new-class-code').value.trim();
+    const code=normalizeClassCode(document.getElementById('new-class-code').value.trim());
     if(!name){showToast('반 이름을 입력해주세요','info');return;}
     showLoader(true);
     try{
@@ -2952,8 +2952,16 @@ async function saveClassName(classId,name){
     catch(e){showToast('저장 실패','error');}
 }
 
+function normalizeClassCode(code){
+    if(!code||!code.trim().toUpperCase().startsWith('AIG'))return code;
+    const raw=code.replace(/-/g,'');
+    if(raw.length<2)return raw;
+    return raw.slice(0,-1)+'-'+raw.slice(-1);
+}
+
 async function saveClassCode(classId,code){
-    try{await window.fsUpdateDoc(window.fsDoc(window.db,'classes',classId),{code:code.trim()});const c=classesList.find(c=>c.id===classId);if(c)c.code=code.trim();}
+    const normalized=normalizeClassCode(code.trim());
+    try{await window.fsUpdateDoc(window.fsDoc(window.db,'classes',classId),{code:normalized});const c=classesList.find(c=>c.id===classId);if(c)c.code=normalized;}
     catch(e){showToast('저장 실패','error');}
 }
 
@@ -3795,7 +3803,7 @@ async function generateFromTemplate(templateUrl,cls,stu,practiceDates,sigs,getMa
                 map[`상태_${i}`]=statusText;
                 map[`출근시간${i}`]=inT;
                 map[`퇴근시간${i}`]=outT;
-                map[`누적시간${i}`]=minutesToHM(cumMins);
+                map[`누적시간${i}`]=cumMins>0?String(Math.floor(cumMins/60)):'';
                 map[`학생서명${i}`]=stuSig?`<img src="data:image/png;base64,${stuSig}" style="max-height:28px;max-width:70px;vertical-align:middle;">`:' ';
                 map[`담당자서명${i}`]=mgrSig?`<img src="data:image/png;base64,${mgrSig}" style="max-height:28px;max-width:70px;vertical-align:middle;">`:' ';
             }else{
@@ -3834,7 +3842,7 @@ ${isPortrait?'.c31{margin-left:0!important;margin-right:auto!important;}.c66{pad
   h1,h2{page-break-after:avoid;}
 }
 .c21{white-space:nowrap!important}.c15{white-space:nowrap!important}
-td{vertical-align:middle!important}
+td{vertical-align:middle!important;white-space:nowrap!important;padding:1px 2px!important}
 tr.c24,tr.c19{height:auto!important;min-height:0!important}
 tr.c57,tr.c48,tr.c36,tr.c28,tr.c77,tr.c39,tr.c58{height:auto!important;min-height:0!important}
 </style>`;

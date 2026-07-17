@@ -1092,17 +1092,65 @@ function renderHospitalList(hospitals){
     el.innerHTML = hospitals.map((h,i)=>`
       <div style="background:#f8f7f5;border-radius:10px;margin-bottom:8px;overflow:hidden;">
         <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px;">
-          <div>
-            <div style="font-size:15px;font-weight:700;">${escHtml(h.name)}</div>
+          <div style="flex:1;min-width:0;margin-right:10px;">
+            <div id="hosp-name-display-${i}" style="font-size:15px;font-weight:700;">${escHtml(h.name)}</div>
+            <div id="hosp-name-edit-${i}" style="display:none;margin-top:4px;">
+              <input type="text" id="hosp-name-input-${i}" value="${escHtml(h.name)}"
+                style="padding:6px 10px;border:1.5px solid var(--accent);border-radius:7px;font-size:14px;font-weight:700;outline:none;width:100%;"
+                onkeydown="if(event.key==='Enter')renameHospital(${i});if(event.key==='Escape')cancelRenameHospital(${i})">
+            </div>
             <div style="font-size:11px;color:var(--muted);margin-top:2px;">기본 위도 ${h.lat?.toFixed(6)} / 경도 ${h.lon?.toFixed(6)}</div>
           </div>
-          <div style="display:flex;gap:6px;">
+          <div style="display:flex;gap:6px;flex-shrink:0;">
+            <button id="hosp-rename-btn-${i}" class="btn btn-outline btn-sm" onclick="startRenameHospital(${i})">이름 변경</button>
+            <button id="hosp-rename-save-${i}" class="btn btn-primary btn-sm" style="display:none;" onclick="renameHospital(${i})">저장</button>
+            <button id="hosp-rename-cancel-${i}" class="btn btn-sm" style="display:none;background:rgba(0,0,0,0.08);color:var(--text);" onclick="cancelRenameHospital(${i})">취소</button>
             <button class="btn btn-outline btn-sm" onclick="toggleWaypointEdit(${i},'${escHtml(h.name).replace(/'/g,"\\'")}')">보조좌표</button>
             <button class="btn btn-danger btn-sm" data-hosp-name="${escHtml(h.name)}" onclick="removeHospital(this.dataset.hospName)">삭제</button>
           </div>
         </div>
         <div id="wp-edit-${i}" style="display:none;padding:0 14px 14px;border-top:1px solid #e5e3df;"></div>
       </div>`).join('');
+}
+
+function startRenameHospital(i){
+    document.getElementById('hosp-name-display-'+i).style.display = 'none';
+    document.getElementById('hosp-name-edit-'+i).style.display = 'block';
+    document.getElementById('hosp-rename-btn-'+i).style.display = 'none';
+    document.getElementById('hosp-rename-save-'+i).style.display = '';
+    document.getElementById('hosp-rename-cancel-'+i).style.display = '';
+    const inp = document.getElementById('hosp-name-input-'+i);
+    inp.focus();
+    inp.select();
+}
+
+function cancelRenameHospital(i){
+    document.getElementById('hosp-name-display-'+i).style.display = '';
+    document.getElementById('hosp-name-edit-'+i).style.display = 'none';
+    document.getElementById('hosp-rename-btn-'+i).style.display = '';
+    document.getElementById('hosp-rename-save-'+i).style.display = 'none';
+    document.getElementById('hosp-rename-cancel-'+i).style.display = 'none';
+}
+
+async function renameHospital(i){
+    if (!currentHospitalAcademyId) return;
+    const a = allAcademies.find(x=>x.id===currentHospitalAcademyId);
+    const hospitals = a?.hospitals||[];
+    const oldName = hospitals[i]?.name;
+    const newName = document.getElementById('hosp-name-input-'+i)?.value.trim();
+    if (!newName){ showToast('병원명을 입력해주세요','error'); return; }
+    if (newName === oldName){ cancelRenameHospital(i); return; }
+    if (hospitals.some((h,j)=>j!==i && h.name===newName)){ showToast('이미 같은 이름의 병원이 있습니다','error'); return; }
+    showLoader(true);
+    try {
+        const updated = hospitals.map((h,j)=> j===i ? {...h, name:newName} : h);
+        await window.fsUpdateDoc(window.fsDoc(window.db,'academies',currentHospitalAcademyId),{hospitals:updated});
+        showToast('병원 이름 변경 완료','success');
+        await loadAcademies();
+        const refreshed = allAcademies.find(x=>x.id===currentHospitalAcademyId);
+        renderHospitalList(refreshed?.hospitals||[]);
+    } catch(e){ showToast('저장 실패: '+e.message,'error'); }
+    showLoader(false);
 }
 
 async function searchHospital(){
