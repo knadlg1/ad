@@ -1339,7 +1339,7 @@ let authreqStuFilter = '';
 let authreqType = 'both';
 let _authReqKakaoId = '', _authReqName = '';
 let academyHospitals = [];
-let parsedHolidays = [], parsedPracticeDays = [], parsedFileName = '', parsedClassId = '', parsedTimetableData = {}, parsedTrainStart = null, parsedTrainEnd = null;
+let parsedHolidays = [], parsedPracticeDays = [], parsedFileName = '', parsedClassId = '', parsedTimetableData = {}, parsedTrainStart = null, parsedTrainEnd = null, parsedLunchStart = null, parsedLunchEnd = null;
 let regPhone = '';
 let lastUpdatedAt = null;
 
@@ -2994,7 +2994,7 @@ function processFile(file){
             const wb=XLSX.read(e.target.result,{type:'binary'});
             const ws=wb.Sheets[wb.SheetNames[0]];
             const rows=XLSX.utils.sheet_to_json(ws,{header:1,raw:true});
-            parsedTimetableData={};parsedPracticeDays=[];parsedHolidays=[];parsedTrainStart=null;parsedTrainEnd=null;
+            parsedTimetableData={};parsedPracticeDays=[];parsedHolidays=[];parsedTrainStart=null;parsedTrainEnd=null;parsedLunchStart=null;parsedLunchEnd=null;
             function pD(raw){
                 if(raw==null||raw==='')return null;
                 if(typeof raw==='number'){const adj=raw>59?raw-1:raw;const d=new Date((adj-25569)*86400000);const yr=d.getUTCFullYear(),mo=String(d.getUTCMonth()+1).padStart(2,'0'),dy=String(d.getUTCDate()).padStart(2,'0');if(yr<1990||yr>2100)return null;return `${yr}-${mo}-${dy}`;}
@@ -3026,6 +3026,23 @@ function processFile(file){
                 parsedTimetableData[date]={start,end};
                 parsedPracticeDays.push(date);
             });
+            // 점심시간 감지: '시간구분'=2인 행의 시작시간 → lunchStart, 다음 행의 시작시간 → lunchEnd
+            (()=>{
+                const hdr=(rows[0]||[]).map(c=>(c||'').toString().trim());
+                const tgIdx=hdr.indexOf('시간구분');
+                const stIdx=hdr.findIndex(h=>h==='시작시간'||h==='시작 시간');
+                if(tgIdx>=0&&stIdx>=0){
+                    for(let ri=1;ri<rows.length-1;ri++){
+                        const tg=(rows[ri][tgIdx]||'').toString().trim();
+                        if(tg==='2'){
+                            const ls=pT(rows[ri][stIdx]);
+                            const le=pT(rows[ri+1][stIdx]);
+                            if(ls&&le){parsedLunchStart=ls;parsedLunchEnd=le;}
+                            break;
+                        }
+                    }
+                }
+            })();
             if(!parsedPracticeDays.length){showToast('현장실습 항목을 찾지 못했습니다. I열(교과목코드)을 확인해주세요','info');return;}
             const cls=classesList.find(c=>c.id===parsedClassId);
             const firstSched=parsedTimetableData[parsedPracticeDays.slice().sort()[0]];
@@ -3099,7 +3116,7 @@ function toggleDay(ds){
     renderTTCalendar();
 }
 
-function resetTimetable(){parsedHolidays=[];parsedPracticeDays=[];parsedTimetableData={};parsedClassId='';parsedTrainStart=null;parsedTrainEnd=null;document.getElementById('tt-parse-result').style.display='none';document.getElementById('tt-file').value='';}
+function resetTimetable(){parsedHolidays=[];parsedPracticeDays=[];parsedTimetableData={};parsedClassId='';parsedTrainStart=null;parsedTrainEnd=null;parsedLunchStart=null;parsedLunchEnd=null;document.getElementById('tt-parse-result').style.display='none';document.getElementById('tt-file').value='';}
 
 async function saveTimetable(){
     if(!parsedClassId||(!parsedPracticeDays.length&&!parsedHolidays.length)){showToast('반과 일정을 확인해주세요','info');return;}
@@ -3107,7 +3124,8 @@ async function saveTimetable(){
     try{
         const all=[...parsedPracticeDays,...parsedHolidays].sort();
         const sortedPrac=parsedPracticeDays.slice().sort();
-        await window.fsUpdateDoc(window.fsDoc(window.db,'classes',parsedClassId),{holidays:parsedHolidays,practiceDays:parsedPracticeDays,timetableData:parsedTimetableData,timetableFileName:parsedFileName,timetableUpdatedAt:Date.now(),practiceStart:sortedPrac.length?sortedPrac[0]:null,practiceEnd:sortedPrac.length?sortedPrac[sortedPrac.length-1]:null,trainStart:parsedTrainStart,trainEnd:parsedTrainEnd});
+        const parsedLunchMins=parsedLunchStart&&parsedLunchEnd?(()=>{const[sh,sm]=parsedLunchStart.split(':').map(Number);const[eh,em]=parsedLunchEnd.split(':').map(Number);return(eh*60+em)-(sh*60+sm);})():30;
+        await window.fsUpdateDoc(window.fsDoc(window.db,'classes',parsedClassId),{holidays:parsedHolidays,practiceDays:parsedPracticeDays,timetableData:parsedTimetableData,timetableFileName:parsedFileName,timetableUpdatedAt:Date.now(),practiceStart:sortedPrac.length?sortedPrac[0]:null,practiceEnd:sortedPrac.length?sortedPrac[sortedPrac.length-1]:null,trainStart:parsedTrainStart,trainEnd:parsedTrainEnd,lunchStart:parsedLunchStart||null,lunchEnd:parsedLunchEnd||null,lunchBreakMins:parsedLunchMins});
         if(all.length){
             const s=all[0],e=all[all.length-1];
             const members=studentsList.filter(ss=>ss.classId===parsedClassId);
@@ -3202,7 +3220,7 @@ function renderVtabClasses(){
 }
 
 // vtab-cls 반 생성용 전자시간표 변수
-let clsTtHolidays=[], clsTtPracticeDays=[], clsTtFileName='', clsTtData={}, clsTtTrainStart=null, clsTtTrainEnd=null, clsTtLunchMins=30, clsTtLunchStart=null;
+let clsTtHolidays=[], clsTtPracticeDays=[], clsTtFileName='', clsTtData={}, clsTtTrainStart=null, clsTtTrainEnd=null, clsTtLunchMins=30, clsTtLunchStart=null, clsTtLunchEnd=null;
 function toMins(t){const p=(t||'').split(':').map(Number);return(p[0]||0)*60+(p[1]||0);}
 function normDate(d){if(d&&/^\d{8}$/.test(d))return`${d.slice(0,4)}-${d.slice(4,6)}-${d.slice(6,8)}`;return d||'';}
 function getClsPracticePeriod(cls){
@@ -3300,18 +3318,27 @@ function parseClsTimetable(e){
                 clsTtPracticeDays.push(date);
             });
 
-            // 중식 시간 감지
+            // 점심시간 감지: '시간구분'=2인 행의 시작시간 → lunchStart, 다음 행의 시작시간 → lunchEnd
             clsTtLunchMins=30;clsTtLunchStart=null;
-            rows.forEach(row=>{
-                const subj=((row[8]||'').toString()).trim();
-                if(subj.includes('중식')||subj.includes('점심')){
-                    const ls=parseTime(row[1]),le=parseTime(row[2]);
-                    if(ls&&le){
-                        const lm=timeToMinutes(le)-timeToMinutes(ls);
-                        if(lm>0&&lm<=120){clsTtLunchMins=lm;clsTtLunchStart=ls;}
+            (()=>{
+                const hdr=(rows[0]||[]).map(c=>(c||'').toString().trim());
+                const tgIdx=hdr.indexOf('시간구분');
+                const stIdx=hdr.findIndex(h=>h==='시작시간'||h==='시작 시간');
+                if(tgIdx>=0&&stIdx>=0){
+                    for(let ri=1;ri<rows.length-1;ri++){
+                        const tg=(rows[ri][tgIdx]||'').toString().trim();
+                        if(tg==='2'){
+                            const ls=parseTime(rows[ri][stIdx]);
+                            const le=parseTime(rows[ri+1][stIdx]);
+                            if(ls&&le){
+                                const lm=(()=>{const[sh,sm]=ls.split(':').map(Number);const[eh,em]=le.split(':').map(Number);return(eh*60+em)-(sh*60+sm);})();
+                                if(lm>0&&lm<=120){clsTtLunchMins=lm;clsTtLunchStart=ls;clsTtLunchEnd=le;}
+                            }
+                            break;
+                        }
                     }
                 }
-            });
+            })();
 
             document.getElementById('cls-file-label').textContent=clsTtFileName;
             const parseEl=document.getElementById('cls-tt-parse');
@@ -3335,7 +3362,7 @@ function parseClsTimetable(e){
 }
 
 function resetClsTimetable(){
-    clsTtHolidays=[];clsTtPracticeDays=[];clsTtFileName='';clsTtData={};clsTtTrainStart=null;clsTtTrainEnd=null;clsTtLunchMins=30;clsTtLunchStart=null;
+    clsTtHolidays=[];clsTtPracticeDays=[];clsTtFileName='';clsTtData={};clsTtTrainStart=null;clsTtTrainEnd=null;clsTtLunchMins=30;clsTtLunchStart=null;clsTtLunchEnd=null;
     document.getElementById('cls-file-label').textContent='선택된 파일 없음';
     document.getElementById('cls-tt-parse').style.display='none';
     document.getElementById('cls-tt-file').value='';
@@ -3365,7 +3392,7 @@ async function createClassFromVtab(){
             practiceStart:sortedDays.length?sortedDays[0]:null,
             practiceEnd:sortedDays.length?sortedDays[sortedDays.length-1]:null,
             trainStart:clsTtTrainStart,trainEnd:clsTtTrainEnd,
-            lunchBreakMins:clsTtLunchMins,lunchStart:clsTtLunchStart||null,
+            lunchBreakMins:clsTtLunchMins,lunchStart:clsTtLunchStart||null,lunchEnd:clsTtLunchEnd||null,
             students:[],createdAt:Date.now()
         });
         showToast('반 추가 완료','success');
@@ -3761,7 +3788,7 @@ async function generateFromTemplate(templateUrl,cls,stu,practiceDates,sigs,getMa
             '담당자이름':'',
             '담당자직위':'',
             '전자시간표 상 실습시간':ttPracticeTime,
-            '전자시간표 상 점심시간':(()=>{const mins=cls?.lunchBreakMins||30;const start=cls?.lunchStart;if(start){const[h,m]=start.split(':').map(Number);const endTotal=h*60+m+mins;const endH=Math.floor(endTotal/60);const endM=endTotal%60;return `${start}~${String(endH).padStart(2,'0')}:${String(endM).padStart(2,'0')}`;}return mins+'분';})(),
+            '전자시간표 상 점심시간':(()=>{const start=cls?.lunchStart;const end=cls?.lunchEnd;if(start&&end)return `${start}~${end}`;const mins=cls?.lunchBreakMins||30;if(start){const[h,m]=start.split(':').map(Number);const endTotal=h*60+m+mins;const endH=Math.floor(endTotal/60);const endM=endTotal%60;return `${start}~${String(endH).padStart(2,'0')}:${String(endM).padStart(2,'0')}`;}return mins+'분';})(),
         };
         for(let i=1;i<=30;i++){
             const date=chunk[i-1]||null;
@@ -4037,7 +4064,7 @@ async function generateDirectEntryHtml(cls,students,startDate,endDate,sigs){
                 '반 코드':cls?.code||'',
                 '단위기간시작일':fmtDocDate(date),
                 '전자시간표 상 실습시간':ttPracticeTimeDir,
-                '전자시간표 상 점심시간':(()=>{const mins=cls?.lunchBreakMins||30;const start=cls?.lunchStart;if(start){const[h,m]=start.split(':').map(Number);const endTotal=h*60+m+mins;const endH=Math.floor(endTotal/60);const endM=endTotal%60;return `${start}~${String(endH).padStart(2,'0')}:${String(endM).padStart(2,'0')}`;}return mins+'분';})(),
+                '전자시간표 상 점심시간':(()=>{const start=cls?.lunchStart;const end=cls?.lunchEnd;if(start&&end)return `${start}~${end}`;const mins=cls?.lunchBreakMins||30;if(start){const[h,m]=start.split(':').map(Number);const endTotal=h*60+m+mins;const endH=Math.floor(endTotal/60);const endM=endTotal%60;return `${start}~${String(endH).padStart(2,'0')}:${String(endM).padStart(2,'0')}`;}return mins+'분';})(),
                 '학원직인':sealImageBase64?`<img src="data:image/png;base64,${sealImageBase64}" style="max-width:24px;max-height:24px;display:block;margin:auto;">`:''
             };
             for(let i=1;i<=30;i++){
@@ -4093,8 +4120,8 @@ async function generateDirectEntryHtml(cls,students,startDate,endDate,sigs){
 }
 
 // ── 등록된 반 목록 ────────────────────────────────────────
-let editingClsId=null, editClsTtData={}, editClsTtPracticeDays=[], editClsTtFileName='', editClsTtTrainStart=null, editClsTtTrainEnd=null, editClsTtLunchMins=30, editClsTtLunchStart=null;
-let editingClsInfoId=null, editInfoTtData={}, editInfoTtPracticeDays=[], editInfoTtFileName='', editInfoTtTrainStart=null, editInfoTtTrainEnd=null, editInfoTtLunchMins=30, editInfoTtLunchStart=null;
+let editingClsId=null, editClsTtData={}, editClsTtPracticeDays=[], editClsTtFileName='', editClsTtTrainStart=null, editClsTtTrainEnd=null, editClsTtLunchMins=30, editClsTtLunchStart=null, editClsTtLunchEnd=null;
+let editingClsInfoId=null, editInfoTtData={}, editInfoTtPracticeDays=[], editInfoTtFileName='', editInfoTtTrainStart=null, editInfoTtTrainEnd=null, editInfoTtLunchMins=30, editInfoTtLunchStart=null, editInfoTtLunchEnd=null;
 
 function renderRegisteredClasses(){
     const el=document.getElementById('cls-reg-list');
@@ -4223,7 +4250,8 @@ function parseEditClsTimetable(e){
             function parseDate(raw){if(raw==null||raw==='')return null;if(typeof raw==='number'){const adj=raw>59?raw-1:raw;const d=new Date((adj-25569)*86400000);const yr=d.getUTCFullYear(),mo=String(d.getUTCMonth()+1).padStart(2,'0'),dy=String(d.getUTCDate()).padStart(2,'0');if(yr<1990||yr>2100)return null;return`${yr}-${mo}-${dy}`;}const s=raw.toString().trim();if(/^\d{8}$/.test(s))return`${s.slice(0,4)}-${s.slice(4,6)}-${s.slice(6,8)}`;if(/^\d{4}-\d{2}-\d{2}$/.test(s))return s;return null;}
             function parseTime(raw){if(raw==null||raw==='')return null;if(typeof raw==='number'){const totalMins=Math.round(raw*24*60);const h=Math.floor(totalMins/60),m=totalMins%60;return`${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;}const s=raw.toString().trim();if(/^\d{4}$/.test(s))return`${s.slice(0,2)}:${s.slice(2,4)}`;if(/^\d{1,2}:\d{2}/.test(s))return s.slice(0,5);return null;}
             rows.forEach(row=>{const date=parseDate(row[0]);if(!date)return;if(!editClsTtTrainStart||date<editClsTtTrainStart)editClsTtTrainStart=date;if(!editClsTtTrainEnd||date>editClsTtTrainEnd)editClsTtTrainEnd=date;if(editClsTtData[date])return;const subj=((row[8]||'').toString()).trim();if(!subj.includes('현장실습'))return;const start=parseTime(row[1]);const end=parseTime(row[2]);if(!start||!end)return;editClsTtData[date]={start,end};editClsTtPracticeDays.push(date);});
-            editClsTtLunchMins=30;editClsTtLunchStart=null;rows.forEach(row=>{const subj=((row[8]||'').toString()).trim();if(subj.includes('중식')||subj.includes('점심')){const ls=parseTime(row[1]),le=parseTime(row[2]);if(ls&&le){const lm=Math.round((le.split(':')[0]*60+ +le.split(':')[1])-(ls.split(':')[0]*60+ +ls.split(':')[1]));if(lm>0&&lm<=120){editClsTtLunchMins=lm;editClsTtLunchStart=ls;}}}});
+            editClsTtLunchMins=30;editClsTtLunchStart=null;editClsTtLunchEnd=null;
+            (()=>{const hdr=(rows[0]||[]).map(c=>(c||'').toString().trim());const tgIdx=hdr.indexOf('시간구분');const stIdx=hdr.findIndex(h=>h==='시작시간'||h==='시작 시간');if(tgIdx>=0&&stIdx>=0){for(let ri=1;ri<rows.length-1;ri++){const tg=(rows[ri][tgIdx]||'').toString().trim();if(tg==='2'){const ls=parseTime(rows[ri][stIdx]);const le=parseTime(rows[ri+1][stIdx]);if(ls&&le){const[sh,sm]=ls.split(':').map(Number);const[eh,em]=le.split(':').map(Number);const lm=(eh*60+em)-(sh*60+sm);if(lm>0&&lm<=120){editClsTtLunchMins=lm;editClsTtLunchStart=ls;editClsTtLunchEnd=le;}}break;}}})();
             const lbl=document.getElementById(`cls-edit-file-label-${clsId}`);
             if(lbl)lbl.textContent=editClsTtFileName;
             const parseEl=document.getElementById(`cls-edit-tt-parse-${clsId}`);
@@ -4257,10 +4285,10 @@ async function saveEditedClsTimetable(clsId){
             practiceEnd:sortedDays[sortedDays.length-1],
             trainStart:editClsTtTrainStart,
             trainEnd:editClsTtTrainEnd,
-            lunchBreakMins:editClsTtLunchMins,lunchStart:editClsTtLunchStart||null
+            lunchBreakMins:editClsTtLunchMins,lunchStart:editClsTtLunchStart||null,lunchEnd:editClsTtLunchEnd||null
         });
         const cls=classesList.find(c=>c.id===clsId);
-        if(cls){cls.timetableData=editClsTtData;cls.practiceDays=editClsTtPracticeDays;cls.practiceStart=sortedDays[0];cls.practiceEnd=sortedDays[sortedDays.length-1];cls.trainStart=editClsTtTrainStart;cls.trainEnd=editClsTtTrainEnd;cls.lunchBreakMins=editClsTtLunchMins;cls.lunchStart=editClsTtLunchStart||null;}
+        if(cls){cls.timetableData=editClsTtData;cls.practiceDays=editClsTtPracticeDays;cls.practiceStart=sortedDays[0];cls.practiceEnd=sortedDays[sortedDays.length-1];cls.trainStart=editClsTtTrainStart;cls.trainEnd=editClsTtTrainEnd;cls.lunchBreakMins=editClsTtLunchMins;cls.lunchStart=editClsTtLunchStart||null;cls.lunchEnd=editClsTtLunchEnd||null;}
         showToast('시간표 저장됨 (Firestore 반영 완료)','success');
         cancelEditClsTimetable(clsId);
         renderRegisteredClasses();
@@ -4273,13 +4301,13 @@ function startEditClsInfo(clsId){
     // 다른 열린 info 편집 닫기
     if(editingClsInfoId&&editingClsInfoId!==clsId)cancelEditClsInfo(editingClsInfoId);
     editingClsInfoId=clsId;
-    editInfoTtTrainStart=null;editInfoTtTrainEnd=null;editInfoTtLunchMins=30;editInfoTtLunchStart=null;
+    editInfoTtTrainStart=null;editInfoTtTrainEnd=null;editInfoTtLunchMins=30;editInfoTtLunchStart=null;editInfoTtLunchEnd=null;
     const area=document.getElementById(`clsedit-info-${clsId}`);
     if(area)area.classList.add('open');
 }
 function cancelEditClsInfo(clsId){
     editingClsInfoId=null;
-    editInfoTtData={};editInfoTtPracticeDays=[];editInfoTtFileName='';editInfoTtTrainStart=null;editInfoTtTrainEnd=null;editInfoTtLunchMins=30;editInfoTtLunchStart=null;
+    editInfoTtData={};editInfoTtPracticeDays=[];editInfoTtFileName='';editInfoTtTrainStart=null;editInfoTtTrainEnd=null;editInfoTtLunchMins=30;editInfoTtLunchStart=null;editInfoTtLunchEnd=null;
     const area=document.getElementById(`clsedit-info-${clsId}`);
     if(area)area.classList.remove('open');
     const res=document.getElementById(`cls-info-tt-result-${clsId}`);
@@ -4318,9 +4346,9 @@ function parseEditClsInfoTimetable(e){
                 if(!start||!end)return;
                 editInfoTtData[d]={start,end};editInfoTtPracticeDays.push(d);
             });
-            let lunch=30,lunchSt=null;
-            rows.forEach(row=>{const subj=((row[8]||'').toString()).trim();if(subj.includes('중식')||subj.includes('점심')){const ls=parseTime(row[1]),le=parseTime(row[2]);if(ls&&le){const lm=Math.round((+le.split(':')[0]*60+ +le.split(':')[1])-(+ls.split(':')[0]*60+ +ls.split(':')[1]));if(lm>0&&lm<=120){lunch=lm;lunchSt=ls;}}}});
-            editInfoTtTrainStart=tStart;editInfoTtTrainEnd=tEnd;editInfoTtLunchMins=lunch;editInfoTtLunchStart=lunchSt;
+            let lunch=30,lunchSt=null,lunchEd=null;
+            (()=>{const hdr=(rows[0]||[]).map(c=>(c||'').toString().trim());const tgIdx=hdr.indexOf('시간구분');const stIdx=hdr.findIndex(h=>h==='시작시간'||h==='시작 시간');if(tgIdx>=0&&stIdx>=0){for(let ri=1;ri<rows.length-1;ri++){const tg=(rows[ri][tgIdx]||'').toString().trim();if(tg==='2'){const ls=parseTime(rows[ri][stIdx]);const le=parseTime(rows[ri+1][stIdx]);if(ls&&le){const[sh,sm]=ls.split(':').map(Number);const[eh,em]=le.split(':').map(Number);const lm=(eh*60+em)-(sh*60+sm);if(lm>0&&lm<=120){lunch=lm;lunchSt=ls;lunchEd=le;}}break;}}})();
+            editInfoTtTrainStart=tStart;editInfoTtTrainEnd=tEnd;editInfoTtLunchMins=lunch;editInfoTtLunchStart=lunchSt;editInfoTtLunchEnd=lunchEd;
             const pDays=editInfoTtPracticeDays.slice().sort();
             const res=document.getElementById(`cls-info-tt-result-${clsId}`);
             if(res)res.textContent=`현장 ${pDays.length}일 (${pDays[0]||'?'}~${pDays[pDays.length-1]||'?'}) · 전체 ${tStart||'?'}~${tEnd||'?'} · 점심 ${lunch}분`;
@@ -4347,6 +4375,7 @@ async function saveEditClsInfo(clsId){
             update.trainEnd=editInfoTtTrainEnd;
             update.lunchBreakMins=editInfoTtLunchMins;
             update.lunchStart=editInfoTtLunchStart||null;
+            update.lunchEnd=editInfoTtLunchEnd||null;
             update.timetableFileName=editInfoTtFileName;
             update.timetableUpdatedAt=Date.now();
         }
@@ -4354,7 +4383,7 @@ async function saveEditClsInfo(clsId){
         const cls=classesList.find(c=>c.id===clsId);
         if(cls){
             if(code)cls.code=code;
-            if(hasTt){const sorted=editInfoTtPracticeDays.slice().sort();cls.timetableData=editInfoTtData;cls.practiceDays=editInfoTtPracticeDays;cls.practiceStart=sorted[0];cls.practiceEnd=sorted[sorted.length-1];cls.trainStart=editInfoTtTrainStart;cls.trainEnd=editInfoTtTrainEnd;cls.lunchBreakMins=editInfoTtLunchMins;cls.lunchStart=editInfoTtLunchStart||null;}
+            if(hasTt){const sorted=editInfoTtPracticeDays.slice().sort();cls.timetableData=editInfoTtData;cls.practiceDays=editInfoTtPracticeDays;cls.practiceStart=sorted[0];cls.practiceEnd=sorted[sorted.length-1];cls.trainStart=editInfoTtTrainStart;cls.trainEnd=editInfoTtTrainEnd;cls.lunchBreakMins=editInfoTtLunchMins;cls.lunchStart=editInfoTtLunchStart||null;cls.lunchEnd=editInfoTtLunchEnd||null;}
         }
         showToast('반 정보 저장됨','success');
         cancelEditClsInfo(clsId);
