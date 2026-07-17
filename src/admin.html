@@ -3834,6 +3834,9 @@ ${isPortrait?'.c31{margin-left:0!important;margin-right:auto!important;}.c66{pad
   h1,h2{page-break-after:avoid;}
 }
 .c21{white-space:nowrap!important}.c15{white-space:nowrap!important}
+td{vertical-align:middle!important}
+tr.c24,tr.c19{height:auto!important;min-height:0!important}
+tr.c57,tr.c48,tr.c36,tr.c28,tr.c77,tr.c39,tr.c58{height:auto!important;min-height:0!important}
 </style>`;
     const w=window.open('','_blank');
     if(!w){showToast('팝업이 차단되었습니다. 팝업 허용 후 다시 시도해주세요','error');return;}
@@ -4027,7 +4030,7 @@ async function generateDirectEntryHtml(cls,students,startDate,endDate,sigs){
                 '단위기간시작일':fmtDocDate(date),
                 '전자시간표 상 실습시간':ttPracticeTimeDir,
                 '전자시간표 상 점심시간':(()=>{const mins=cls?.lunchBreakMins||30;const start=cls?.lunchStart;if(start){const[h,m]=start.split(':').map(Number);const endTotal=h*60+m+mins;const endH=Math.floor(endTotal/60);const endM=endTotal%60;return `${start}~${String(endH).padStart(2,'0')}:${String(endM).padStart(2,'0')}`;}return mins+'분';})(),
-                '학원직인':sealImageBase64?`<img src="data:image/png;base64,${sealImageBase64}" style="max-width:50px;max-height:50px;display:block;margin:auto;">`:''
+                '학원직인':sealImageBase64?`<img src="data:image/png;base64,${sealImageBase64}" style="max-width:24px;max-height:24px;display:block;margin:auto;">`:''
             };
             for(let i=1;i<=30;i++){
                 const stu=chunk[i-1]||null;
