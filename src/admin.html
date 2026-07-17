@@ -3857,7 +3857,7 @@ async function previewDoc(type){
         const sigs=await loadWeeklySigsForRange(students.map(s=>s.kakaoId),startDate,endDate);
         const pages=await generatePracticeCardHtml(cls,students,startDate,endDate,sigs);
         showLoader(false);
-        openDocWindow(pages);
+        openDocWindow(pages,'portrait');
     }else{
         if(!sealImageBase64){
             showToast('직인을 먼저 등록해주세요','error');
