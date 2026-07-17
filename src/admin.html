@@ -3825,11 +3825,11 @@ function openDocWindow(pages,orientation='landscape'){
     const isPortrait=orientation==='portrait';
     const printCss=`<style>
 body{max-width:${isPortrait?'740px':'none'}!important;padding:8px 16px!important;margin:${isPortrait?'0 auto':'0'}!important;}
-${isPortrait?'.c31{margin-left:0!important;margin-right:auto!important;}.c66{padding-left:8px!important;padding-right:8px!important;}table{max-width:100%!important;}':''}
+${isPortrait?'.c31{margin-left:0!important;margin-right:auto!important;}.c66{padding-left:8px!important;padding-right:8px!important;}.c20{margin-left:0!important;margin-right:auto!important;}.c75{padding-left:8px!important;padding-right:8px!important;}table{max-width:100%!important;}':''}
 @page{size:A4 ${orientation};margin:8mm;}
 @media print{
   body{${isPortrait?'max-width:740px!important;margin:0 auto!important;':'max-width:none!important;margin:0!important;'}padding:0!important;}
-  ${isPortrait?'.c31{margin-left:0!important;}.c66{padding-left:0!important;padding-right:0!important;}':''}
+  ${isPortrait?'.c31{margin-left:0!important;}.c66{padding-left:0!important;padding-right:0!important;}.c20{margin-left:0!important;}.c75{padding-left:0!important;padding-right:0!important;}':''}
   tr{page-break-inside:avoid;}
   h1,h2{page-break-after:avoid;}
 }
