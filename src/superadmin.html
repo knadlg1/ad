@@ -6,7 +6,7 @@
 <title>Here — 최고관리자</title>
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-app.js";
-  import { getFirestore, doc, getDoc, setDoc, updateDoc, getDocs, collection, query, where, orderBy, addDoc, deleteDoc, writeBatch, limit } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-firestore.js";
+  import { getFirestore, doc, getDoc, setDoc, updateDoc, getDocs, collection, query, where, orderBy, addDoc, deleteDoc, writeBatch, limit, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-firestore.js";
   import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-auth.js";
   const app = initializeApp({
     apiKey:"AIzaSyBaCpQKykViq6526dCJ8mEYbUZqyg5-NUo",
@@ -24,6 +24,7 @@
   window.fsCollection = collection; window.fsQuery = query;
   window.fsWhere = where; window.fsOrderBy = orderBy;
   window.fsAddDoc = addDoc; window.fsDeleteDoc = deleteDoc; window.fsWriteBatch = writeBatch; window.fsLimit = limit;
+  window.fsServerTimestamp = serverTimestamp;
   try { await signInAnonymously(auth); } catch(e) {}
   window.fsReady = true;
   window.dispatchEvent(new Event('fsReady'));
@@ -205,6 +206,9 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--canvas);color:var
       <button class="nav-item" id="nav-payment" onclick="showPage('payment',this)">
         <span class="nav-icon">💳</span>결제 현황
       </button>
+      <button class="nav-item" id="nav-templates" onclick="showPage('templates',this)">
+        <span class="nav-icon">📄</span>문서 틀 관리
+      </button>
       <div class="sidebar-section-label">분석</div>
       <button class="nav-item" id="nav-logs" onclick="showPage('logs',this)">
         <span class="nav-icon">📋</span>출결 로그
@@ -342,6 +346,62 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--canvas);color:var
             <tbody id="payment-list"></tbody>
           </table>
         </div>
+      </div>
+
+      <!-- 문서 틀 관리 -->
+      <div class="page" id="page-templates">
+        <div class="section-header">
+          <div>
+            <div class="section-title">문서 틀 관리</div>
+            <div class="section-subtitle">서식을 수정해 저장하면 원장님 화면의 문서 출력에 즉시 적용됩니다</div>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+            <select id="tpl-select" class="form-select" style="width:190px;" onchange="loadTemplateEditor()">
+              <option value="practiceCard">실습근무카드</option>
+              <option value="directEntry">직권입력관리대장</option>
+            </select>
+            <span class="badge badge-gray" id="tpl-status">확인 중...</span>
+            <button class="btn btn-primary btn-sm" onclick="saveTemplate()">저장</button>
+            <button class="btn btn-warn btn-sm" onclick="restoreTemplateDefault()">기본값 복원</button>
+          </div>
+        </div>
+        <div style="font-size:12.5px;color:#92400e;background:#fef9c3;border-radius:8px;padding:9px 14px;margin-bottom:14px;">⚠️ 클래스명(.c31, .c66 등)과 {{플레이스홀더}}는 인쇄 서식이 참조하므로 지우지 마세요.</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;height:calc(100vh - 300px);min-height:420px;">
+          <div style="display:flex;flex-direction:column;min-width:0;">
+            <div class="form-label" style="margin-bottom:6px;">HTML 편집</div>
+            <textarea id="tpl-editor" oninput="onTplEditorInput()" spellcheck="false" style="flex:1;width:100%;resize:none;border:1.5px solid var(--border);border-radius:var(--radius);padding:14px;font-family:monospace;font-size:12px;line-height:1.5;background:#fff;color:var(--text);outline:none;white-space:pre;overflow:auto;"></textarea>
+          </div>
+          <div style="display:flex;flex-direction:column;min-width:0;">
+            <div class="form-label" style="margin-bottom:6px;">실시간 미리보기</div>
+            <iframe id="tpl-preview" style="flex:1;width:100%;border:1.5px solid var(--border);border-radius:var(--radius);background:#fff;"></iframe>
+          </div>
+        </div>
+        <details class="card" style="margin-top:16px;padding:14px 20px;">
+          <summary style="cursor:pointer;font-weight:700;font-size:14px;">문서 계산·표시 규칙 <span class="badge badge-gray" id="docrules-status" style="margin-left:6px;">확인 중...</span></summary>
+          <div style="font-size:12.5px;color:var(--muted);margin:10px 0 14px;">실습근무카드·직권입력관리대장 생성 시 두 문서에 공통 적용되는 계산 기준과 상태 문구·색상입니다.</div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:12px;">
+            <div><label class="form-label">점심 차감 기준(분)</label><input type="number" class="form-input" id="dr-lunch-threshold"></div>
+            <div><label class="form-label">일일 최대 인정 시간</label><input type="number" class="form-input" id="dr-max-hours"></div>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:12px;margin-bottom:12px;">
+            <div><label class="form-label">결석 문구</label><input type="text" class="form-input" id="dr-label-absent"></div>
+            <div><label class="form-label">지각 문구</label><input type="text" class="form-input" id="dr-label-late"></div>
+            <div><label class="form-label">조퇴 문구</label><input type="text" class="form-input" id="dr-label-early"></div>
+            <div><label class="form-label">보강 문구</label><input type="text" class="form-input" id="dr-label-makeup"></div>
+            <div><label class="form-label">출석 문구</label><input type="text" class="form-input" id="dr-label-present"></div>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:14px;">
+            <div><label class="form-label">요약 결석 색</label><input type="color" class="form-input" id="dr-color-absent" style="padding:4px;height:38px;"></div>
+            <div><label class="form-label">요약 지각 색</label><input type="color" class="form-input" id="dr-color-late" style="padding:4px;height:38px;"></div>
+            <div><label class="form-label">요약 조퇴 색</label><input type="color" class="form-input" id="dr-color-early" style="padding:4px;height:38px;"></div>
+            <div><label class="form-label">카드 상태 문구 색</label><input type="color" class="form-input" id="dr-color-card" style="padding:4px;height:38px;"></div>
+            <div><label class="form-label">행 강조 배경색</label><input type="color" class="form-input" id="dr-color-rowbg" style="padding:4px;height:38px;"></div>
+          </div>
+          <div style="display:flex;gap:8px;">
+            <button class="btn btn-primary btn-sm" onclick="saveDocRules()">규칙 저장</button>
+            <button class="btn btn-warn btn-sm" onclick="restoreDocRulesDefault()">기본값 복원</button>
+          </div>
+        </details>
       </div>
 
       <!-- 출결 로그 -->
@@ -825,6 +885,7 @@ function showPage(id, btn){
     if (id==='academies') loadAcademies();
     if (id==='logs')      initLogsPage();
     if (id==='authreqs')  loadAuthReqs();
+    if (id==='templates') { loadTemplateEditor(); loadDocRulesEditor(); }
 }
 
 // ── Directors ──────────────────────────────────────────────
@@ -2081,6 +2142,207 @@ async function loadAuthReqs(){
     } catch(e) {
         list.innerHTML = `<p style="color:#c82014;padding:24px;">불러오기 실패: ${e.message}</p>`;
     }
+}
+
+// ── 문서 틀 관리 ────────────────────────────────────────────
+const TPL_DEFS = {
+    practiceCard: { label:'실습근무카드', url:'./template-card.html' },
+    directEntry:  { label:'직권입력관리대장', url:'./template-entry.html' }
+};
+const tplStaticCache = {};
+let tplPreviewTimer = null;
+
+async function fetchTplStatic(id){
+    if (!tplStaticCache[id]){
+        const resp = await fetch(TPL_DEFS[id].url);
+        if (!resp.ok) throw new Error('정적 파일 로드 실패 ('+resp.status+')');
+        tplStaticCache[id] = await resp.text();
+    }
+    return tplStaticCache[id];
+}
+
+function setTplStatus(isOverride){
+    const el = document.getElementById('tpl-status');
+    if (isOverride){ el.className='badge badge-yellow'; el.textContent='수정본 적용 중'; }
+    else           { el.className='badge badge-gray';   el.textContent='기본값 사용 중'; }
+}
+
+async function loadTemplateEditor(){
+    const id = document.getElementById('tpl-select').value;
+    showLoader(true);
+    try {
+        let html = null;
+        try {
+            const snap = await window.fsGetDoc(window.fsDoc(window.db,'templates',id));
+            if (snap.exists() && snap.data().html) html = snap.data().html;
+        } catch(e){ console.warn('템플릿 오버라이드 로드 실패, 정적 파일 사용:', e); }
+        setTplStatus(html !== null);
+        if (html === null) html = await fetchTplStatic(id);
+        document.getElementById('tpl-editor').value = html;
+        updateTplPreview();
+    } catch(e){ showToast('템플릿 불러오기 실패: '+e.message,'error'); }
+    showLoader(false);
+}
+
+function updateTplPreview(){
+    document.getElementById('tpl-preview').srcdoc = document.getElementById('tpl-editor').value;
+}
+
+function onTplEditorInput(){
+    clearTimeout(tplPreviewTimer);
+    tplPreviewTimer = setTimeout(updateTplPreview, 300);
+}
+
+async function saveTemplate(){
+    const id = document.getElementById('tpl-select').value;
+    const html = document.getElementById('tpl-editor').value;
+    showLoader(true);
+    try {
+        const staticHtml = await fetchTplStatic(id);
+        // 실습근무카드의 행 감지 마커 소실 시 저장 차단
+        if (id === 'practiceCard'){
+            const missing = [];
+            for (let i=1;i<=30;i++){
+                const marker = '{{단위기간시작일'+i+'}}';
+                if (staticHtml.includes(marker) && !html.includes(marker)) missing.push(marker);
+            }
+            if (missing.length){
+                showLoader(false);
+                alert('행 감지 마커가 삭제되어 저장할 수 없습니다. 다시 넣어주세요:\n'+missing.join(', '));
+                return;
+            }
+        }
+        // 플레이스홀더 개수 · <tr> 짝 검사 — 다르면 경고 후 진행 여부 확인
+        const cnt = (s,re)=>(s.match(re)||[]).length;
+        const warns = [];
+        const phNow = cnt(html,/\{\{/g), phOrig = cnt(staticHtml,/\{\{/g);
+        if (phNow !== phOrig) warns.push('{{플레이스홀더 개수가 원본과 다릅니다 (원본 '+phOrig+'개 → 현재 '+phNow+'개)');
+        const trOpen = cnt(html,/<tr/g), trClose = cnt(html,/<\/tr/g);
+        if (trOpen !== trClose) warns.push('<tr('+trOpen+'개)와 </tr('+trClose+'개) 개수가 맞지 않습니다');
+        if (warns.length && !confirm('경고:\n- '+warns.join('\n- ')+'\n\n그래도 저장하시겠습니까?')){ showLoader(false); return; }
+        await window.fsSetDoc(window.fsDoc(window.db,'templates',id),{
+            html: html, updatedAt: window.fsServerTimestamp(), updatedBy: 'superadmin'
+        });
+        setTplStatus(true);
+        showToast('저장 완료 — 원장님 화면에 즉시 적용됩니다','success');
+    } catch(e){ showToast('저장 실패: '+e.message,'error'); }
+    showLoader(false);
+}
+
+async function restoreTemplateDefault(){
+    const id = document.getElementById('tpl-select').value;
+    if (!confirm(TPL_DEFS[id].label+' 서식을 기본값으로 복원하시겠습니까?\n저장된 수정본이 삭제됩니다.')) return;
+    showLoader(true);
+    try {
+        await window.fsDeleteDoc(window.fsDoc(window.db,'templates',id));
+        document.getElementById('tpl-editor').value = await fetchTplStatic(id);
+        updateTplPreview();
+        setTplStatus(false);
+        showToast('기본값으로 복원되었습니다','success');
+    } catch(e){ showToast('복원 실패: '+e.message,'error'); }
+    showLoader(false);
+}
+
+// ── 문서 계산·표시 규칙 ────────────────────────────────────
+// admin.html의 DEFAULT_DOC_RULES와 동일하게 유지할 것
+const DEFAULT_DOC_RULES = {
+    lunchThresholdMin: 240,
+    maxDailyHours: 8,
+    statusLabels: { absent:'결석', late:'지각', early:'조퇴', makeup:'보강', present:'출석' },
+    statusColors: { absent:'#ef4444', late:'#f59e0b', early:'#8b5cf6' },
+    cardStatusColor: '#aaa',
+    rowHighlightBg: '#f0f0f0'
+};
+
+function toHex6(c){
+    // <input type="color">는 #rrggbb만 허용 — #abc 형태 확장
+    return /^#[0-9a-fA-F]{3}$/.test(c) ? '#'+c[1]+c[1]+c[2]+c[2]+c[3]+c[3] : c;
+}
+
+function mergeDocRules(d){
+    return {
+        lunchThresholdMin: d.lunchThresholdMin ?? DEFAULT_DOC_RULES.lunchThresholdMin,
+        maxDailyHours: d.maxDailyHours ?? DEFAULT_DOC_RULES.maxDailyHours,
+        statusLabels: { ...DEFAULT_DOC_RULES.statusLabels, ...(d.statusLabels||{}) },
+        statusColors: { ...DEFAULT_DOC_RULES.statusColors, ...(d.statusColors||{}) },
+        cardStatusColor: d.cardStatusColor || DEFAULT_DOC_RULES.cardStatusColor,
+        rowHighlightBg: d.rowHighlightBg || DEFAULT_DOC_RULES.rowHighlightBg
+    };
+}
+
+function setDocRulesStatus(isOverride){
+    const el = document.getElementById('docrules-status');
+    if (isOverride){ el.className='badge badge-yellow'; el.textContent='수정본 적용 중'; }
+    else           { el.className='badge badge-gray';   el.textContent='기본값 사용 중'; }
+}
+
+function fillDocRulesForm(r){
+    document.getElementById('dr-lunch-threshold').value = r.lunchThresholdMin;
+    document.getElementById('dr-max-hours').value = r.maxDailyHours;
+    document.getElementById('dr-label-absent').value = r.statusLabels.absent;
+    document.getElementById('dr-label-late').value = r.statusLabels.late;
+    document.getElementById('dr-label-early').value = r.statusLabels.early;
+    document.getElementById('dr-label-makeup').value = r.statusLabels.makeup;
+    document.getElementById('dr-label-present').value = r.statusLabels.present;
+    document.getElementById('dr-color-absent').value = toHex6(r.statusColors.absent);
+    document.getElementById('dr-color-late').value = toHex6(r.statusColors.late);
+    document.getElementById('dr-color-early').value = toHex6(r.statusColors.early);
+    document.getElementById('dr-color-card').value = toHex6(r.cardStatusColor);
+    document.getElementById('dr-color-rowbg').value = toHex6(r.rowHighlightBg);
+}
+
+async function loadDocRulesEditor(){
+    let d = null;
+    try {
+        const snap = await window.fsGetDoc(window.fsDoc(window.db,'settings','docRules'));
+        if (snap.exists()) d = snap.data();
+    } catch(e){ console.warn('docRules 로드 실패, 기본값 표시:', e); }
+    setDocRulesStatus(d !== null);
+    fillDocRulesForm(d ? mergeDocRules(d) : DEFAULT_DOC_RULES);
+}
+
+async function saveDocRules(){
+    const num = (id,def)=>{ const v=parseFloat(document.getElementById(id).value); return isNaN(v)?def:v; };
+    const txt = (id,def)=>document.getElementById(id).value.trim()||def;
+    const rules = {
+        lunchThresholdMin: num('dr-lunch-threshold', DEFAULT_DOC_RULES.lunchThresholdMin),
+        maxDailyHours: num('dr-max-hours', DEFAULT_DOC_RULES.maxDailyHours),
+        statusLabels: {
+            absent: txt('dr-label-absent', DEFAULT_DOC_RULES.statusLabels.absent),
+            late: txt('dr-label-late', DEFAULT_DOC_RULES.statusLabels.late),
+            early: txt('dr-label-early', DEFAULT_DOC_RULES.statusLabels.early),
+            makeup: txt('dr-label-makeup', DEFAULT_DOC_RULES.statusLabels.makeup),
+            present: txt('dr-label-present', DEFAULT_DOC_RULES.statusLabels.present)
+        },
+        statusColors: {
+            absent: document.getElementById('dr-color-absent').value,
+            late: document.getElementById('dr-color-late').value,
+            early: document.getElementById('dr-color-early').value
+        },
+        cardStatusColor: document.getElementById('dr-color-card').value,
+        rowHighlightBg: document.getElementById('dr-color-rowbg').value
+    };
+    showLoader(true);
+    try {
+        await window.fsSetDoc(window.fsDoc(window.db,'settings','docRules'),{
+            ...rules, updatedAt: window.fsServerTimestamp(), updatedBy: 'superadmin'
+        });
+        setDocRulesStatus(true);
+        showToast('규칙 저장 완료 — 원장님 화면의 문서 출력에 즉시 적용됩니다','success');
+    } catch(e){ showToast('저장 실패: '+e.message,'error'); }
+    showLoader(false);
+}
+
+async function restoreDocRulesDefault(){
+    if (!confirm('문서 계산·표시 규칙을 기본값으로 복원하시겠습니까?\n저장된 수정본이 삭제됩니다.')) return;
+    showLoader(true);
+    try {
+        await window.fsDeleteDoc(window.fsDoc(window.db,'settings','docRules'));
+        fillDocRulesForm(DEFAULT_DOC_RULES);
+        setDocRulesStatus(false);
+        showToast('기본값으로 복원되었습니다','success');
+    } catch(e){ showToast('복원 실패: '+e.message,'error'); }
+    showLoader(false);
 }
 
 // ── Utils ──────────────────────────────────────────────────

@@ -3701,6 +3701,42 @@ function fillTemplate(html,map){
         Object.prototype.hasOwnProperty.call(map,key)?(map[key]??''):match
     );
 }
+async function loadDocTemplate(templateUrl,fsDocId){
+    // Firestore templates/{fsDocId} 문서에 html 필드가 있으면 오버라이드, 없거나 실패 시 정적 파일 fallback
+    try{
+        const snap=await window.fsGetDoc(window.fsDoc(window.db,'templates',fsDocId));
+        if(snap.exists()&&snap.data().html)return snap.data().html;
+    }catch(e){console.warn('템플릿 오버라이드 로드 실패, 정적 파일 사용:',e);}
+    const resp=await fetch(templateUrl);
+    return await resp.text();
+}
+// 문서 계산·표시 규칙 기본값 (superadmin.html의 DEFAULT_DOC_RULES와 동일하게 유지할 것)
+const DEFAULT_DOC_RULES={
+    lunchThresholdMin:240,
+    maxDailyHours:8,
+    statusLabels:{absent:'결석',late:'지각',early:'조퇴',makeup:'보강',present:'출석'},
+    statusColors:{absent:'#ef4444',late:'#f59e0b',early:'#8b5cf6'},
+    cardStatusColor:'#aaa',
+    rowHighlightBg:'#f0f0f0'
+};
+async function loadDocRules(){
+    // Firestore settings/docRules 문서가 있으면 오버라이드, 없거나 실패 시 기본값
+    try{
+        const snap=await window.fsGetDoc(window.fsDoc(window.db,'settings','docRules'));
+        if(snap.exists()){
+            const d=snap.data();
+            return{
+                lunchThresholdMin:d.lunchThresholdMin??DEFAULT_DOC_RULES.lunchThresholdMin,
+                maxDailyHours:d.maxDailyHours??DEFAULT_DOC_RULES.maxDailyHours,
+                statusLabels:{...DEFAULT_DOC_RULES.statusLabels,...(d.statusLabels||{})},
+                statusColors:{...DEFAULT_DOC_RULES.statusColors,...(d.statusColors||{})},
+                cardStatusColor:d.cardStatusColor||DEFAULT_DOC_RULES.cardStatusColor,
+                rowHighlightBg:d.rowHighlightBg||DEFAULT_DOC_RULES.rowHighlightBg
+            };
+        }
+    }catch(e){console.warn('docRules 로드 실패, 기본값 사용:',e);}
+    return DEFAULT_DOC_RULES;
+}
 function timeToMinutes(t){
     if(!t||!/^\d/.test(t))return 0;
     const p=t.split(':');
@@ -3716,9 +3752,10 @@ function fmtDocDate(dateStr){
     const[y,m,d]=dateStr.split('-');
     return`${y}.${String(m).padStart(2,'0')}.${String(d).padStart(2,'0')}`;
 }
-async function generateFromTemplate(templateUrl,cls,stu,practiceDates,sigs,getManagerSig){
-    const resp=await fetch(templateUrl);
-    let rawHtml=decodeNumericEntities(await resp.text());
+async function generateFromTemplate(templateUrl,cls,stu,practiceDates,sigs,getManagerSig,rules){
+    const L=rules.statusLabels;
+    const fsDocId=templateUrl.includes('template-entry')?'directEntry':'practiceCard';
+    let rawHtml=decodeNumericEntities(await loadDocTemplate(templateUrl,fsDocId));
     // 각 데이터 행의 <td>에 스타일/이름/사유 플레이스홀더 주입
     for(let i=1;i<=30;i++){
         const marker=`{{단위기간시작일${i}}}`;
@@ -3751,8 +3788,8 @@ async function generateFromTemplate(templateUrl,cls,stu,practiceDates,sigs,getMa
         Object.keys(clsTt).sort().forEach(d=>{
             const dayS=clsTt[d];
             const sMs=timeToMinutes(dayS.start),eMs=timeToMinutes(dayS.end);
-            const rawM=eMs-sMs,netM=rawM>=240?rawM-lunchMinsGen:rawM;
-            const wh=Math.min(Math.floor(netM/60),8);
+            const rawM=eMs-sMs,netM=rawM>=rules.lunchThresholdMin?rawM-lunchMinsGen:rawM;
+            const wh=Math.min(Math.floor(netM/60),rules.maxDailyHours);
             if(wh>0)stdRunning+=wh*60;
             stdCumByDate[d]=stdRunning;
         });
@@ -3769,8 +3806,8 @@ async function generateFromTemplate(templateUrl,cls,stu,practiceDates,sigs,getMa
                 const dayS2=clsTt?clsTt[nd]:null;
                 const sMs2=dayS2?timeToMinutes(dayS2.start):9*60;
                 const effIn2=Math.max(inM2,sMs2);
-                const rawM2=outM2-effIn2,netM2=rawM2>=240?rawM2-lunchMinsGen:rawM2;
-                const wh2=Math.min(Math.floor(netM2/60),8);
+                const rawM2=outM2-effIn2,netM2=rawM2>=rules.lunchThresholdMin?rawM2-lunchMinsGen:rawM2;
+                const wh2=Math.min(Math.floor(netM2/60),rules.maxDailyHours);
                 if(wh2>0)cumMins+=wh2*60;
             }
         });
@@ -3806,26 +3843,26 @@ async function generateFromTemplate(templateUrl,cls,stu,practiceDates,sigs,getMa
                 if(inM>0&&outM>inM){
                     const sMs=dayS?timeToMinutes(dayS.start):9*60;
                     const effIn=Math.max(inM,sMs);
-                    const rawM=outM-effIn,netM=rawM>=240?rawM-lunchMinsGen:rawM;
-                    const wh=Math.min(Math.floor(netM/60),8);
+                    const rawM=outM-effIn,netM=rawM>=rules.lunchThresholdMin?rawM-lunchMinsGen:rawM;
+                    const wh=Math.min(Math.floor(netM/60),rules.maxDailyHours);
                     if(wh>0)cumMins+=wh*60;
                 }
                 // 사유 계산
                 let statusText;
-                if(!hasAtt&&isScheduled){statusText='<span style="color:#aaa">결석</span>';}
-                else if(hasAtt&&!isScheduled){statusText='<span style="color:#aaa">보강</span>';}
+                if(!hasAtt&&isScheduled){statusText=`<span style="color:${rules.cardStatusColor}">${L.absent}</span>`;}
+                else if(hasAtt&&!isScheduled){statusText=`<span style="color:${rules.cardStatusColor}">${L.makeup}</span>`;}
                 else if(hasAtt&&inM>0&&outM>0){
                     const schedStart=dayS?timeToMinutes(dayS.start):9*60;
                     const schedEnd=dayS?timeToMinutes(dayS.end):16*60+30;
-                    if(inM>schedStart){statusText='<span style="color:#aaa">지각</span>';}
-                    else if(outM<schedEnd){statusText='<span style="color:#aaa">조퇴</span>';}
-                    else{statusText='출석';}
-                }else{statusText=hasAtt?'출석':'';}
+                    if(inM>schedStart){statusText=`<span style="color:${rules.cardStatusColor}">${L.late}</span>`;}
+                    else if(outM<schedEnd){statusText=`<span style="color:${rules.cardStatusColor}">${L.early}</span>`;}
+                    else{statusText=L.present;}
+                }else{statusText=hasAtt?L.present:'';}
                 const stdCumMins=clsTt?(stdCumByDate[date]||0):0;
                 const stuSig=sigData?.studentSig||att?.studentSig||'';
                 const mgrSig=getManagerSig(att,sigData);
-                const isAbsOrLate=(!hasAtt&&isScheduled)||(statusText&&(statusText.includes('지각')||statusText.includes('보강')));
-                map[`ROW_CELL_STYLE_${i}`]=isAbsOrLate?'style="background-color:#f0f0f0"':'';
+                const isAbsOrLate=(!hasAtt&&isScheduled)||(statusText&&(statusText.includes(L.late)||statusText.includes(L.makeup)));
+                map[`ROW_CELL_STYLE_${i}`]=isAbsOrLate?`style="background-color:${rules.rowHighlightBg}"`:'';
                 map[`ROW_TR_STYLE_${i}`]='';
                 map[`단위기간시작일${i}`]=fmtDocDate(date);
                 map[`이름_${i}`]=stu.name||'';
@@ -3971,11 +4008,13 @@ async function generatePracticeCardHtml(cls,students,startDate,endDate,sigs){
     }else{
         practiceDates=allDates;
     }
+    const rules=await loadDocRules();
     const pages=[];
     for(const stu of students){
         const stuPages=await generateFromTemplate(
             './template-card.html',cls,stu,practiceDates,sigs,
-            (att,sigData)=>sigData?.managerSig||att?.managerSig||''
+            (att,sigData)=>sigData?.managerSig||att?.managerSig||'',
+            rules
         );
         pages.push(...stuPages);
     }
@@ -3987,8 +4026,9 @@ async function generateDirectEntryHtml(cls,students,startDate,endDate,sigs){
     const clsTt=cls?.timetableData||null;
     const practiceDates=clsTt?allDates.filter(d=>clsTt[d]):allDates;
 
-    const resp=await fetch('./template-entry.html');
-    let rawHtml=decodeNumericEntities(await resp.text());
+    let rawHtml=decodeNumericEntities(await loadDocTemplate('./template-entry.html','directEntry'));
+    const rules=await loadDocRules();
+    const L=rules.statusLabels;
 
     const acName=directorData?.academyName||'';
     const dirName=directorData?.name||'';
@@ -4014,8 +4054,8 @@ async function generateDirectEntryHtml(cls,students,startDate,endDate,sigs){
                     const dayS2=clsTt?clsTt[nd]:null;
                     const sMs2=dayS2?timeToMinutes(dayS2.start):9*60;
                     const effIn2=Math.max(inM2,sMs2);
-                    const rawM2=outM2-effIn2,netM2=rawM2>=240?rawM2-lunchMinsDir:rawM2;
-                    const wh2=Math.min(Math.floor(netM2/60),8);
+                    const rawM2=outM2-effIn2,netM2=rawM2>=rules.lunchThresholdMin?rawM2-lunchMinsDir:rawM2;
+                    const wh2=Math.min(Math.floor(netM2/60),rules.maxDailyHours);
                     if(wh2>0)preRangeMins+=wh2*60;
                 }
             });
@@ -4040,20 +4080,20 @@ async function generateDirectEntryHtml(cls,students,startDate,endDate,sigs){
             if(inM>0&&outM>inM){
                 const sMs=dayS?timeToMinutes(dayS.start):9*60;
                 const effIn=Math.max(inM,sMs);
-                const rawM=outM-effIn,netM=rawM>=240?rawM-lunchMinsDir:rawM;
-                const wh=Math.min(Math.floor(netM/60),8);
+                const rawM=outM-effIn,netM=rawM>=rules.lunchThresholdMin?rawM-lunchMinsDir:rawM;
+                const wh=Math.min(Math.floor(netM/60),rules.maxDailyHours);
                 if(wh>0)cumMinsPerStu[String(stu.kakaoId)]+=wh*60;
             }
             // 비출석 이벤트 수집 (Task 9)
             const isScheduled=clsTt?!!clsTt[date]:true;
             const hasAtt=!!(inT||outT);
             let evStatus=null;
-            if(!hasAtt&&isScheduled){evStatus='결석';}
+            if(!hasAtt&&isScheduled){evStatus=L.absent;}
             else if(inM>0&&outM>0){
                 const schedStart=dayS?timeToMinutes(dayS.start):9*60;
                 const schedEnd=dayS?timeToMinutes(dayS.end):16*60+30;
-                if(inM>schedStart)evStatus='지각';
-                else if(outM<schedEnd)evStatus='조퇴';
+                if(inM>schedStart)evStatus=L.late;
+                else if(outM<schedEnd)evStatus=L.early;
             }
             if(evStatus)summaryEvents.push({date,name:stu.name||'-',status:evStatus,inT,outT});
         }
@@ -4081,15 +4121,15 @@ async function generateDirectEntryHtml(cls,students,startDate,endDate,sigs){
                     const inM=timeToMinutes(inT),outM=timeToMinutes(outT);
                     const isScheduled=clsTt?!!clsTt[date]:true;
                     let statusText;
-                    if(!hasAtt&&isScheduled){statusText='결석';}
-                    else if(hasAtt&&!isScheduled){statusText='보강';}
+                    if(!hasAtt&&isScheduled){statusText=L.absent;}
+                    else if(hasAtt&&!isScheduled){statusText=L.makeup;}
                     else if(hasAtt&&inM>0&&outM>0){
                         const schedStart=dayS?timeToMinutes(dayS.start):9*60;
                         const schedEnd=dayS?timeToMinutes(dayS.end):16*60+30;
-                        if(inM>schedStart){statusText='지각';}
-                        else if(outM<schedEnd){statusText='조퇴';}
-                        else{statusText='출석';}
-                    }else{statusText=hasAtt?'출석':'';}
+                        if(inM>schedStart){statusText=L.late;}
+                        else if(outM<schedEnd){statusText=L.early;}
+                        else{statusText=L.present;}
+                    }else{statusText=hasAtt?L.present:'';}
                     map[`이름${i}`]=stu.name||'';
                     map[`출근시간${i}`]=inT;
                     map[`퇴근시간${i}`]=outT;
@@ -4097,7 +4137,7 @@ async function generateDirectEntryHtml(cls,students,startDate,endDate,sigs){
                     map[`실습병원${i}`]=stu.hospital||'';
                     map[`해당날짜에 이름${i}서명`]=stuSig?`<img src="data:image/png;base64,${stuSig}" style="max-height:28px;max-width:70px;vertical-align:middle;">`:' ';
                     map[`ROW_HIDDEN_${i}`]='';
-                    map[`ROW_BG_${i}`]=(statusText==='결석'||statusText==='지각'||statusText==='보강')?'style="background-color:#f0f0f0"':'';
+                    map[`ROW_BG_${i}`]=(statusText===L.absent||statusText===L.late||statusText===L.makeup)?`style="background-color:${rules.rowHighlightBg}"`:'';
                 }else{
                     map[`이름${i}`]='';
                     map[`출근시간${i}`]='';map[`퇴근시간${i}`]='';
@@ -4113,7 +4153,7 @@ async function generateDirectEntryHtml(cls,students,startDate,endDate,sigs){
     }
     // Task 9: 요약 첫 페이지 prepend
     if(summaryEvents.length){
-        const statusColor={결석:'#ef4444',지각:'#f59e0b',조퇴:'#8b5cf6'};
+        const statusColor={[L.absent]:rules.statusColors.absent,[L.late]:rules.statusColors.late,[L.early]:rules.statusColors.early};
         const summaryRows=summaryEvents.map(e=>`<tr><td>${e.date}</td><td style="font-weight:700">${escHtml(e.name)}</td><td style="color:${statusColor[e.status]||'#333'};font-weight:700">${e.status}</td><td>${e.inT||'—'}</td><td>${e.outT||'—'}</td></tr>`).join('');
         const summaryPage=`<!DOCTYPE html><html><head><meta charset="utf-8"><style>body{font-family:'맑은 고딕',sans-serif;padding:24px;font-size:12px;}h2{font-size:15px;text-align:center;margin-bottom:4px;}p{text-align:center;color:#666;margin-bottom:16px;font-size:11px;}table{width:100%;border-collapse:collapse;}th,td{border:1px solid #ccc;padding:5px 8px;text-align:center;}th{background:#f0f0f0;font-weight:700;}</style></head><body><h2>${escHtml(acName)} 직권입력관리대장 — 비출석 요약</h2><p>${practiceDates[0]?fmtDocDate(practiceDates[0]):''} ~ ${practiceDates[practiceDates.length-1]?fmtDocDate(practiceDates[practiceDates.length-1]):''}</p><table><thead><tr><th>날짜</th><th>이름</th><th>사유</th><th>출근</th><th>퇴근</th></tr></thead><tbody>${summaryRows}</tbody></table></body></html>`;
         pages.unshift(summaryPage);
