@@ -4148,7 +4148,7 @@ async function generateDirectEntryHtml(cls,students,startDate,endDate,sigs){
             const map={
                 '학원명':acName,'전체훈련기간':totalPeriod,'현장훈련기간':practicePeriodDir,
                 '원장님이름':dirName,
-                '반 코드':cls?.code||'',
+                '반 코드':formatClassCodeDisplay(cls?.code)||'',
                 '단위기간시작일':fmtDocDate(date),
                 '전자시간표 상 실습시간':ttPracticeTimeDir,
                 '전자시간표 상 점심시간':(()=>{const start=cls?.lunchStart;const end=cls?.lunchEnd;if(start&&end)return `${start}~${end}`;const mins=cls?.lunchBreakMins||30;if(start){const[h,m]=start.split(':').map(Number);const endTotal=h*60+m+mins;const endH=Math.floor(endTotal/60);const endM=endTotal%60;return `${start}~${String(endH).padStart(2,'0')}:${String(endM).padStart(2,'0')}`;}return mins+'분';})(),
