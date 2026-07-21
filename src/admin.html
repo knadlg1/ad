@@ -3059,13 +3059,20 @@ function processFile(file){
                 parsedTimetableData[date]={start,end};
                 parsedPracticeDays.push(date);
             });
-            // 점심시간 감지: '시간구분'=2인 행의 시작시간 → lunchStart, 다음 행의 시작시간 → lunchEnd
+            // 점심시간 감지: 실습기간 내 '시간구분'=2인 행의 시작시간 → lunchStart, 다음 행의 시작시간 → lunchEnd
             (()=>{
-                const hdr=(rows[0]||[]).map(c=>(c||'').toString().trim());
+                if(!parsedPracticeDays.length)return;
+                const pDays=parsedPracticeDays.slice().sort();
+                const pStart=pDays[0],pEnd=pDays[pDays.length-1];
+                const hIdx=rows.findIndex(r=>(r||[]).some(c=>(c||'').toString().trim()==='시간구분'));
+                if(hIdx<0)return;
+                const hdr=(rows[hIdx]||[]).map(c=>(c||'').toString().trim());
                 const tgIdx=hdr.indexOf('시간구분');
                 const stIdx=hdr.findIndex(h=>h==='시작시간'||h==='시작 시간');
                 if(tgIdx>=0&&stIdx>=0){
-                    for(let ri=1;ri<rows.length-1;ri++){
+                    for(let ri=hIdx+1;ri<rows.length-1;ri++){
+                        const date=pD(rows[ri][0]);
+                        if(!date||date<pStart||date>pEnd)continue;
                         const tg=(rows[ri][tgIdx]||'').toString().trim();
                         if(tg==='2'){
                             const ls=pT(rows[ri][stIdx]);
@@ -3351,14 +3358,21 @@ function parseClsTimetable(e){
                 clsTtPracticeDays.push(date);
             });
 
-            // 점심시간 감지: '시간구분'=2인 행의 시작시간 → lunchStart, 다음 행의 시작시간 → lunchEnd
-            clsTtLunchMins=30;clsTtLunchStart=null;
+            // 점심시간 감지: 실습기간 내 '시간구분'=2인 행의 시작시간 → lunchStart, 다음 행의 시작시간 → lunchEnd
+            clsTtLunchMins=30;clsTtLunchStart=null;clsTtLunchEnd=null;
             (()=>{
-                const hdr=(rows[0]||[]).map(c=>(c||'').toString().trim());
+                if(!clsTtPracticeDays.length)return;
+                const pDays=clsTtPracticeDays.slice().sort();
+                const pStart=pDays[0],pEnd=pDays[pDays.length-1];
+                const hIdx=rows.findIndex(r=>(r||[]).some(c=>(c||'').toString().trim()==='시간구분'));
+                if(hIdx<0)return;
+                const hdr=(rows[hIdx]||[]).map(c=>(c||'').toString().trim());
                 const tgIdx=hdr.indexOf('시간구분');
                 const stIdx=hdr.findIndex(h=>h==='시작시간'||h==='시작 시간');
                 if(tgIdx>=0&&stIdx>=0){
-                    for(let ri=1;ri<rows.length-1;ri++){
+                    for(let ri=hIdx+1;ri<rows.length-1;ri++){
+                        const date=parseDate(rows[ri][0]);
+                        if(!date||date<pStart||date>pEnd)continue;
                         const tg=(rows[ri][tgIdx]||'').toString().trim();
                         if(tg==='2'){
                             const ls=parseTime(rows[ri][stIdx]);
@@ -3863,10 +3877,10 @@ async function generateFromTemplate(templateUrl,cls,stu,practiceDates,sigs,getMa
         const ttPracticeTime=ttFirstDay?`${ttFirstDay.start}~${ttFirstDay.end}`:'';
         const map={
             '학원명':acName,'이름':stu.name||'','전체훈련기간':totalPeriod,'현장훈련기간':practicePeriod,
-            '원장님이름':dirName,
+            '원장님이름':dirName,'카카오ID':stu?.kakaoId||'',
             '반 코드':formatClassCodeDisplay(cls?.code),
             '전자시간표 상 실습시간':ttPracticeTime,
-            '전자시간표 상 점심시간':(()=>{const start=cls?.lunchStart;const end=cls?.lunchEnd;if(start&&end)return `${start}~${end}`;const mins=cls?.lunchBreakMins||30;if(start){const[h,m]=start.split(':').map(Number);const endTotal=h*60+m+mins;const endH=Math.floor(endTotal/60);const endM=endTotal%60;return `${start}~${String(endH).padStart(2,'0')}:${String(endM).padStart(2,'0')}`;}return mins+'분';})(),
+            '전자시간표 상 점심시간':(()=>{const mins=cls?.lunchBreakMins||30;const start=cls?.lunchStart;const end=cls?.lunchEnd;if(start&&end)return `${mins}분 (${start}~${end})`;if(start){const[h,m]=start.split(':').map(Number);const endTotal=h*60+m+mins;const endH=Math.floor(endTotal/60);const endM=endTotal%60;return `${mins}분 (${start}~${String(endH).padStart(2,'0')}:${String(endM).padStart(2,'0')})`;}return mins+'분';})(),
         };
         for(let i=1;i<=30;i++){
             const date=chunk[i-1]||null;
@@ -3939,16 +3953,19 @@ function openDocWindow(pages,orientation='landscape'){
     const bodyParts=pages.map((html,i)=>{
         const bm=html.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
         const content=bm?bm[1]:html;
-        return i>0?`<div style="page-break-before:always">${content}</div>`:`<div>${content}</div>`;
+        return i>0?`<div class="doc-preview-page" style="page-break-before:always">${content}</div>`:`<div class="doc-preview-page">${content}</div>`;
     });
     const isPortrait=orientation==='portrait';
     const printCss=`<style>
-body{max-width:${isPortrait?'740px':'none'}!important;padding:8px 16px!important;margin:${isPortrait?'0 auto':'0'}!important;}
+body{max-width:${isPortrait?'740px':'none'}!important;padding:8px 16px!important;margin:${isPortrait?'0 auto':'0'}!important;background:#e8eaed;}
 ${isPortrait?'.c31{margin-left:0!important;margin-right:auto!important;}.c66{padding-left:8px!important;padding-right:8px!important;}.c20{margin-left:0!important;margin-right:auto!important;}.c75{padding-left:8px!important;padding-right:8px!important;}table{max-width:100%!important;}':''}
+/* 미리보기(화면) 전용: 페이지 사이 시각적 여백 - 인쇄에는 영향 없음 (preview-page-gap-v11) */
+.doc-preview-page{background:#fff!important;box-shadow:0 1px 6px rgba(0,0,0,.25);margin:0 auto 24px auto!important;}
 @page{size:A4 ${orientation};margin:8mm;}
 @media print{
-  body{${isPortrait?'max-width:740px!important;margin:0 auto!important;':'max-width:none!important;margin:0!important;'}padding:0!important;}
+  body{${isPortrait?'max-width:740px!important;margin:0 auto!important;':'max-width:none!important;margin:0!important;'}padding:0!important;background:#fff!important;}
   ${isPortrait?'.c31{margin-left:0!important;}.c66{padding-left:0!important;padding-right:0!important;}.c20{margin-left:0!important;}.c75{padding-left:0!important;padding-right:0!important;}':''}
+  .doc-preview-page{box-shadow:none!important;margin:0!important;}
   tr{page-break-inside:avoid;}
   h1,h2{page-break-after:avoid;}
 }
@@ -4151,7 +4168,7 @@ async function generateDirectEntryHtml(cls,students,startDate,endDate,sigs){
                 '반 코드':formatClassCodeDisplay(cls?.code)||'',
                 '단위기간시작일':fmtDocDate(date),
                 '전자시간표 상 실습시간':ttPracticeTimeDir,
-                '전자시간표 상 점심시간':(()=>{const start=cls?.lunchStart;const end=cls?.lunchEnd;if(start&&end)return `${start}~${end}`;const mins=cls?.lunchBreakMins||30;if(start){const[h,m]=start.split(':').map(Number);const endTotal=h*60+m+mins;const endH=Math.floor(endTotal/60);const endM=endTotal%60;return `${start}~${String(endH).padStart(2,'0')}:${String(endM).padStart(2,'0')}`;}return mins+'분';})(),
+                '전자시간표 상 점심시간':(()=>{const mins=cls?.lunchBreakMins||30;const start=cls?.lunchStart;const end=cls?.lunchEnd;if(start&&end)return `${mins}분 (${start}~${end})`;if(start){const[h,m]=start.split(':').map(Number);const endTotal=h*60+m+mins;const endH=Math.floor(endTotal/60);const endM=endTotal%60;return `${mins}분 (${start}~${String(endH).padStart(2,'0')}:${String(endM).padStart(2,'0')})`;}return mins+'분';})(),
                 '학원직인':sealImageBase64?`<img src="data:image/png;base64,${sealImageBase64}" style="max-width:24px;max-height:24px;display:block;margin:auto;">`:''
             };
             for(let i=1;i<=30;i++){
@@ -4338,7 +4355,7 @@ function parseEditClsTimetable(e){
             function parseTime(raw){if(raw==null||raw==='')return null;if(typeof raw==='number'){const totalMins=Math.round(raw*24*60);const h=Math.floor(totalMins/60),m=totalMins%60;return`${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;}const s=raw.toString().trim();if(/^\d{4}$/.test(s))return`${s.slice(0,2)}:${s.slice(2,4)}`;if(/^\d{1,2}:\d{2}/.test(s))return s.slice(0,5);return null;}
             rows.forEach(row=>{const date=parseDate(row[0]);if(!date)return;if(!editClsTtTrainStart||date<editClsTtTrainStart)editClsTtTrainStart=date;if(!editClsTtTrainEnd||date>editClsTtTrainEnd)editClsTtTrainEnd=date;if(editClsTtData[date])return;const subj=((row[8]||'').toString()).trim();if(!subj.includes('현장실습'))return;const start=parseTime(row[1]);const end=parseTime(row[2]);if(!start||!end)return;editClsTtData[date]={start,end};editClsTtPracticeDays.push(date);});
             editClsTtLunchMins=30;editClsTtLunchStart=null;editClsTtLunchEnd=null;
-            (()=>{const hdr=(rows[0]||[]).map(c=>(c||'').toString().trim());const tgIdx=hdr.indexOf('시간구분');const stIdx=hdr.findIndex(h=>h==='시작시간'||h==='시작 시간');if(tgIdx>=0&&stIdx>=0){for(let ri=1;ri<rows.length-1;ri++){const tg=(rows[ri][tgIdx]||'').toString().trim();if(tg==='2'){const ls=parseTime(rows[ri][stIdx]);const le=parseTime(rows[ri+1][stIdx]);if(ls&&le){const[sh,sm]=ls.split(':').map(Number);const[eh,em]=le.split(':').map(Number);const lm=(eh*60+em)-(sh*60+sm);if(lm>0&&lm<=120){editClsTtLunchMins=lm;editClsTtLunchStart=ls;editClsTtLunchEnd=le;}}break;}}}})();
+            (()=>{if(!editClsTtPracticeDays.length)return;const pDays=editClsTtPracticeDays.slice().sort();const pStart=pDays[0],pEnd=pDays[pDays.length-1];const hIdx=rows.findIndex(r=>(r||[]).some(c=>(c||'').toString().trim()==='시간구분'));if(hIdx<0)return;const hdr=(rows[hIdx]||[]).map(c=>(c||'').toString().trim());const tgIdx=hdr.indexOf('시간구분');const stIdx=hdr.findIndex(h=>h==='시작시간'||h==='시작 시간');if(tgIdx>=0&&stIdx>=0){for(let ri=hIdx+1;ri<rows.length-1;ri++){const date=parseDate(rows[ri][0]);if(!date||date<pStart||date>pEnd)continue;const tg=(rows[ri][tgIdx]||'').toString().trim();if(tg==='2'){const ls=parseTime(rows[ri][stIdx]);const le=parseTime(rows[ri+1][stIdx]);if(ls&&le){const[sh,sm]=ls.split(':').map(Number);const[eh,em]=le.split(':').map(Number);const lm=(eh*60+em)-(sh*60+sm);if(lm>0&&lm<=120){editClsTtLunchMins=lm;editClsTtLunchStart=ls;editClsTtLunchEnd=le;}}break;}}}})();
             const lbl=document.getElementById(`cls-edit-file-label-${clsId}`);
             if(lbl)lbl.textContent=editClsTtFileName;
             const parseEl=document.getElementById(`cls-edit-tt-parse-${clsId}`);
@@ -4434,7 +4451,7 @@ function parseEditClsInfoTimetable(e){
                 editInfoTtData[d]={start,end};editInfoTtPracticeDays.push(d);
             });
             let lunch=30,lunchSt=null,lunchEd=null;
-            (()=>{const hdr=(rows[0]||[]).map(c=>(c||'').toString().trim());const tgIdx=hdr.indexOf('시간구분');const stIdx=hdr.findIndex(h=>h==='시작시간'||h==='시작 시간');if(tgIdx>=0&&stIdx>=0){for(let ri=1;ri<rows.length-1;ri++){const tg=(rows[ri][tgIdx]||'').toString().trim();if(tg==='2'){const ls=parseTime(rows[ri][stIdx]);const le=parseTime(rows[ri+1][stIdx]);if(ls&&le){const[sh,sm]=ls.split(':').map(Number);const[eh,em]=le.split(':').map(Number);const lm=(eh*60+em)-(sh*60+sm);if(lm>0&&lm<=120){lunch=lm;lunchSt=ls;lunchEd=le;}}break;}}}})();
+            (()=>{if(!editInfoTtPracticeDays.length)return;const pDays=editInfoTtPracticeDays.slice().sort();const pStart=pDays[0],pEnd=pDays[pDays.length-1];const hIdx=rows.findIndex(r=>(r||[]).some(c=>(c||'').toString().trim()==='시간구분'));if(hIdx<0)return;const hdr=(rows[hIdx]||[]).map(c=>(c||'').toString().trim());const tgIdx=hdr.indexOf('시간구분');const stIdx=hdr.findIndex(h=>h==='시작시간'||h==='시작 시간');if(tgIdx>=0&&stIdx>=0){for(let ri=hIdx+1;ri<rows.length-1;ri++){const date=parseDate(rows[ri][0]);if(!date||date<pStart||date>pEnd)continue;const tg=(rows[ri][tgIdx]||'').toString().trim();if(tg==='2'){const ls=parseTime(rows[ri][stIdx]);const le=parseTime(rows[ri+1][stIdx]);if(ls&&le){const[sh,sm]=ls.split(':').map(Number);const[eh,em]=le.split(':').map(Number);const lm=(eh*60+em)-(sh*60+sm);if(lm>0&&lm<=120){lunch=lm;lunchSt=ls;lunchEd=le;}}break;}}}})();
             editInfoTtTrainStart=tStart;editInfoTtTrainEnd=tEnd;editInfoTtLunchMins=lunch;editInfoTtLunchStart=lunchSt;editInfoTtLunchEnd=lunchEd;
             const pDays=editInfoTtPracticeDays.slice().sort();
             const res=document.getElementById(`cls-info-tt-result-${clsId}`);
