@@ -1339,6 +1339,7 @@ let authreqStuFilter = '';
 let authreqType = 'both';
 let _authReqKakaoId = '', _authReqName = '';
 let academyHospitals = [];
+let academyHospitalIds = new Map(); // name -> academies/{acId}/hospitals/{docId} (2026-07-21: hospitalId 동시 기록용)
 let parsedHolidays = [], parsedPracticeDays = [], parsedFileName = '', parsedClassId = '', parsedTimetableData = {}, parsedTrainStart = null, parsedTrainEnd = null, parsedLunchStart = null, parsedLunchEnd = null;
 let regPhone = '';
 let lastUpdatedAt = null;
@@ -1718,7 +1719,7 @@ async function loadClasses(){
 
 async function loadAcademyHospitals(){
     const acId=directorData?.academyId;
-    if(!acId){academyHospitals=[];return;}
+    if(!acId){academyHospitals=[];academyHospitalIds=new Map();return;}
     try{
         const snap=await window.fsGetDoc(window.fsDoc(window.db,'academies',acId));
         if(snap.exists()){
@@ -1728,6 +1729,15 @@ async function loadAcademyHospitals(){
             if(codeEl&&d.inviteCode){codeEl.textContent='코드: '+d.inviteCode;}
         }else{academyHospitals=[];}
     }catch(e){academyHospitals=[];}
+    // 실습병원 서브컬렉션(academies/{acId}/hospitals)에서 name->docId 매핑 로드
+    // (2026-07-21: 병원 재배정 시 hospitalId를 같이 기록하기 위함 — 기존에는 hospital명/좌표만
+    // 갱신하고 hospitalId를 안 써서, CF가 hospitalId 기준으로 좌표를 조회할 때 엉뚱한 병원을
+    // 가리키는 사고가 발생했음)
+    academyHospitalIds=new Map();
+    try{
+        const subSnap=await window.fsGetDocs(window.fsCollection(window.db,'academies',acId,'hospitals'));
+        subSnap.forEach(d=>{const n=d.data()?.name;if(n)academyHospitalIds.set(n,d.id);});
+    }catch(e){/* 서브컬렉션 조회 실패해도 hospital명/좌표는 기존대로 계속 동작해야 하므로 무시 */}
 }
 
 async function loadPendingStudents(){
@@ -2244,11 +2254,26 @@ async function onInlineClsChange(kakaoId,sel){
     }}).catch(()=>{sel.value=studentsList.find(s=>String(s.kakaoId)===String(kakaoId))?.classId||'';});
 }
 
+// 병원 재배정 시 hospitalId를 조용히 null로 저장하지 않기 위한 공용 헬퍼(2026-07-21 이상준 사건 후속 조치).
+// 매핑에 없으면 세션이 오래 열려있어 stale해졌을 가능성을 감안해 한 번 새로고침 후 재확인하고,
+// 그래도 없으면 null을 반환한다 — 호출부는 이 경우 저장 자체를 중단해야 한다.
+async function resolveHospitalIdOrRefresh(hospName){
+    if(!hospName)return null;
+    let id=academyHospitalIds.get(hospName);
+    if(id)return id;
+    await loadAcademyHospitals();
+    return academyHospitalIds.get(hospName)||null;
+}
+
 async function onInlineHospChange(kakaoId,sel){
     const hospName=sel.value;
-    const hosp=academyHospitals.find(h=>h.name===hospName);
     await withSave(async()=>{
-        const update={hospital:hospName||null,hospitalLat:hosp?.lat||null,hospitalLon:hosp?.lon||null};
+        const hospitalId=await resolveHospitalIdOrRefresh(hospName);
+        if(hospName&&!hospitalId){
+            throw new Error('이 병원의 신규 데이터가 아직 없습니다. 새로고침 후 다시 시도해주세요.');
+        }
+        const hosp=academyHospitals.find(h=>h.name===hospName);
+        const update={hospital:hospName||null,hospitalLat:hosp?.lat||null,hospitalLon:hosp?.lon||null,hospitalId:hospitalId||null};
         await window.fsUpdateDoc(window.fsDoc(window.db,'students',String(kakaoId)),update);
         const stu=studentsList.find(s=>String(s.kakaoId)===String(kakaoId));
         if(stu)stu.hospital=hospName||null;
@@ -2299,10 +2324,16 @@ async function saveStudentHospital(){
     const hospName=document.getElementById('hospmgmt-hosp-sel')?.value;
     if(!kakaoId){showToast('학생을 선택해주세요','info');return;}
     if(!hospName){showToast('병원을 선택해주세요','info');return;}
-    const hosp=academyHospitals.find(h=>h.name===hospName);
     showLoader(true);
     try{
-        const update={hospital:hospName,hospitalLat:hosp?.lat||null,hospitalLon:hosp?.lon||null};
+        const hospitalId=await resolveHospitalIdOrRefresh(hospName);
+        if(!hospitalId){
+            showLoader(false);
+            showToast('이 병원의 신규 데이터가 아직 없습니다. 새로고침 후 다시 시도해주세요.','error');
+            return;
+        }
+        const hosp=academyHospitals.find(h=>h.name===hospName);
+        const update={hospital:hospName,hospitalLat:hosp?.lat||null,hospitalLon:hosp?.lon||null,hospitalId};
         await window.fsUpdateDoc(window.fsDoc(window.db,'students',String(kakaoId)),update);
         const stu=studentsList.find(s=>String(s.kakaoId)===String(kakaoId));
         if(stu)stu.hospital=hospName;
