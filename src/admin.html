@@ -3783,6 +3783,13 @@ function fmtDocDate(dateStr){
     const[y,m,d]=dateStr.split('-');
     return`${y}.${String(m).padStart(2,'0')}.${String(d).padStart(2,'0')}`;
 }
+function formatClassCodeDisplay(code){
+    const str=String(code||'');
+    if(!str.startsWith('AIG'))return str;
+    const s=str.replace(/-/g,'');
+    if(s.length<2)return s;
+    return s.slice(0,-1)+'-'+s.slice(-1);
+}
 async function generateFromTemplate(templateUrl,cls,stu,practiceDates,sigs,getManagerSig,rules){
     const L=rules.statusLabels;
     const fsDocId=templateUrl.includes('template-entry')?'directEntry':'practiceCard';
@@ -3857,7 +3864,7 @@ async function generateFromTemplate(templateUrl,cls,stu,practiceDates,sigs,getMa
         const map={
             '학원명':acName,'이름':stu.name||'','전체훈련기간':totalPeriod,'현장훈련기간':practicePeriod,
             '원장님이름':dirName,
-            '반 코드':cls?.code||'',
+            '반 코드':formatClassCodeDisplay(cls?.code),
             '전자시간표 상 실습시간':ttPracticeTime,
             '전자시간표 상 점심시간':(()=>{const start=cls?.lunchStart;const end=cls?.lunchEnd;if(start&&end)return `${start}~${end}`;const mins=cls?.lunchBreakMins||30;if(start){const[h,m]=start.split(':').map(Number);const endTotal=h*60+m+mins;const endH=Math.floor(endTotal/60);const endM=endTotal%60;return `${start}~${String(endH).padStart(2,'0')}:${String(endM).padStart(2,'0')}`;}return mins+'분';})(),
         };
