@@ -3877,7 +3877,7 @@ async function generateFromTemplate(templateUrl,cls,stu,practiceDates,sigs,getMa
         const ttPracticeTime=ttFirstDay?`${ttFirstDay.start}~${ttFirstDay.end}`:'';
         const map={
             '학원명':acName,'이름':stu.name||'','전체훈련기간':totalPeriod,'현장훈련기간':practicePeriod,
-            '원장님이름':dirName,'카카오ID':stu?.kakaoId||'',
+            '원장님이름':dirName,'카카오ID':(stu?.name?(stu?.kakaoId?`${stu.name}(카카오ID : ${stu.kakaoId})`:stu.name):(stu?.kakaoId||'')),
             '반 코드':formatClassCodeDisplay(cls?.code),
             '전자시간표 상 실습시간':ttPracticeTime,
             '전자시간표 상 점심시간':(()=>{const mins=cls?.lunchBreakMins||30;const start=cls?.lunchStart;const end=cls?.lunchEnd;if(start&&end)return `${mins}분 (${start}~${end})`;if(start){const[h,m]=start.split(':').map(Number);const endTotal=h*60+m+mins;const endH=Math.floor(endTotal/60);const endM=endTotal%60;return `${mins}분 (${start}~${String(endH).padStart(2,'0')}:${String(endM).padStart(2,'0')})`;}return mins+'분';})(),
@@ -3927,7 +3927,7 @@ async function generateFromTemplate(templateUrl,cls,stu,practiceDates,sigs,getMa
                 map[`담당자서명${i}`]=mgrSig?`<img src="data:image/png;base64,${mgrSig}" style="max-height:28px;max-width:70px;vertical-align:middle;">`:' ';
                 map[`사유_${i}`]='현장훈련';
                 map[`담당자이름_${i}`]=sigData?.managerName||att?.managerName||'';
-                map[`담당자직위_${i}`]=sigData?.managerTitle||att?.managerTitle||'';
+                map[`담당자직위_${i}`]=sigData?.managerPosition||att?.managerPosition||'';
                 map[`실습병원_${i}`]=stu?.hospital||'';
             }else{
                 map[`ROW_CELL_STYLE_${i}`]='style="background-color:#e8e8e8"';
