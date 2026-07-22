@@ -1816,6 +1816,7 @@ function renderStudentDropdown(){
     const sel=document.getElementById('att-stu-select');
     if(!sel)return;
     const list=(sidebarClassFilter?studentsList.filter(s=>s.classId===sidebarClassFilter):studentsList)
+        .filter(s=>!s.droppedOut)
         .slice().sort((a,b)=>(a.name||'').localeCompare(b.name||'','ko'));
     const prev=studentFilter;
     sel.innerHTML='<option value="">전체 학생</option>'+list.map(s=>`<option value="${String(s.kakaoId)}">${escHtml(s.name||'-')}</option>`).join('');
@@ -1830,6 +1831,7 @@ function onStudentSearchInput(){
     attStuNameFilter=q;
     const sel=document.getElementById('att-stu-select');
     let list=sidebarClassFilter?studentsList.filter(s=>s.classId===sidebarClassFilter):studentsList;
+    list=list.filter(s=>!s.droppedOut);
     if(q)list=list.filter(s=>(s.name||'').includes(q));
     list=list.slice().sort((a,b)=>(a.name||'').localeCompare(b.name||'','ko'));
     sel.innerHTML='<option value="">전체 학생</option>'+list.map(s=>`<option value="${String(s.kakaoId)}">${escHtml(s.name||'-')}</option>`).join('');
@@ -4338,6 +4340,7 @@ async function generateDirectEntryHtml(cls,students,startDate,endDate,sigs){
     // 전자시간표 실습시간: timetableData 첫 날 start~end 추출
     const ttFirstDayDir=clsTt?Object.values(clsTt)[0]:null;
     const ttPracticeTimeDir=ttFirstDayDir?`${ttFirstDayDir.start}~${ttFirstDayDir.end}`:'';
+    const lunchTimeDisplayDir=(()=>{const mins=cls?.lunchBreakMins||30;const start=cls?.lunchStart;const end=cls?.lunchEnd;if(start&&end)return `${mins}분 (${start}~${end})`;if(start){const[h,m]=start.split(':').map(Number);const endTotal=h*60+m+mins;const endH=Math.floor(endTotal/60);const endM=endTotal%60;return `${mins}분 (${start}~${String(endH).padStart(2,'0')}:${String(endM).padStart(2,'0')})`;}return mins+'분';})();
 
     // Task 9: 비출석 요약 페이지 데이터 수집
     const summaryEvents=[];
@@ -4384,7 +4387,7 @@ async function generateDirectEntryHtml(cls,students,startDate,endDate,sigs){
                 '반 코드':formatClassCodeDisplay(cls?.code)||'',
                 '단위기간시작일':fmtDocDate(date),
                 '전자시간표 상 실습시간':ttPracticeTimeDir,
-                '전자시간표 상 점심시간':(()=>{const mins=cls?.lunchBreakMins||30;const start=cls?.lunchStart;const end=cls?.lunchEnd;if(start&&end)return `${mins}분 (${start}~${end})`;if(start){const[h,m]=start.split(':').map(Number);const endTotal=h*60+m+mins;const endH=Math.floor(endTotal/60);const endM=endTotal%60;return `${mins}분 (${start}~${String(endH).padStart(2,'0')}:${String(endM).padStart(2,'0')})`;}return mins+'분';})(),
+                '전자시간표 상 점심시간':lunchTimeDisplayDir,
                 '학원직인':sealImageBase64?`<img src="data:image/png;base64,${sealImageBase64}" style="max-width:24px;max-height:24px;display:block;margin:auto;">`:''
             };
             for(let i=1;i<=30;i++){
@@ -4434,7 +4437,27 @@ async function generateDirectEntryHtml(cls,students,startDate,endDate,sigs){
     if(summaryEvents.length){
         const statusColor={[L.absent]:rules.statusColors.absent,[L.late]:rules.statusColors.late,[L.early]:rules.statusColors.early};
         const summaryRows=summaryEvents.map(e=>`<tr><td>${e.date}</td><td style="font-weight:700">${escHtml(e.name)}</td><td style="color:${statusColor[e.status]||'#333'};font-weight:700">${e.status}</td><td>${e.inT||'—'}</td><td>${e.outT||'—'}</td></tr>`).join('');
-        const summaryPage=`<!DOCTYPE html><html><head><meta charset="utf-8"><style>body{font-family:'맑은 고딕',sans-serif;padding:24px;font-size:12px;}h2{font-size:15px;text-align:center;margin-bottom:4px;}p{text-align:center;color:#666;margin-bottom:16px;font-size:11px;}table{width:100%;border-collapse:collapse;}th,td{border:1px solid #ccc;padding:5px 8px;text-align:center;}th{background:#f0f0f0;font-weight:700;}</style></head><body><h2>${escHtml(acName)} 직권입력관리대장 — 비출석 요약</h2><p>${practiceDates[0]?fmtDocDate(practiceDates[0]):''} ~ ${practiceDates[practiceDates.length-1]?fmtDocDate(practiceDates[practiceDates.length-1]):''}</p><table><thead><tr><th>날짜</th><th>이름</th><th>사유</th><th>출근</th><th>퇴근</th></tr></thead><tbody>${summaryRows}</tbody></table></body></html>`;
+        // 날짜별 페이지(template-entry.html)와 동일한 상단 정보행(훈련과정명/훈련기관/전체훈련기간/현장훈련기간/훈련시간/반코드/관리자)을 rawHtml에서 그대로 추출해 재사용
+        const styleMatch=rawHtml.match(/<style[\s\S]*?<\/style>/);
+        const styleBlock=styleMatch?styleMatch[0]:'';
+        const infoTblStart=rawHtml.indexOf('<table class="c31">');
+        const dataHeadStart=rawHtml.indexOf('<tr class="c64">');
+        let infoRowsHtml='';
+        if(infoTblStart>=0&&dataHeadStart>infoTblStart){
+            let infoBlock=rawHtml.slice(infoTblStart,dataHeadStart)
+                .replace(/<tr class="c36">[\s\S]*?<\/tr>\s*/,''); // 제목 행 제거 (요약 페이지 자체 제목과 중복 방지)
+            infoBlock+='</thead></table>';
+            infoRowsHtml=fillTemplate(infoBlock,{
+                '반 코드':formatClassCodeDisplay(cls?.code)||'',
+                '학원명':acName,
+                '원장님이름':dirName,
+                '전체훈련기간':totalPeriod,
+                '현장훈련기간':practicePeriodDir,
+                '전자시간표 상 실습시간':ttPracticeTimeDir,
+                '전자시간표 상 점심시간':lunchTimeDisplayDir
+            });
+        }
+        const summaryPage=`<!DOCTYPE html><html><head><meta charset="utf-8">${styleBlock}<style>body{font-family:'맑은 고딕',sans-serif;padding:24px;font-size:12px;}h2{font-size:15px;text-align:center;margin-bottom:4px;}p.summary-range{text-align:center;color:#666;margin-bottom:16px;font-size:11px;}.summary-info-wrap{overflow-x:auto;margin-bottom:16px;}table.summary-tbl{width:100%;border-collapse:collapse;}table.summary-tbl th,table.summary-tbl td{border:1px solid #ccc;padding:5px 8px;text-align:center;}table.summary-tbl th{background:#f0f0f0;font-weight:700;}</style></head><body><h2>${escHtml(acName)} 직권입력관리대장 — 비출석 요약</h2>${infoRowsHtml?`<div class="summary-info-wrap">${infoRowsHtml}</div>`:''}<p class="summary-range">${practiceDates[0]?fmtDocDate(practiceDates[0]):''} ~ ${practiceDates[practiceDates.length-1]?fmtDocDate(practiceDates[practiceDates.length-1]):''}</p><table class="summary-tbl"><thead><tr><th>날짜</th><th>이름</th><th>사유</th><th>출근</th><th>퇴근</th></tr></thead><tbody>${summaryRows}</tbody></table></body></html>`;
         pages.unshift(summaryPage);
     }
     return pages;
