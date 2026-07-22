@@ -930,7 +930,8 @@ body{font-family:'Pretendard',system-ui,sans-serif;background:var(--canvas);colo
             <button class="htab-btn active" data-tab="docs" onclick="showVtab('docs')">문서발급</button>
             <button class="htab-btn" data-tab="approve" onclick="showVtab('approve')">승인&ensp;<span id="approve-count" class="badge badge-yellow" style="display:none;"></span></button>
             <button class="htab-btn" data-tab="cls" onclick="showVtab('cls')">반정보</button>
-            <button class="htab-btn" data-tab="hospmgmt" onclick="showVtab('hospmgmt')">학생정보변경</button>
+            <button class="htab-btn" data-tab="hospmgmt" onclick="showVtab('hospmgmt')">학생정보</button>
+            <button class="htab-btn" data-tab="hosp" onclick="showVtab('hosp')">실습병원</button>
           </div>
           <!-- hidden count spans (kept for renderPending/renderMissingOut compat) -->
           <span id="pending-count" style="display:none;"></span>
@@ -1101,6 +1102,35 @@ body{font-family:'Pretendard',system-ui,sans-serif;background:var(--canvas);colo
               <div class="cls-section">
                 <div class="cls-section-title">등록된 반 목록</div>
                 <div id="cls-reg-list"><div class="empty-state" style="padding:8px;">등록된 반 없음</div></div>
+              </div>
+
+            </div>
+
+            <!-- 실습병원 탭 -->
+            <div class="htab-panel" id="vtab-hosp">
+
+              <div class="cls-section">
+                <div class="cls-section-title">등록된 실습병원</div>
+                <div id="hosp-mgmt-list"><div class="empty-state" style="padding:8px;">등록된 병원 없음</div></div>
+              </div>
+
+              <div class="cls-section">
+                <div class="cls-section-title">새 병원 신청</div>
+                <div style="font-size:12px;color:var(--muted);margin-bottom:10px;">신청 후 최고관리자 승인이 완료되면 실제 병원 목록에 등록됩니다.</div>
+                <div class="form-group" style="margin-bottom:10px;">
+                  <label class="form-label">병원명 (띄어쓰기 포함 최대 8자)</label>
+                  <input class="form-input" id="hospreq-name" maxlength="8" placeholder="예: 사하제일병원">
+                </div>
+                <div class="form-group" style="margin-bottom:14px;">
+                  <label class="form-label">주소</label>
+                  <input class="form-input" id="hospreq-address" placeholder="예: 부산 사하구 ...">
+                </div>
+                <button class="btn btn-primary" style="width:100%;" onclick="submitHospitalRequest()">신청하기</button>
+              </div>
+
+              <div class="cls-section">
+                <div class="cls-section-title">내가 신청한 병원 (대기중)</div>
+                <div id="hosp-myreq-list"><div class="empty-state" style="padding:8px;">신청 내역 없음</div></div>
               </div>
 
             </div>
@@ -2913,6 +2943,120 @@ async function addHospitalAdmin(name,lat,lon){
     showLoader(false);
 }
 
+// ── 실습병원 탭 (원장용 — 이름/메인좌표만 노출, 보조좌표는 절대 노출 안함) ──
+function renderHospMgmtList(){
+    const el=document.getElementById('hosp-mgmt-list');
+    if(!el)return;
+    if(!academyHospitals.length){
+        el.innerHTML='<div class="empty-state" style="padding:8px;">등록된 병원 없음</div>';
+        return;
+    }
+    el.innerHTML=academyHospitals.map((h,i)=>`
+      <div style="background:var(--canvas);border-radius:8px;margin-bottom:8px;padding:10px 12px;display:flex;align-items:center;justify-content:space-between;gap:10px;">
+        <div style="flex:1;min-width:0;">
+          <div id="hospmgmt-name-display-${i}" style="font-size:14px;font-weight:700;">${escHtml(h.name)}</div>
+          <div id="hospmgmt-name-edit-${i}" style="display:none;margin-top:4px;">
+            <input type="text" id="hospmgmt-name-input-${i}" value="${escHtml(h.name)}" maxlength="8"
+              style="padding:5px 8px;border:1.5px solid var(--brand);border-radius:6px;font-size:13px;font-weight:700;outline:none;width:140px;"
+              onkeydown="if(event.key==='Enter')saveHospMgmtRename(${i});if(event.key==='Escape')cancelHospMgmtRename(${i})">
+          </div>
+          <div style="font-size:11px;color:var(--muted);margin-top:2px;">위도 ${h.lat?.toFixed(6)} / 경도 ${h.lon?.toFixed(6)}</div>
+        </div>
+        <div style="display:flex;gap:6px;flex-shrink:0;">
+          <button id="hospmgmt-rename-btn-${i}" class="btn btn-outline btn-sm" onclick="startHospMgmtRename(${i})">이름 변경</button>
+          <button id="hospmgmt-rename-save-${i}" class="btn btn-primary btn-sm" style="display:none;" onclick="saveHospMgmtRename(${i})">저장</button>
+          <button id="hospmgmt-rename-cancel-${i}" class="btn btn-sm" style="display:none;background:rgba(0,0,0,0.08);color:var(--text);" onclick="cancelHospMgmtRename(${i})">취소</button>
+        </div>
+      </div>`).join('');
+}
+
+function startHospMgmtRename(i){
+    document.getElementById('hospmgmt-name-display-'+i).style.display='none';
+    document.getElementById('hospmgmt-name-edit-'+i).style.display='block';
+    document.getElementById('hospmgmt-rename-btn-'+i).style.display='none';
+    document.getElementById('hospmgmt-rename-save-'+i).style.display='';
+    document.getElementById('hospmgmt-rename-cancel-'+i).style.display='';
+    const inp=document.getElementById('hospmgmt-name-input-'+i);
+    inp.focus();inp.select();
+}
+
+function cancelHospMgmtRename(i){
+    document.getElementById('hospmgmt-name-display-'+i).style.display='';
+    document.getElementById('hospmgmt-name-edit-'+i).style.display='none';
+    document.getElementById('hospmgmt-rename-btn-'+i).style.display='';
+    document.getElementById('hospmgmt-rename-save-'+i).style.display='none';
+    document.getElementById('hospmgmt-rename-cancel-'+i).style.display='none';
+}
+
+async function saveHospMgmtRename(i){
+    const acId=directorData?.academyId;
+    if(!acId){showToast('학원 정보 없음','error');return;}
+    const oldName=academyHospitals[i]?.name;
+    const newName=document.getElementById('hospmgmt-name-input-'+i)?.value.trim();
+    if(!newName){showToast('병원명을 입력해주세요','error');return;}
+    // maxlength 우회(개발자도구 등) 대비 재검증
+    if(newName.length>8){showToast('병원명은 띄어쓰기 포함 8자 이내여야 합니다','error');return;}
+    if(newName===oldName){cancelHospMgmtRename(i);return;}
+    if(academyHospitals.some((h,j)=>j!==i&&h.name===newName)){showToast('이미 같은 이름의 병원이 있습니다','error');return;}
+    showLoader(true);
+    try{
+        const updated=academyHospitals.map((h,j)=>j===i?{...h,name:newName}:h);
+        await window.fsUpdateDoc(window.fsDoc(window.db,'academies',acId),{hospitals:updated});
+        showToast('병원 이름 변경 완료','success');
+        await loadAcademyHospitals();
+        renderHospMgmtList();
+    }catch(e){showToast('저장 실패: '+e.message,'error');}
+    showLoader(false);
+}
+
+async function submitHospitalRequest(){
+    const acId=directorData?.academyId;
+    if(!acId){showToast('학원 정보 없음','error');return;}
+    const name=document.getElementById('hospreq-name').value.trim();
+    const address=document.getElementById('hospreq-address').value.trim();
+    if(!name){showToast('병원명을 입력해주세요','error');return;}
+    // maxlength 우회(개발자도구 등) 대비 재검증
+    if(name.length>8){showToast('병원명은 띄어쓰기 포함 8자 이내여야 합니다','error');return;}
+    if(!address){showToast('주소를 입력해주세요','error');return;}
+    showLoader(true);
+    try{
+        await window.fsAddDoc(window.fsCollection(window.db,'hospitalRequests'),{
+            academyId:acId,
+            academyName:directorData?.academyName||'',
+            hospitalName:name,
+            address,
+            status:'pending',
+            requestedAt:window.fsServerTimestamp(),
+            requestedBy:directorDocId||''
+        });
+        showToast('병원 신청 완료 — 승인 대기 중','success');
+        document.getElementById('hospreq-name').value='';
+        document.getElementById('hospreq-address').value='';
+        await loadMyHospitalRequests();
+    }catch(e){showToast('신청 실패: '+e.message,'error');}
+    showLoader(false);
+}
+
+async function loadMyHospitalRequests(){
+    const acId=directorData?.academyId;
+    const el=document.getElementById('hosp-myreq-list');
+    if(!el)return;
+    if(!acId){el.innerHTML='<div class="empty-state" style="padding:8px;">학원 정보 없음</div>';return;}
+    try{
+        const q=window.fsQuery(window.fsCollection(window.db,'hospitalRequests'),window.fsWhere('academyId','==',acId),window.fsWhere('status','==','pending'));
+        const snap=await window.fsGetDocs(q);
+        const reqs=[];
+        snap.forEach(d=>reqs.push({id:d.id,...d.data()}));
+        if(!reqs.length){el.innerHTML='<div class="empty-state" style="padding:8px;">대기 중인 신청 없음</div>';return;}
+        el.innerHTML=reqs.map(r=>`
+          <div style="background:var(--canvas);border-radius:8px;margin-bottom:6px;padding:10px 12px;">
+            <div style="font-size:13px;font-weight:700;">${escHtml(r.hospitalName||'-')}</div>
+            <div style="font-size:11px;color:var(--muted);margin-top:2px;">${escHtml(r.address||'-')}</div>
+            <div style="font-size:11px;color:var(--brand);font-weight:700;margin-top:4px;">승인 대기 중</div>
+          </div>`).join('');
+    }catch(e){el.innerHTML='<div class="empty-state" style="padding:8px;">불러오기 실패</div>';}
+}
+
 // ── 반 정보 ──────────────────────────────────────────────
 function toggleAddClassForm(){
     const f=document.getElementById('add-class-form');
@@ -3247,6 +3391,7 @@ function showVtab(id){
     const panel=document.getElementById('vtab-'+id);
     if(panel)panel.classList.add('active');
     if(id==='docs')initDocTab();
+    if(id==='hosp'){renderHospMgmtList();loadMyHospitalRequests();}
 }
 
 function updateApproveCount(){
