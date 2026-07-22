@@ -4106,18 +4106,20 @@ function getAttForDate(kakaoId,date){
 async function generatePracticeCardHtml(cls,students,startDate,endDate,sigs){
     const allDates=getDatesInRange(startDate,endDate);
     const clsTt=cls?.timetableData||null;
-    let practiceDates;
-    if(clsTt){
-        const stuKids=students.map(s=>String(s.kakaoId));
-        // 시간표 날짜 + 보강(비시간표일 출근 기록 있는 날) 포함
-        const extraDays=allDates.filter(d=>!clsTt[d]&&attendanceRecords.some(r=>stuKids.includes(String(r.kakaoId))&&normDate(r.date)===d&&r.inTime));
-        practiceDates=[...allDates.filter(d=>clsTt[d]),...extraDays].sort();
-    }else{
-        practiceDates=allDates;
-    }
+    // 예정일(시간표)은 반 전체 공통이므로 미리 계산
+    const scheduledDates=clsTt?allDates.filter(d=>clsTt[d]):allDates;
     const rules=await loadDocRules();
     const pages=[];
     for(const stu of students){
+        // 보강(비예정일 출근) 포함 여부는 카드 주인공 본인의 출결 기록만으로 판정 (다른 학생의 보강이 섞이면 안 됨)
+        let practiceDates;
+        if(clsTt){
+            const kid=String(stu.kakaoId);
+            const extraDays=allDates.filter(d=>!clsTt[d]&&attendanceRecords.some(r=>String(r.kakaoId)===kid&&normDate(r.date)===d&&r.inTime));
+            practiceDates=[...scheduledDates,...extraDays].sort();
+        }else{
+            practiceDates=scheduledDates;
+        }
         const stuPages=await generateFromTemplate(
             './template-card.html',cls,stu,practiceDates,sigs,
             (att,sigData)=>sigData?.managerSig||att?.managerSig||'',
