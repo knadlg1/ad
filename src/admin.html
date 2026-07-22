@@ -4027,6 +4027,7 @@ async function generateFromTemplate(templateUrl,cls,stu,practiceDates,sigs,getMa
         rowSlice=rowSlice.replace('{{사유}}',`{{사유_${i}}}`);
         rowSlice=rowSlice.replace('{{담당자이름}}',`{{담당자이름_${i}}}`);
         rowSlice=rowSlice.replace('{{담당자직위}}',`{{담당자직위_${i}}}`);
+        rowSlice=rowSlice.replace('{{당일시간}}',`{{당일시간_${i}}}`);
         rawHtml=rawHtml.slice(0,trStart)+rowSlice+rawHtml.slice(trEnd+5);
     }
     const acName=directorData?.academyName||'';
@@ -4095,12 +4096,14 @@ async function generateFromTemplate(templateUrl,cls,stu,practiceDates,sigs,getMa
                 const hasAtt=!!(inT||outT);
                 const dayS=clsTt?clsTt[date]:null;
                 const isScheduled=clsTt?!!clsTt[date]:true;
+                let dayHoursStr='';
                 if(inM>0&&outM>inM){
                     const sMs=dayS?timeToMinutes(dayS.start):9*60;
                     const effIn=Math.max(inM,sMs);
                     const rawM=outM-effIn,netM=rawM>=rules.lunchThresholdMin?rawM-lunchMinsGen:rawM;
                     const wh=Math.min(Math.floor(netM/60),rules.maxDailyHours);
                     if(wh>0)cumMins+=wh*60;
+                    dayHoursStr=String(Math.min(wh,9));
                 }
                 // 사유 계산
                 let statusText;
@@ -4131,6 +4134,7 @@ async function generateFromTemplate(templateUrl,cls,stu,practiceDates,sigs,getMa
                 map[`담당자이름_${i}`]=sigData?.managerName||att?.managerName||'';
                 map[`담당자직위_${i}`]=sigData?.managerPosition||att?.managerPosition||'';
                 map[`실습병원_${i}`]=stu?.hospital||'';
+                map[`당일시간_${i}`]=dayHoursStr;
             }else{
                 map[`ROW_CELL_STYLE_${i}`]='style="background-color:#e8e8e8"';
                 map[`ROW_TR_STYLE_${i}`]='style="display:none"';
@@ -4138,7 +4142,7 @@ async function generateFromTemplate(templateUrl,cls,stu,practiceDates,sigs,getMa
                 map[`출근시간${i}`]='';map[`퇴근시간${i}`]='';
                 map[`누적시간${i}`]='';map[`학생서명${i}`]='';map[`담당자서명${i}`]='';
                 map[`사유_${i}`]='';map[`담당자이름_${i}`]='';map[`담당자직위_${i}`]='';
-                map[`실습병원_${i}`]='';
+                map[`실습병원_${i}`]='';map[`당일시간_${i}`]='';
             }
         }
         const lastDate=chunk[chunk.length-1];
