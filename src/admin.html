@@ -17,7 +17,7 @@
 <script src="https://js.tosspayments.com/v1/payment"></script>
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-app.js";
-  import { getFirestore, doc, getDoc, setDoc, updateDoc, getDocs, deleteDoc, collection, query, where, orderBy, arrayUnion, arrayRemove, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-firestore.js";
+  import { getFirestore, doc, getDoc, setDoc, updateDoc, getDocs, deleteDoc, collection, query, where, orderBy, arrayUnion, arrayRemove, addDoc, serverTimestamp, writeBatch } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-firestore.js";
   import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-auth.js";
   const app = initializeApp({
     apiKey:"AIzaSyBaCpQKykViq6526dCJ8mEYbUZqyg5-NUo",
@@ -36,6 +36,7 @@
   window.fsWhere = where; window.fsOrderBy = orderBy;
   window.fsArrayUnion = arrayUnion; window.fsArrayRemove = arrayRemove;
   window.fsAddDoc = addDoc; window.fsServerTimestamp = serverTimestamp;
+  window.fsWriteBatch = writeBatch;
   try { await signInAnonymously(auth); } catch(e) { console.warn('익명 인증 실패:', e); }
   window.fsReady = true;
   window.dispatchEvent(new Event('fsReady'));
@@ -3002,7 +3003,16 @@ async function saveHospMgmtRename(i){
     try{
         const updated=academyHospitals.map((h,j)=>j===i?{...h,name:newName}:h);
         await window.fsUpdateDoc(window.fsDoc(window.db,'academies',acId),{hospitals:updated});
-        showToast('병원 이름 변경 완료','success');
+        // 배정된 학생들의 hospital 필드도 새 이름으로 일괄 갱신
+        const stuQ=window.fsQuery(window.fsCollection(window.db,'students'),window.fsWhere('academyId','==',acId),window.fsWhere('hospital','==',oldName));
+        const stuSnap=await window.fsGetDocs(stuQ);
+        let updatedCount=0;
+        if(!stuSnap.empty){
+            const batch=window.fsWriteBatch(window.db);
+            stuSnap.forEach(d=>{batch.update(d.ref,{hospital:newName});updatedCount++;});
+            await batch.commit();
+        }
+        showToast('병원 이름 변경 완료'+(updatedCount?` (학생 ${updatedCount}명 갱신)`:''),'success');
         await loadAcademyHospitals();
         renderHospMgmtList();
     }catch(e){showToast('저장 실패: '+e.message,'error');}
