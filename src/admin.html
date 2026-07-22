@@ -3316,15 +3316,16 @@ function computePracticePeriodBlocks(sortedDays,otherSubjectDates){
     blocks.push({start:curStart,end:curEnd});
     return blocks;
 }
-// 구간 배열을 문서 표시용 문자열로: 1개면 "시작 ~ 종료", 여러 개면 마지막 날짜에만 연도를 붙이고 공백 없이 이어붙임
+// 구간 배열을 문서 표시용 문자열로: 1개면 "시작 ~ 종료", 여러 개면 맨 처음·맨 마지막 날짜에만 연도를 붙이고 공백 없이 이어붙임
 function joinPracticePeriods(periods){
     if(!periods||!periods.length)return'';
     if(periods.length===1)return`${fmtDocDate(periods[0].start)} ~ ${fmtDocDate(periods[0].end)}`;
     const md=dateStr=>{if(!dateStr)return'';const[,m,d]=dateStr.split('-');return`${String(m).padStart(2,'0')}.${String(d).padStart(2,'0')}`;};
     const lastIdx=periods.length-1;
     return periods.map((p,i)=>{
+        const startStr=(i===0)?fmtDocDate(p.start):md(p.start);
         const endStr=(i===lastIdx)?fmtDocDate(p.end):md(p.end);
-        return`${md(p.start)}~${endStr}`;
+        return`${startStr}~${endStr}`;
     }).join(', ');
 }
 
