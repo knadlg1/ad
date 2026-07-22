@@ -4086,7 +4086,15 @@ async function generatePracticeCardHtml(cls,students,startDate,endDate,sigs){
 async function generateDirectEntryHtml(cls,students,startDate,endDate,sigs){
     const allDates=getDatesInRange(startDate,endDate);
     const clsTt=cls?.timetableData||null;
-    const practiceDates=clsTt?allDates.filter(d=>clsTt[d]):allDates;
+    let practiceDates;
+    if(clsTt){
+        const stuKids=students.map(s=>String(s.kakaoId));
+        // 시간표 날짜 + 보강(비시간표일 출근 기록 있는 날) 포함 (generatePracticeCardHtml과 동일 로직)
+        const extraDays=allDates.filter(d=>!clsTt[d]&&attendanceRecords.some(r=>stuKids.includes(String(r.kakaoId))&&normDate(r.date)===d&&r.inTime));
+        practiceDates=[...allDates.filter(d=>clsTt[d]),...extraDays].sort();
+    }else{
+        practiceDates=allDates;
+    }
 
     let rawHtml=decodeNumericEntities(await loadDocTemplate('./template-entry.html','directEntry'));
     const rules=await loadDocRules();
@@ -4134,6 +4142,7 @@ async function generateDirectEntryHtml(cls,students,startDate,endDate,sigs){
     const pages=[];
     for(const date of practiceDates){
         const dayS=clsTt?clsTt[date]:null;
+        const isScheduledDate=clsTt?!!dayS:true;
         for(const stu of students){
             const att=getAttForDate(stu.kakaoId,date);
             const inT=att?.inTime||'';
@@ -4151,7 +4160,7 @@ async function generateDirectEntryHtml(cls,students,startDate,endDate,sigs){
             const hasAtt=!!(inT||outT);
             let evStatus=null;
             if(!hasAtt&&isScheduled){evStatus=L.absent;}
-            else if(inM>0&&outM>0){
+            else if(isScheduled&&inM>0&&outM>0){
                 const schedStart=dayS?timeToMinutes(dayS.start):9*60;
                 const schedEnd=dayS?timeToMinutes(dayS.end):16*60+30;
                 if(inM>schedStart)evStatus=L.late;
@@ -4159,9 +4168,14 @@ async function generateDirectEntryHtml(cls,students,startDate,endDate,sigs){
             }
             if(evStatus)summaryEvents.push({date,name:stu.name||'-',status:evStatus,inT,outT});
         }
-        const totalChunks=Math.max(1,Math.ceil(students.length/30));
+        // 예정일: 학생 전원(결석 포함) 나열. 비예정일(보강): 그날 실제 출퇴근 기록이 있는 학생만 나열
+        const dateStudents=isScheduledDate?students:students.filter(s=>{
+            const att=getAttForDate(s.kakaoId,date);
+            return !!(att?.inTime||att?.outTime);
+        });
+        const totalChunks=Math.max(1,Math.ceil(dateStudents.length/30));
         for(let pi=0;pi<totalChunks;pi++){
-            const chunk=students.slice(pi*30,(pi+1)*30);
+            const chunk=dateStudents.slice(pi*30,(pi+1)*30);
             const map={
                 '학원명':acName,'전체훈련기간':totalPeriod,'현장훈련기간':practicePeriodDir,
                 '원장님이름':dirName,
@@ -4209,7 +4223,8 @@ async function generateDirectEntryHtml(cls,students,startDate,endDate,sigs){
                     map[`ROW_BG_${i}`]='';
                 }
             }
-            const pageHasData=chunk.some(stu2=>{const att2=getAttForDate(stu2.kakaoId,date);return !!(att2?.inTime||att2?.outTime);});
+            // 예정일이면 전원 결석이어도 항상 페이지 생성, 비예정일(보강)은 dateStudents가 이미 실제 출퇴근자만 걸러둔 상태
+            const pageHasData=isScheduledDate||chunk.some(stu2=>{const att2=getAttForDate(stu2.kakaoId,date);return !!(att2?.inTime||att2?.outTime);});
             if(pageHasData)pages.push(fillTemplate(rawHtml,map));
         }
     }
