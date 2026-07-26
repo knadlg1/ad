@@ -14,7 +14,7 @@
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/ko.js"></script>
 <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
-<script src="https://js.tosspayments.com/v1/payment"></script>
+<script src="https://pg-web.nicepay.co.kr/v3/common/js/nicepay-pgweb.js"></script>
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-app.js";
   import { getFirestore, doc, getDoc, setDoc, updateDoc, getDocs, deleteDoc, collection, query, where, orderBy, arrayUnion, arrayRemove, addDoc, serverTimestamp, writeBatch } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-firestore.js";
@@ -617,6 +617,8 @@ body{font-family:'Pretendard',system-ui,sans-serif;background:var(--canvas);colo
 .stu-dropout-badge{display:inline-block;font-size:10px;font-weight:700;color:#ef4444;background:#fef2f2;border:1px solid #fecaca;border-radius:4px;padding:1px 6px;margin-left:4px;vertical-align:middle;}
 .stu-dropout-btn{font-size:11px;padding:3px 8px;border:1px solid #fecaca;background:#fff;color:#ef4444;border-radius:4px;cursor:pointer;font-weight:700;white-space:nowrap;}
 .stu-dropout-btn.active{background:#ef4444;color:#fff;border-color:#ef4444;}
+.stu-jabi-btn{font-size:11px;padding:3px 8px;border:1px solid #c4b5fd;background:#fff;color:#6c63ff;border-radius:4px;cursor:pointer;font-weight:700;white-space:nowrap;}
+.stu-jabi-btn.active{background:#6c63ff;color:#fff;border-color:#6c63ff;}
 .doc-stu-row.dropped{opacity:0.45;}
 .doc-stu-row.dropped span{text-decoration:line-through;}
 /* ── 3-세그먼트 진행 바 ── */
@@ -769,6 +771,11 @@ body{font-family:'Pretendard',system-ui,sans-serif;background:var(--canvas);colo
       <!-- 중도탈락 -->
       <div class="nav-section" style="margin-top:8px;">
         <button class="nav-item" id="nav-dropout" onclick="showPage('dropout',this);renderDropoutPage()">중도탈락</button>
+      </div>
+
+      <!-- 결제 -->
+      <div class="nav-section" style="margin-top:8px;">
+        <button class="nav-item" id="nav-payment" onclick="showPage('payment',this)">결제</button>
       </div>
 
       <!-- 설정 + 로그아웃 -->
@@ -1024,6 +1031,13 @@ body{font-family:'Pretendard',system-ui,sans-serif;background:var(--canvas);colo
 
               <div class="approve-section-head" style="margin-top:18px;">승인 내역</div>
               <div id="missingout-approved-list" style="max-height:140px;overflow-y:auto;"><div class="empty-state" style="padding:8px;">승인된 내역 없음</div></div>
+
+              <div class="approve-section-head" style="margin-top:18px;">수강증명서 발급 신청</div>
+              <div style="font-size:12px;color:var(--muted);margin-bottom:10px;">승인 시 PDF가 자동 생성됩니다. 학생은 앱에서 다운로드할 수 있습니다. (이메일 발송은 준비 중)</div>
+              <div id="certreq-list" style="max-height:260px;overflow-y:auto;"><div class="empty-state" style="padding:8px;">대기 중인 발급 신청 없음</div></div>
+
+              <div class="approve-section-head" style="margin-top:18px;">수강증명서 발급내역</div>
+              <div id="certreq-approved-list" style="max-height:140px;overflow-y:auto;"><div class="empty-state" style="padding:8px;">발급된 내역 없음</div></div>
             </div>
 
             <!-- 학생정보변경 탭 (7:3 split) -->
@@ -1149,15 +1163,13 @@ body{font-family:'Pretendard',system-ui,sans-serif;background:var(--canvas);colo
       </div>
       </div>
 
-      <!-- ── 설정 ── -->
-      <div id="page-settings" class="page">
+      <!-- ── 결제 ── -->
+      <div id="page-payment" class="page">
         <div class="settings-wrap">
 
           <div class="stab-bar">
             <button class="stab-btn active" onclick="showSettingsTab('card',this)">등록 카드</button>
             <button class="stab-btn" onclick="showSettingsTab('subs',this)">구독 현황</button>
-            <button class="stab-btn" onclick="showSettingsTab('pw',this)">비밀번호 변경</button>
-            <button class="stab-btn" onclick="showSettingsTab('seal',this)">직인 관리</button>
           </div>
 
           <div id="stab-card" class="stab-panel active">
@@ -1192,7 +1204,19 @@ body{font-family:'Pretendard',system-ui,sans-serif;background:var(--canvas);colo
             </div>
           </div>
 
-          <div id="stab-pw" class="stab-panel">
+        </div>
+      </div>
+
+      <!-- ── 설정 ── -->
+      <div id="page-settings" class="page">
+        <div class="settings-wrap">
+
+          <div class="stab-bar">
+            <button class="stab-btn active" onclick="showSettingsTab('pw',this)">비밀번호 변경</button>
+            <button class="stab-btn" onclick="showSettingsTab('seal',this)">직인 관리</button>
+          </div>
+
+          <div id="stab-pw" class="stab-panel active">
             <div class="card">
               <div class="card-title">비밀번호 변경</div>
               <div class="form-group">
@@ -1346,7 +1370,7 @@ body{font-family:'Pretendard',system-ui,sans-serif;background:var(--canvas);colo
 
 <script>
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbzOGDthNKozJV9j3RIRqgsipHfvYhj_YJ3YZG42RRIdSPRAv51F-pDTu2VHhC2qSMY25Q/exec';
-const TOSS_CLIENT_KEY = 'test_ck_D5GePWvyJnrK0W0k6q8gLzN97Eoq';
+const CF_BASE_URL = 'https://us-central1-my-attendance-8122d.cloudfunctions.net';
 const KAKAO_REST_KEY = 'YOUR_KAKAO_REST_API_KEY'; // 실제 키로 교체 필요
 
 let directorData = null;
@@ -1711,7 +1735,7 @@ async function loadAll(){
     showLoader(true);
     try{
         await Promise.all([loadStudents(),loadClasses(),loadAcademyHospitals()]);
-        await Promise.all([loadAttendance(),loadPendingStudents(),loadMissingOutRequests(),loadAttendanceAuthRequests(),loadSealImage(),loadMissingOutApproved()]);
+        await Promise.all([loadAttendance(),loadPendingStudents(),loadMissingOutRequests(),loadAttendanceAuthRequests(),loadSealImage(),loadMissingOutApproved(),loadCertRequests(),loadCertRequestsApproved()]);
         renderStudents();
         initDocTab();
         renderAuthReqStuDropdown();
@@ -1930,7 +1954,8 @@ function renderAttendance(){
             const practiceDays=cls?(cls.practiceDays||[]):[];
             const stuRecs=attendanceRecords.filter(r=>String(r.kakaoId)===String(stu.kakaoId));
             const{start:clsStart,end:clsEnd}=getClsPracticePeriod(cls);
-            const effStart=stu.practiceStart||clsStart||null;
+            // 자비 학생은 practiceStart 하한을 적용하지 않음(실습 시작 전 기록도 정상 포함)
+            const effStart=stu.jabi?null:(stu.practiceStart||clsStart||null);
             const effEnd=stu.practiceEnd||clsEnd||null;
             let totalMins=0;
             stuRecs.forEach(rec=>{
@@ -1950,8 +1975,7 @@ function renderAttendance(){
                 if(out<=adjIn)return;
                 const rawMins=out-adjIn;
                 const lunchM=cls?.lunchBreakMins||30;
-                const netMins=rawMins>=240?rawMins-lunchM:rawMins;
-                const wh=Math.min(Math.floor(netMins/60),8);
+                const wh=capWorkHours(rawMins,240,lunchM,8);
                 if(wh<=0)return;
                 totalMins+=wh*60;
             });
@@ -1989,8 +2013,8 @@ function renderAttendance(){
                     if(d>selDate)return;
                     if(effStart&&d<effStart)return;
                     const s2=toMins(sched.start),e2=toMins(sched.end);
-                    const rM=e2-s2,nM=rM>=240?rM-lunchM:rM;
-                    const wh=Math.min(Math.floor(nM/60),8);
+                    const rM=e2-s2;
+                    const wh=capWorkHours(rM,240,lunchM,8);
                     if(wh>0)stdMins+=wh*60;
                 });
             }
@@ -2020,7 +2044,8 @@ function renderAttendance(){
             const practiceDays=cls?(cls.practiceDays||[]):[];
             const stuRecs=attendanceRecords.filter(r=>String(r.kakaoId)===String(stu.kakaoId));
             const{start:clsStart,end:clsEnd}=getClsPracticePeriod(cls);
-            const effStart=stu.practiceStart||clsStart||null;
+            // 자비 학생은 practiceStart 하한을 적용하지 않음(실습 시작 전 기록도 정상 포함)
+            const effStart=stu.jabi?null:(stu.practiceStart||clsStart||null);
             const effEnd=stu.practiceEnd||clsEnd||null;
             const pracDateList=dateList.filter(d=>{
                 if(effStart&&d<effStart)return false;
@@ -2044,8 +2069,7 @@ function renderAttendance(){
                     const adjIn=Math.max(inMins,sMs);
                     const rawMins=outMins-adjIn;
                     const lunchM=cls?.lunchBreakMins||30;
-                    const netMins=rawMins>=240?rawMins-lunchM:rawMins;
-                    const wh=Math.min(Math.floor(netMins/60),8);
+                    const wh=capWorkHours(rawMins,240,lunchM,8);
                     if(wh>0)totalMins+=wh*60;
                 }
             });
@@ -2247,11 +2271,12 @@ function filterStudentsPanel(){
             academyHospitals.map(h=>`<option value="${escHtml(h.name)}"${h.name===s.hospital?' selected':''}>${escHtml(h.name)}</option>`).join('');
         const dropoutBadge=s.droppedOut?'<span class="stu-dropout-badge">중도탈락</span>':'';
         const dropoutBtn=`<button class="stu-dropout-btn${s.droppedOut?' active':''}" onclick="toggleDropout('${s.kakaoId}')">${s.droppedOut?'탈락해제':'중도탈락'}</button>`;
+        const jabiBtn=`<button class="stu-jabi-btn${s.jabi?' active':''}" onclick="toggleJabi('${s.kakaoId}')" title="실습 시작일 이전 출퇴근 기록도 실습시간에 포함">${s.jabi?'자비해제':'자비학생'}</button>`;
         return `<tr data-id="${s.kakaoId}"${s.droppedOut?' style="opacity:0.55;"':''}>
             <td><select class="stu-edit-inline-sel" onchange="onInlineClsChange('${s.kakaoId}',this)">${clsOpts}</select></td>
             <td style="font-weight:700;white-space:nowrap;">${escHtml(s.name||'-')}</td>
             <td><select class="stu-edit-inline-sel" onchange="onInlineHospChange('${s.kakaoId}',this)">${hospOpts}</select></td>
-            <td>${dropoutBtn}</td>
+            <td style="display:flex;gap:4px;flex-wrap:wrap;">${dropoutBtn}${jabiBtn}</td>
         </tr>`;
     }).join('');
     listEl.innerHTML=`<table class="stu-edit-table"><colgroup><col style="width:40%"><col style="width:12%"><col style="width:38%"><col style="width:10%"></colgroup><thead><tr><th>반</th><th>이름</th><th>실습병원</th><th>탈락</th></tr></thead><tbody>${rows}</tbody></table>`;
@@ -2518,7 +2543,7 @@ function renderMissingOutRequests(){
                 <div style="flex:1;text-align:center;">
                     <div style="font-size:10px;color:var(--muted);margin-bottom:3px;font-weight:700;">담당자 서명</div>
                     <img src="data:image/png;base64,${r.managerSig}" style="width:100%;max-height:50px;object-fit:contain;border:1px solid var(--border);border-radius:6px;background:#fff;">
-                    ${(r.managerName||r.managerTitle||r.managerPhone)?`<div style="font-size:10px;color:var(--muted);margin-top:3px;">${[r.managerName,r.managerTitle,r.managerPhone].filter(Boolean).join(' · ')}</div>`:''}
+                    ${(r.managerName||r.managerPosition||r.managerPhone)?`<div style="font-size:10px;color:var(--muted);margin-top:3px;">${[r.managerName,r.managerPosition,r.managerPhone].filter(Boolean).join(' · ')}</div>`:''}
                 </div>
             </div>`:'<div style="font-size:11px;color:#ef4444;padding-top:4px;">⚠ 서명 없음 (불완전한 제출)</div>'}
         </div>`}).join('');
@@ -2558,6 +2583,145 @@ async function rejectMissingOut(docId){
         await loadMissingOutRequests();
         await loadMissingOutApproved();
     }});
+}
+
+// ── 수강증명서(실습근무카드) 발급 신청 ── missingOut과 동일한 신청→승인 패턴.
+// PDF 생성/이메일 발송은 별도 설계 확정 후 연결 예정 — 지금은 상태 관리만 담당한다.
+let certRequests=[];
+
+async function loadCertRequests(){
+    const acId=directorData?.academyId;
+    if(!acId){certRequests=[];renderCertRequests();return;}
+    try{
+        const kakaoIds=studentsList.map(s=>String(s.kakaoId));
+        if(!kakaoIds.length){certRequests=[];renderCertRequests();return;}
+        let snap;
+        try{
+            const q=window.fsQuery(
+                window.fsCollection(window.db,'certRequests'),
+                window.fsWhere('status','==','pending'),
+                window.fsOrderBy('timestamp','desc')
+            );
+            snap=await window.fsGetDocs(q);
+        }catch(e){
+            const q2=window.fsQuery(
+                window.fsCollection(window.db,'certRequests'),
+                window.fsWhere('status','==','pending')
+            );
+            snap=await window.fsGetDocs(q2);
+        }
+        certRequests=[];
+        snap.forEach(d=>{
+            const data=d.data();
+            if(kakaoIds.includes(String(data.kakaoId))){
+                certRequests.push({id:d.id,...data});
+            }
+        });
+        certRequests.sort((a,b)=>(b.timestamp?.seconds||0)-(a.timestamp?.seconds||0));
+        renderCertRequests();
+    }catch(e){console.error('수강증명서 신청 로드 실패:',e);}
+}
+
+function renderCertRequests(){
+    updateApproveCount();
+    const el=document.getElementById('certreq-list');
+    if(!el)return;
+    if(!certRequests.length){el.innerHTML='<div class="empty-state" style="padding:8px;">대기 중인 발급 신청 없음</div>';return;}
+    el.innerHTML=certRequests.map(r=>{
+        const stu=studentsList.find(s=>String(s.kakaoId)===String(r.kakaoId));
+        const name=stu?.name||r.kakaoId;
+        const dayCount=(r.practiceDates||[]).length;
+        return `
+        <div class="pending-row">
+            <div class="pending-info">
+                <div class="pending-name">${escHtml(name)}</div>
+                <div class="pending-phone">${r.startDate} ~ ${r.endDate} (실습일 ${dayCount}일)</div>
+            </div>
+            <div class="pending-actions">
+                <button class="btn btn-primary btn-sm cr-approve-btn" data-id="${r.id}">승인</button>
+                <button class="btn btn-danger btn-sm cr-reject-btn" data-id="${r.id}">거절</button>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+document.addEventListener('click',e=>{
+    const ap=e.target.closest('.cr-approve-btn');
+    if(ap){approveCertRequest(ap.dataset.id);return;}
+    const rj=e.target.closest('.cr-reject-btn');
+    if(rj){rejectCertRequest(rj.dataset.id);}
+});
+
+async function approveCertRequest(docId){
+    if(!confirm('수강증명서 발급을 승인하시겠습니까?'))return;
+    await withSave(async()=>{
+        await window.fsUpdateDoc(window.fsDoc(window.db,'certRequests',docId),{
+            status:'approved',approvedAt:window.fsServerTimestamp()
+        });
+        // 승인 자체는 이미 완료됨 — PDF 생성 실패해도 승인을 되돌리지 않고 별도로만 알린다.
+        // (GAS가 아니라 Cloud Functions generateCertificatePdf를 호출한다.)
+        try{
+            const res=await fetch(`${CF_BASE_URL}/generateCertificatePdf`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({certRequestId:docId})});
+            const json=await res.json();
+            if(json?.status!=='success')showToast('승인은 완료됐지만 PDF 생성에 실패했습니다: '+(json?.message||'알 수 없는 오류'),'error');
+        }catch(e){showToast('승인은 완료됐지만 PDF 생성 요청 중 오류가 발생했습니다.','error');}
+    },{successMsg:'발급 승인 완료 ✓',delay:1000,onSuccess:async()=>{
+        await loadCertRequests();
+        await loadCertRequestsApproved();
+    }});
+}
+
+async function rejectCertRequest(docId){
+    if(!confirm('수강증명서 발급 신청을 거절하시겠습니까?'))return;
+    await withSave(async()=>{
+        await window.fsUpdateDoc(window.fsDoc(window.db,'certRequests',docId),{
+            status:'rejected',rejectedAt:window.fsServerTimestamp()
+        });
+    },{successMsg:'거절 완료 ✓',delay:800,onSuccess:async()=>{
+        await loadCertRequests();
+        await loadCertRequestsApproved();
+    }});
+}
+
+let certRequestsApproved=[];
+
+async function loadCertRequestsApproved(){
+    const acId=directorData?.academyId;
+    if(!acId){certRequestsApproved=[];renderCertRequestsApproved();return;}
+    try{
+        const kakaoIds=studentsList.map(s=>String(s.kakaoId));
+        if(!kakaoIds.length){certRequestsApproved=[];renderCertRequestsApproved();return;}
+        const q=window.fsQuery(
+            window.fsCollection(window.db,'certRequests'),
+            window.fsWhere('status','in',['approved','rejected'])
+        );
+        const snap=await window.fsGetDocs(q);
+        certRequestsApproved=[];
+        snap.forEach(d=>{
+            const data=d.data();
+            if(kakaoIds.includes(String(data.kakaoId)))certRequestsApproved.push({id:d.id,...data});
+        });
+        certRequestsApproved.sort((a,b)=>(b.approvedAt?.seconds||b.rejectedAt?.seconds||0)-(a.approvedAt?.seconds||a.rejectedAt?.seconds||0));
+        renderCertRequestsApproved();
+    }catch(e){console.error('수강증명서 발급내역 로드 실패',e);}
+}
+
+function renderCertRequestsApproved(){
+    const el=document.getElementById('certreq-approved-list');
+    if(!el)return;
+    if(!certRequestsApproved.length){el.innerHTML='<div class="empty-state" style="padding:8px;">발급된 내역 없음</div>';return;}
+    el.innerHTML=certRequestsApproved.map(r=>{
+        const stu=studentsList.find(s=>String(s.kakaoId)===String(r.kakaoId));
+        const name=stu?.name||r.kakaoId;
+        const isApproved=r.status==='approved';
+        return`<div class="pending-row" style="opacity:0.85;">
+  <div class="pending-info">
+    <div class="pending-name">${escHtml(name)} <span style="font-size:11px;font-weight:700;color:${isApproved?'#10b981':'#ef4444'}">[${isApproved?'승인':'거절'}]</span></div>
+    <div class="pending-phone">${r.startDate} ~ ${r.endDate}</div>
+  </div>
+  ${isApproved?(r.pdfUrl?`<button class="btn btn-sm" onclick="window.open('${r.pdfUrl}','_blank')" style="background:#ede9fe;color:var(--brand);">PDF</button>`:`<button class="btn btn-sm" onclick="showToast('PDF가 아직 생성되지 않았습니다.','info')" style="background:#f1f5f9;color:#94a3b8;">PDF 준비중</button>`):''}
+</div>`;
+    }).join('');
 }
 
 // ── 출결 인증 요청 ────────────────────────────────────────
@@ -2652,7 +2816,7 @@ function renderAttendanceAuthRequests(){
                 <div class="auth-req-card-sig">
                     <div class="auth-req-card-sig-label">담당자 서명</div>
                     ${r.managerSig?`<img src="data:image/png;base64,${r.managerSig}">`:'<span style="font-size:11px;color:var(--muted);">없음</span>'}
-                    ${(r.managerName||r.managerTitle||phone)?`<div style="font-size:10px;color:var(--muted);margin-top:3px;line-height:1.5;">${[r.managerName,r.managerTitle,phone].filter(Boolean).join(' · ')}</div>`:''}
+                    ${(r.managerName||r.managerPosition||phone)?`<div style="font-size:10px;color:var(--muted);margin-top:3px;line-height:1.5;">${[r.managerName,r.managerPosition,phone].filter(Boolean).join(' · ')}</div>`:''}
                 </div>
             </div>`:''}
         </div>`;
@@ -2685,7 +2849,7 @@ async function approveAuthRequest(docId,kakaoId,date){
         if(req.studentSig)attUpdate.studentSig=req.studentSig;
         if(req.managerSig)attUpdate.managerSig=req.managerSig;
         if(req.managerName)attUpdate.managerName=req.managerName;
-        if(req.managerTitle)attUpdate.managerTitle=req.managerTitle;
+        if(req.managerPosition)attUpdate.managerPosition=req.managerPosition;
         if(req.managerPhone)attUpdate.managerPhone=req.managerPhone;
         await window.fsSetDoc(window.fsDoc(window.db,'attendance',docKey),attUpdate,{merge:true});
         await window.fsUpdateDoc(window.fsDoc(window.db,'attendanceAuthRequests',docId),{status:'approved'});
@@ -3370,28 +3534,44 @@ async function loadPaymentHistory(){
 
 async function registerCard(){
     if(!directorDocId){showToast('로그인 상태를 확인해주세요','error');return;}
-    try{
-        const tossPayments=TossPayments(TOSS_CLIENT_KEY);
-        await tossPayments.requestBillingAuth('카드',{
-            customerKey:directorDocId,
-            successUrl:window.location.href+(window.location.href.includes('?')?'&':'?')+'billing=success',
-            failUrl:window.location.href+(window.location.href.includes('?')?'&':'?')+'billing=fail',
-        });
-    }catch(e){if(e.code!=='USER_CANCEL')showToast('카드 등록 중 오류: '+e.message,'error');}
-}
-
-async function handleBillingSuccess(authKey,customerKey){
     showLoader(true);
     try{
-        const res=await fetch(GAS_URL,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action:'issueBillingKey',authKey,customerKey})});
+        const returnUrl=window.location.href.split('?')[0];
+        const res=await fetch(CF_BASE_URL+'/prepareBillingAuth',{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({customerKey:directorDocId,returnUrl})});
         const data=await res.json();
-        if(data.billingKey){
-            await window.fsUpdateDoc(window.fsDoc(window.db,'directors',customerKey),{billingKey:data.billingKey,cardInfo:{brand:data.card?.issuerCode||'카드',last4:data.card?.number?.slice(-4)||'****'},paymentStatus:'active'});
-            if(directorData){directorData.billingKey=data.billingKey;directorData.cardInfo={brand:data.card?.issuerCode||'카드',last4:data.card?.number?.slice(-4)||'****'};directorData.paymentStatus='active';sessionStorage.setItem('directorSession',JSON.stringify({data:directorData,docId:customerKey}));}
-            showToast('카드 등록 완료','success');
-        }else showToast('빌링키 발급 실패: '+(data.message||''),'error');
+        if(data.status!=='success'){showToast('카드 등록 준비 실패: '+(data.message||''),'error');showLoader(false);return;}
+        const f=document.createElement('form');
+        f.method='post';f.action=CF_BASE_URL+'/issueBillingKey';f.style.display='none';
+        const addField=(name,value)=>{const i=document.createElement('input');i.type='hidden';i.name=name;i.value=value;f.appendChild(i);};
+        addField('GoodsName',data.goodsName);
+        addField('Amt',data.amt);
+        addField('MID',data.mid);
+        addField('EdiDate',data.ediDate);
+        addField('Moid',data.moid);
+        addField('PayMethod','CARD');
+        addField('BillAuthYN','Y');
+        addField('SignData',data.signData);
+        addField('CharSet','utf-8');
+        addField('ReturnURL',CF_BASE_URL+'/issueBillingKey'); // 모바일 웹뷰 콜백용(나이스페이 매뉴얼 명시)
+        document.body.appendChild(f);
+        goPay(f);
     }catch(e){showToast('처리 실패: '+e.message,'error');}
     showLoader(false);
+}
+
+// ── 카드등록 팝업(goPay) 완료 후 리다이렉트 처리 ──────────
+// issueBillingKey Cloud Function이 나이스페이 인증→빌키 발급까지 서버에서 모두 처리한 뒤
+// ?billing=success|fail 쿼리스트링으로 이 페이지에 302 리다이렉트한다.
+async function refreshDirectorAfterBilling(){
+    if(!directorDocId)return;
+    try{
+        const snap=await window.fsGetDoc(window.fsDoc(window.db,'directors',directorDocId));
+        if(snap.exists()){
+            directorData=snap.data();
+            sessionStorage.setItem('directorSession',JSON.stringify({data:directorData,docId:directorDocId}));
+            renderPaymentInfo();
+        }
+    }catch(e){}
 }
 
 // ── 탭 전환 ──────────────────────────────────────────────
@@ -3407,7 +3587,7 @@ function showVtab(id){
 }
 
 function updateApproveCount(){
-    const cnt=(pendingStudents?.length||0)+(missingOutRequests?.length||0);
+    const cnt=(pendingStudents?.length||0)+(missingOutRequests?.length||0)+(certRequests?.length||0);
     const el=document.getElementById('approve-count');
     if(!el)return;
     if(cnt>0){el.textContent=cnt;el.style.display='inline-flex';}
@@ -3731,6 +3911,23 @@ async function toggleDropout(kakaoId){
     }
 }
 
+// 자비 학생(정식 실습 배치 전 개인적으로 실습을 시작하는 학생) — practiceStart 이전 출퇴근 기록도
+// 실습시간 계산에 포함시키기 위한 예외 플래그. droppedOut과 동일한 패턴.
+async function toggleJabi(kakaoId){
+    const stu=studentsList.find(s=>String(s.kakaoId)===String(kakaoId));
+    if(!stu)return;
+    const newVal=!stu.jabi;
+    try{
+        await window.fsUpdateDoc(window.fsDoc(window.db,'students',String(kakaoId)),{jabi:newVal});
+        stu.jabi=newVal;
+        filterStudentsPanel();
+        renderAttendance();
+        showToast(newVal?'자비 학생으로 지정됐습니다.':'자비 학생 지정이 해제됐습니다.','success');
+    }catch(e){
+        showToast('저장 실패: '+e.message,'error');
+    }
+}
+
 // ── 퇴근 누락 섹션 ──────────────────────────────────────────
 function renderMissingSection(){
     const section=document.getElementById('att-missing-section');
@@ -3774,8 +3971,8 @@ function renderDropoutPage(){
             const out=toMins(rec.outTime);
             if(out<=adjIn)return;
             const lunchM=cls?.lunchBreakMins||30;
-            const rawMins=out-adjIn,netMins=rawMins>=240?rawMins-lunchM:rawMins;
-            const wh=Math.min(Math.floor(netMins/60),8);
+            const rawMins=out-adjIn;
+            const wh=capWorkHours(rawMins,240,lunchM,8);
             if(wh>0)totalMins+=wh*60;
         });
         const accH=Math.round(totalMins/6)/10;
@@ -3909,7 +4106,7 @@ function renderMissingOutApproved(){
         const stu=studentsList.find(s=>String(s.kakaoId)===String(r.kakaoId));
         const name=stu?.name||r.kakaoId;
         const isApproved=r.status==='approved';
-        const mgrInfo=[r.managerName,r.managerTitle].filter(Boolean).join(' · ');
+        const mgrInfo=[r.managerName,r.managerPosition].filter(Boolean).join(' · ');
         const mgrPhone=r.managerPhone||'';
         return`<div class="pending-row" style="opacity:0.85;flex-direction:column;align-items:stretch;gap:6px;">
   <div style="display:flex;align-items:center;justify-content:space-between;">
@@ -3989,6 +4186,15 @@ function timeToMinutes(t){
     const p=t.split(':');
     return(parseInt(p[0])||0)*60+(parseInt(p[1])||0);
 }
+// 점심시간 차감 후 시간(h) 계산. 문턱값(thresholdMin)을 넘긴 경우, 점심을 뺀 뒤 내림해도
+// 문턱값 환산 시간(예:240분→4시간) 아래로는 떨어지지 않도록 최소치를 보장한다.
+function capWorkHours(rawMins,thresholdMin,lunchMins,maxHours){
+    if(rawMins>=thresholdMin){
+        const netMins=rawMins-lunchMins;
+        return Math.min(Math.max(Math.floor(netMins/60),Math.floor(thresholdMin/60)),maxHours);
+    }
+    return Math.min(Math.floor(rawMins/60),maxHours);
+}
 function minutesToHM(mins){
     if(mins<=0)return'';
     const h=Math.floor(mins/60),m=mins%60;
@@ -4053,17 +4259,20 @@ async function generateFromTemplate(templateUrl,cls,stu,practiceDates,sigs,getMa
         Object.keys(clsTt).sort().forEach(d=>{
             const dayS=clsTt[d];
             const sMs=timeToMinutes(dayS.start),eMs=timeToMinutes(dayS.end);
-            const rawM=eMs-sMs,netM=rawM>=rules.lunchThresholdMin?rawM-lunchMinsGen:rawM;
-            const wh=Math.min(Math.floor(netM/60),rules.maxDailyHours);
+            const rawM=eMs-sMs;
+            const wh=capWorkHours(rawM,rules.lunchThresholdMin,lunchMinsGen,rules.maxDailyHours);
             if(wh>0)stdRunning+=wh*60;
             stdCumByDate[d]=stdRunning;
         });
     }
     // 선택 범위 이전의 실제 누적시간 (사전 이력 포함)
+    // 자비 학생이 아니면 practiceStart 이전 기록(실습 시작 전 연습 출퇴근)은 제외
     let cumMins=0;
     const firstDate=practiceDates[0]||null;
+    const{start:cardClsStart}=getClsPracticePeriod(cls);
+    const cardEffStart=stu.jabi?null:(stu.practiceStart||cardClsStart||null);
     if(firstDate){
-        attendanceRecords.filter(r=>String(r.kakaoId)===String(stu.kakaoId)&&normDate(r.date)<firstDate).forEach(rec=>{
+        attendanceRecords.filter(r=>String(r.kakaoId)===String(stu.kakaoId)&&normDate(r.date)<firstDate&&(!cardEffStart||normDate(r.date)>=cardEffStart)).forEach(rec=>{
             const nd=normDate(rec.date);
             const inM2=timeToMinutes(rec.inTime||'');
             const outM2=timeToMinutes((rec.outTime&&/^\d/.test(rec.outTime))?rec.outTime:'');
@@ -4071,8 +4280,8 @@ async function generateFromTemplate(templateUrl,cls,stu,practiceDates,sigs,getMa
                 const dayS2=clsTt?clsTt[nd]:null;
                 const sMs2=dayS2?timeToMinutes(dayS2.start):9*60;
                 const effIn2=Math.max(inM2,sMs2);
-                const rawM2=outM2-effIn2,netM2=rawM2>=rules.lunchThresholdMin?rawM2-lunchMinsGen:rawM2;
-                const wh2=Math.min(Math.floor(netM2/60),rules.maxDailyHours);
+                const rawM2=outM2-effIn2;
+                const wh2=capWorkHours(rawM2,rules.lunchThresholdMin,lunchMinsGen,rules.maxDailyHours);
                 if(wh2>0)cumMins+=wh2*60;
             }
         });
@@ -4106,8 +4315,8 @@ async function generateFromTemplate(templateUrl,cls,stu,practiceDates,sigs,getMa
                 if(inM>0&&outM>inM){
                     const sMs=dayS?timeToMinutes(dayS.start):9*60;
                     const effIn=Math.max(inM,sMs);
-                    const rawM=outM-effIn,netM=rawM>=rules.lunchThresholdMin?rawM-lunchMinsGen:rawM;
-                    const wh=Math.min(Math.floor(netM/60),rules.maxDailyHours);
+                    const rawM=outM-effIn;
+                    const wh=capWorkHours(rawM,rules.lunchThresholdMin,lunchMinsGen,rules.maxDailyHours);
                     if(wh>0)cumMins+=wh*60;
                     dayHoursStr=String(Math.min(wh,9));
                 }
@@ -4325,12 +4534,15 @@ async function generateDirectEntryHtml(cls,students,startDate,endDate,sigs){
 
     const lunchMinsDir=cls?.lunchBreakMins||30;
     // 선택 범위 이전 이력 포함 누적시간 초기화
+    // 자비 학생이 아니면 practiceStart 이전 기록(실습 시작 전 연습 출퇴근)은 제외
     const firstPracticeDate=practiceDates[0]||null;
+    const{start:dirClsStart}=getClsPracticePeriod(cls);
     const cumMinsPerStu={};
     students.forEach(stu=>{
         let preRangeMins=0;
+        const dirEffStart=stu.jabi?null:(stu.practiceStart||dirClsStart||null);
         if(firstPracticeDate){
-            attendanceRecords.filter(r=>String(r.kakaoId)===String(stu.kakaoId)&&normDate(r.date)<firstPracticeDate).forEach(rec=>{
+            attendanceRecords.filter(r=>String(r.kakaoId)===String(stu.kakaoId)&&normDate(r.date)<firstPracticeDate&&(!dirEffStart||normDate(r.date)>=dirEffStart)).forEach(rec=>{
                 const nd=normDate(rec.date);
                 const inM2=timeToMinutes(rec.inTime||'');
                 const outM2=timeToMinutes((rec.outTime&&/^\d/.test(rec.outTime))?rec.outTime:'');
@@ -4338,8 +4550,8 @@ async function generateDirectEntryHtml(cls,students,startDate,endDate,sigs){
                     const dayS2=clsTt?clsTt[nd]:null;
                     const sMs2=dayS2?timeToMinutes(dayS2.start):9*60;
                     const effIn2=Math.max(inM2,sMs2);
-                    const rawM2=outM2-effIn2,netM2=rawM2>=rules.lunchThresholdMin?rawM2-lunchMinsDir:rawM2;
-                    const wh2=Math.min(Math.floor(netM2/60),rules.maxDailyHours);
+                    const rawM2=outM2-effIn2;
+                    const wh2=capWorkHours(rawM2,rules.lunchThresholdMin,lunchMinsDir,rules.maxDailyHours);
                     if(wh2>0)preRangeMins+=wh2*60;
                 }
             });
@@ -4366,8 +4578,8 @@ async function generateDirectEntryHtml(cls,students,startDate,endDate,sigs){
             if(inM>0&&outM>inM){
                 const sMs=dayS?timeToMinutes(dayS.start):9*60;
                 const effIn=Math.max(inM,sMs);
-                const rawM=outM-effIn,netM=rawM>=rules.lunchThresholdMin?rawM-lunchMinsDir:rawM;
-                const wh=Math.min(Math.floor(netM/60),rules.maxDailyHours);
+                const rawM=outM-effIn;
+                const wh=capWorkHours(rawM,rules.lunchThresholdMin,lunchMinsDir,rules.maxDailyHours);
                 if(wh>0)cumMinsPerStu[String(stu.kakaoId)]+=wh*60;
             }
             // 비출석 이벤트 수집 (Task 9)
@@ -4755,11 +4967,12 @@ async function saveEditClsInfo(clsId){
 
 // ── 설정 탭 전환 ─────────────────────────────────────────
 function showSettingsTab(id,el){
-    document.querySelectorAll('.stab-btn').forEach(b=>b.classList.remove('active'));
-    document.querySelectorAll('.stab-panel').forEach(p=>p.classList.remove('active'));
     const btn=el||document.querySelector(`.stab-btn[onclick*="'${id}'"]`);
+    const scope=(btn&&btn.closest('.page'))||document;
+    scope.querySelectorAll('.stab-btn').forEach(b=>b.classList.remove('active'));
+    scope.querySelectorAll('.stab-panel').forEach(p=>p.classList.remove('active'));
     if(btn)btn.classList.add('active');
-    document.getElementById('stab-'+id)?.classList.add('active');
+    scope.querySelector('#stab-'+id)?.classList.add('active');
 }
 
 // ── 비밀번호 변경 ─────────────────────────────────────────
@@ -4792,14 +5005,16 @@ async function changePassword(){
 // ── PDF 내보내기 (준비 중) ────────────────────────────────
 function exportPDF(){showToast('PDF 내보내기 기능은 준비 중입니다.','info');}
 
-// ── 빌링 성공 URL 핸들링 ─────────────────────────────────
-const params=new URLSearchParams(window.location.search);
-if(params.get('billing')==='success'){
-    const authKey=params.get('authKey'),customerKey=params.get('customerKey');
-    if(authKey&&customerKey){
-        window.addEventListener('fsReady',()=>handleBillingSuccess(authKey,customerKey),{once:true});
-        if(window.fsReady)handleBillingSuccess(authKey,customerKey);
-    }
+// ── 카드등록 결과 리다이렉트 핸들링 ────────────────────────
+const billingParams=new URLSearchParams(window.location.search);
+if(billingParams.get('billing')==='success'){
+    showToast('카드 등록 완료','success');
+    window.addEventListener('fsReady',()=>refreshDirectorAfterBilling(),{once:true});
+    if(window.fsReady)refreshDirectorAfterBilling();
+    history.replaceState(null,'',window.location.pathname);
+}else if(billingParams.get('billing')==='fail'){
+    showToast('카드 등록에 실패했습니다','error');
+    history.replaceState(null,'',window.location.pathname);
 }
 
 init();
