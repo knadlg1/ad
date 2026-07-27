@@ -618,7 +618,7 @@ exports.verifyOTP = functions.https.onRequest(async (req, res) => {
 //  - cardbill_regist.jsp/billing_approve.jsp의 EdiType:'JSON' 강제 시 실제 JSON 반환 여부
 //  - 결제통보(웹훅) 실제 전달 형식(GET 쿼리스트링 vs POST form, 그리고 OK 응답 필요 여부)
 // ════════════════════════════════════════════════════════════════════════
-const MONTHLY_AMOUNT = 100000; // 월 이용료 100,000원
+const MONTHLY_AMOUNT = 30000; // 월 이용료 30,000원
 const NICEPAY_WEBAPI_BASE = 'https://webapi.nicepay.co.kr/webapi';
 
 // 전문생성일시 포맷: YYYYMMDDHHMMSS (KST) — 나이스페이 구모듈 규격
