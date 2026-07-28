@@ -1021,22 +1021,16 @@ body{font-family:'Pretendard',system-ui,sans-serif;background:var(--canvas);colo
               </div>
               <div id="pending-list" style="max-height:260px;overflow-y:auto;"><div class="empty-state" style="padding:8px;">대기 중인 신청 없음</div></div>
 
-              <div class="approve-section-head" style="margin-top:18px;">출결 인증 요청</div>
-              <div style="font-size:12px;color:var(--muted);margin-bottom:10px;">원장님이 요청한 출결 인증을 학생이 제출하면 여기서 확인할 수 있습니다.</div>
-              <div id="auth-requests-list" style="max-height:260px;overflow-y:auto;"><div class="empty-state" style="padding:8px;">제출된 인증 없음</div></div>
+              <div class="approve-section-head" style="margin-top:18px;">출결 승인 및 내역</div>
+              <div style="font-size:12px;color:var(--muted);margin-bottom:10px;">출결 인증 요청과 퇴근 누락 신청을 한 곳에서 확인하고 승인/거절할 수 있습니다. 승인 시 해당 날짜 출퇴근 기록에 자동 반영됩니다.</div>
+              <div id="attendance-approve-pending-list" style="max-height:260px;overflow-y:auto;"><div class="empty-state" style="padding:8px;">대기 중인 요청 없음</div></div>
+              <div style="font-size:11px;font-weight:700;color:var(--muted);margin:12px 0 6px;">승인/거절 내역</div>
+              <div id="attendance-approve-history-list" style="max-height:140px;overflow-y:auto;"><div class="empty-state" style="padding:8px;">내역 없음</div></div>
 
-              <div class="approve-section-head" style="margin-top:18px;">출결 승인</div>
-              <div style="font-size:12px;color:var(--muted);margin-bottom:10px;">퇴근 누락 신청 승인 시 해당 날짜 출퇴근 기록에 자동 반영됩니다.</div>
-              <div id="missingout-list" style="max-height:260px;overflow-y:auto;"><div class="empty-state" style="padding:8px;">대기 중인 출결 신청 없음</div></div>
-
-              <div class="approve-section-head" style="margin-top:18px;">승인 내역</div>
-              <div id="missingout-approved-list" style="max-height:140px;overflow-y:auto;"><div class="empty-state" style="padding:8px;">승인된 내역 없음</div></div>
-
-              <div class="approve-section-head" style="margin-top:18px;">수강증명서 발급 신청</div>
+              <div class="approve-section-head" style="margin-top:18px;">수강증명서 발급 신청 및 내역</div>
               <div style="font-size:12px;color:var(--muted);margin-bottom:10px;">승인 시 PDF가 자동 생성됩니다. 학생은 앱에서 다운로드할 수 있습니다. (이메일 발송은 준비 중)</div>
               <div id="certreq-list" style="max-height:260px;overflow-y:auto;"><div class="empty-state" style="padding:8px;">대기 중인 발급 신청 없음</div></div>
-
-              <div class="approve-section-head" style="margin-top:18px;">수강증명서 발급내역</div>
+              <div style="font-size:11px;font-weight:700;color:var(--muted);margin:12px 0 6px;">발급 내역</div>
               <div id="certreq-approved-list" style="max-height:140px;overflow-y:auto;"><div class="empty-state" style="padding:8px;">발급된 내역 없음</div></div>
             </div>
 
@@ -2515,38 +2509,7 @@ async function loadMissingOutRequests(){
 }
 
 function renderMissingOutRequests(){
-    updateApproveCount();
-    const el=document.getElementById('missingout-list');
-    if(!missingOutRequests.length){el.innerHTML='<div class="empty-state" style="padding:8px;">대기 중인 출결 신청 없음</div>';return;}
-    el.innerHTML=missingOutRequests.map(r=>{
-        const stu=studentsList.find(s=>String(s.kakaoId)===String(r.kakaoId));
-        const name=stu?.name||r.kakaoId;
-        const hasSigs=r.studentSig&&r.managerSig;
-        return `
-        <div class="pending-row" style="flex-direction:column;align-items:stretch;gap:8px;">
-            <div style="display:flex;align-items:center;justify-content:space-between;">
-                <div class="pending-info">
-                    <div class="pending-name">${name}</div>
-                    <div class="pending-phone">${r.date} · 출근 ${trimToMinutes(r.inTime)} → 퇴근 ${trimToMinutes(r.outTime)||'?'}</div>
-                </div>
-                <div class="pending-actions">
-                    <button class="btn btn-primary btn-sm mo-approve-btn" data-id="${r.id}" data-kid="${r.kakaoId}" data-date="${r.date}" data-out="${r.outTime&&/^\d/.test(r.outTime)?r.outTime:''}" ${!r.outTime||!/^\d/.test(r.outTime)?'disabled title="퇴근시간 없음"':''}>승인</button>
-                    <button class="btn btn-danger btn-sm mo-reject-btn" data-id="${r.id}">거절</button>
-                </div>
-            </div>
-            ${hasSigs?`
-            <div style="display:flex;gap:8px;padding-top:4px;border-top:1px solid var(--border);">
-                <div style="flex:1;text-align:center;">
-                    <div style="font-size:10px;color:var(--muted);margin-bottom:3px;font-weight:700;">학생 서명</div>
-                    <img src="data:image/png;base64,${r.studentSig}" style="width:100%;max-height:50px;object-fit:contain;border:1px solid var(--border);border-radius:6px;background:#fff;">
-                </div>
-                <div style="flex:1;text-align:center;">
-                    <div style="font-size:10px;color:var(--muted);margin-bottom:3px;font-weight:700;">담당자 서명</div>
-                    <img src="data:image/png;base64,${r.managerSig}" style="width:100%;max-height:50px;object-fit:contain;border:1px solid var(--border);border-radius:6px;background:#fff;">
-                    ${(r.managerName||r.managerPosition||r.managerPhone)?`<div style="font-size:10px;color:var(--muted);margin-top:3px;">${[r.managerName,r.managerPosition,r.managerPhone].filter(Boolean).join(' · ')}</div>`:''}
-                </div>
-            </div>`:'<div style="font-size:11px;color:#ef4444;padding-top:4px;">⚠ 서명 없음 (불완전한 제출)</div>'}
-        </div>`}).join('');
+    renderAttendanceApprovalMerged();
 }
 
 document.addEventListener('click',e=>{
@@ -2769,7 +2732,7 @@ async function loadAttendanceAuthRequests(){
         const q=window.fsQuery(
             window.fsCollection(window.db,'attendanceAuthRequests'),
             window.fsWhere('academyId','==',acId),
-            window.fsWhere('status','in',['pending','submitted','approved'])
+            window.fsWhere('status','in',['pending','submitted','approved','rejected'])
         );
         const snap=await window.fsGetDocs(q);
         authRequests=[];
@@ -2780,47 +2743,7 @@ async function loadAttendanceAuthRequests(){
 }
 
 function renderAttendanceAuthRequests(){
-    const el=document.getElementById('auth-requests-list');
-    if(!el)return;
-    if(!authRequests.length){el.innerHTML='<div class="empty-state" style="padding:8px;">인증 요청 없음</div>';return;}
-    const typeLabel={in:'출근',out:'퇴근',both:'출+퇴근'};
-    el.innerHTML=authRequests.map(r=>{
-        const stu=studentsList.find(s=>String(s.kakaoId)===String(r.kakaoId));
-        const name=stu?.name||r.kakaoId;
-        const phone=maskPhone(r.managerPhone||'');
-        const statusBadge=r.status==='pending'
-            ?'<span style="font-size:10px;font-weight:700;color:#f59e0b;background:#fffbeb;border:1px solid #fde68a;border-radius:4px;padding:1px 6px;">대기중</span>'
-            :r.status==='approved'
-            ?'<span style="font-size:10px;font-weight:700;color:#6366f1;background:#f0f0ff;border:1px solid #c7d2fe;border-radius:4px;padding:1px 6px;">승인완료</span>'
-            :'<span style="font-size:10px;font-weight:700;color:#10b981;background:#f0fdf4;border:1px solid #a7f3d0;border-radius:4px;padding:1px 6px;">학생 제출</span>';
-        return `<div class="auth-req-card">
-            <div class="auth-req-card-head">
-                <div>
-                    <div class="auth-req-card-name">${escHtml(name)} ${statusBadge}</div>
-                    <div class="auth-req-card-meta">${r.date} · ${typeLabel[r.type]||r.type}</div>
-                </div>
-                <div style="display:flex;align-items:center;gap:6px;">
-                    <div class="auth-req-card-meta">출근 ${trimToMinutes(r.inTime)||'-'} 퇴근 ${trimToMinutes(r.outTime)||'-'}</div>
-                    ${r.status==='pending'
-                    ?`<button class="btn btn-danger btn-sm" style="font-size:10px;padding:2px 8px;" onclick="cancelAuthRequest('${r.id}','${r.kakaoId}')">취소</button>`
-                    :r.status==='submitted'
-                    ?`<button class="btn btn-primary btn-sm" style="font-size:10px;padding:2px 8px;background:#4f46e5;border-color:#4f46e5;" onclick="approveAuthRequest('${r.id}','${r.kakaoId}','${r.date}')">승인</button>`
-                    :''}
-                </div>
-            </div>
-            ${(r.studentSig||r.managerSig)?`<div class="auth-req-card-sigs">
-                <div class="auth-req-card-sig">
-                    <div class="auth-req-card-sig-label">학생 서명</div>
-                    ${r.studentSig?`<img src="data:image/png;base64,${r.studentSig}">`:'<span style="font-size:11px;color:var(--muted);">없음</span>'}
-                </div>
-                <div class="auth-req-card-sig">
-                    <div class="auth-req-card-sig-label">담당자 서명</div>
-                    ${r.managerSig?`<img src="data:image/png;base64,${r.managerSig}">`:'<span style="font-size:11px;color:var(--muted);">없음</span>'}
-                    ${(r.managerName||r.managerPosition||phone)?`<div style="font-size:10px;color:var(--muted);margin-top:3px;line-height:1.5;">${[r.managerName,r.managerPosition,phone].filter(Boolean).join(' · ')}</div>`:''}
-                </div>
-            </div>`:''}
-        </div>`;
-    }).join('');
+    renderAttendanceApprovalMerged();
 }
 
 async function cancelAuthRequest(docId,kakaoId){
@@ -2858,6 +2781,18 @@ async function approveAuthRequest(docId,kakaoId,date){
         await loadAttendanceAuthRequests();
         loadAttendance();
     }catch(e){showToast('승인 실패: '+e.message,'error');}
+    showLoader(false);
+}
+
+async function rejectAuthRequest(docId,kakaoId){
+    if(!confirm('출결 인증 요청을 거절하시겠습니까?'))return;
+    showLoader(true);
+    try{
+        await window.fsUpdateDoc(window.fsDoc(window.db,'attendanceAuthRequests',docId),{status:'rejected',rejectedAt:window.fsServerTimestamp()});
+        await window.fsUpdateDoc(window.fsDoc(window.db,'students',String(kakaoId)),{pendingAuthRequestId:null});
+        showToast('거절 완료','info');
+        await loadAttendanceAuthRequests();
+    }catch(e){showToast('거절 실패: '+e.message,'error');}
     showLoader(false);
 }
 
@@ -3603,7 +3538,8 @@ function showVtab(id){
 }
 
 function updateApproveCount(){
-    const cnt=(pendingStudents?.length||0)+(missingOutRequests?.length||0)+(certRequests?.length||0);
+    const authPendingCount=(authRequests||[]).filter(r=>r.status==='pending'||r.status==='submitted').length;
+    const cnt=(pendingStudents?.length||0)+(missingOutRequests?.length||0)+(certRequests?.length||0)+authPendingCount;
     const el=document.getElementById('approve-count');
     if(!el)return;
     if(cnt>0){el.textContent=cnt;el.style.display='inline-flex';}
@@ -4115,19 +4051,115 @@ async function loadMissingOutApproved(){
 }
 
 function renderMissingOutApproved(){
-    const el=document.getElementById('missingout-approved-list');
-    if(!el)return;
-    if(!missingOutApproved.length){el.innerHTML='<div class="empty-state" style="padding:8px;">승인된 내역 없음</div>';return;}
-    el.innerHTML=missingOutApproved.map(r=>{
-        const stu=studentsList.find(s=>String(s.kakaoId)===String(r.kakaoId));
-        const name=stu?.name||r.kakaoId;
-        const isApproved=r.status==='approved';
-        const mgrInfo=[r.managerName,r.managerPosition].filter(Boolean).join(' · ');
-        const mgrPhone=r.managerPhone||'';
-        return`<div class="pending-row" style="opacity:0.85;flex-direction:column;align-items:stretch;gap:6px;">
+    renderAttendanceApprovalMerged();
+}
+
+// ── 출결 승인 및 내역 (출결 인증 요청 + 퇴근 누락, 병합 렌더러) ──────────────
+function authReqTypeBadge(){
+    return '<span style="font-size:10px;font-weight:700;color:#4f46e5;background:#eef2ff;border:1px solid #c7d2fe;border-radius:4px;padding:1px 6px;">출결 인증</span>';
+}
+function missingOutTypeBadge(){
+    return '<span style="font-size:10px;font-weight:700;color:#0891b2;background:#ecfeff;border:1px solid #a5f3fc;border-radius:4px;padding:1px 6px;">퇴근 누락</span>';
+}
+
+function renderAuthReqPendingCard(r,typeLabel){
+    const stu=studentsList.find(s=>String(s.kakaoId)===String(r.kakaoId));
+    const name=stu?.name||r.kakaoId;
+    const phone=maskPhone(r.managerPhone||'');
+    const statusBadge=r.status==='pending'
+        ?'<span style="font-size:10px;font-weight:700;color:#f59e0b;background:#fffbeb;border:1px solid #fde68a;border-radius:4px;padding:1px 6px;">대기중</span>'
+        :'<span style="font-size:10px;font-weight:700;color:#10b981;background:#f0fdf4;border:1px solid #a7f3d0;border-radius:4px;padding:1px 6px;">학생 제출</span>';
+    return `<div class="auth-req-card">
+        <div class="auth-req-card-head">
+            <div>
+                <div class="auth-req-card-name">${authReqTypeBadge()} ${escHtml(name)} ${statusBadge}</div>
+                <div class="auth-req-card-meta">${r.date} · ${typeLabel[r.type]||r.type}</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:6px;">
+                <div class="auth-req-card-meta">출근 ${trimToMinutes(r.inTime)||'-'} 퇴근 ${trimToMinutes(r.outTime)||'-'}</div>
+                ${r.status==='pending'
+                ?`<button class="btn btn-danger btn-sm" style="font-size:10px;padding:2px 8px;" onclick="cancelAuthRequest('${r.id}','${r.kakaoId}')">취소</button>`
+                :`<button class="btn btn-primary btn-sm" style="font-size:10px;padding:2px 8px;background:#4f46e5;border-color:#4f46e5;" onclick="approveAuthRequest('${r.id}','${r.kakaoId}','${r.date}')">승인</button>
+                <button class="btn btn-danger btn-sm" style="font-size:10px;padding:2px 8px;" onclick="rejectAuthRequest('${r.id}','${r.kakaoId}')">거절</button>`}
+            </div>
+        </div>
+        ${(r.studentSig||r.managerSig)?`<div class="auth-req-card-sigs">
+            <div class="auth-req-card-sig">
+                <div class="auth-req-card-sig-label">학생 서명</div>
+                ${r.studentSig?`<img src="data:image/png;base64,${r.studentSig}">`:'<span style="font-size:11px;color:var(--muted);">없음</span>'}
+            </div>
+            <div class="auth-req-card-sig">
+                <div class="auth-req-card-sig-label">담당자 서명</div>
+                ${r.managerSig?`<img src="data:image/png;base64,${r.managerSig}">`:'<span style="font-size:11px;color:var(--muted);">없음</span>'}
+                ${(r.managerName||r.managerPosition||phone)?`<div style="font-size:10px;color:var(--muted);margin-top:3px;line-height:1.5;">${[r.managerName,r.managerPosition,phone].filter(Boolean).join(' · ')}</div>`:''}
+            </div>
+        </div>`:''}
+    </div>`;
+}
+
+function renderMissingOutPendingCard(r){
+    const stu=studentsList.find(s=>String(s.kakaoId)===String(r.kakaoId));
+    const name=stu?.name||r.kakaoId;
+    const hasSigs=r.studentSig&&r.managerSig;
+    return `
+    <div class="pending-row" style="flex-direction:column;align-items:stretch;gap:8px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;">
+            <div class="pending-info">
+                <div class="pending-name">${missingOutTypeBadge()} ${name}</div>
+                <div class="pending-phone">${r.date} · 출근 ${trimToMinutes(r.inTime)} → 퇴근 ${trimToMinutes(r.outTime)||'?'}</div>
+            </div>
+            <div class="pending-actions">
+                <button class="btn btn-primary btn-sm mo-approve-btn" data-id="${r.id}" data-kid="${r.kakaoId}" data-date="${r.date}" data-out="${r.outTime&&/^\d/.test(r.outTime)?r.outTime:''}" ${!r.outTime||!/^\d/.test(r.outTime)?'disabled title="퇴근시간 없음"':''}>승인</button>
+                <button class="btn btn-danger btn-sm mo-reject-btn" data-id="${r.id}">거절</button>
+            </div>
+        </div>
+        ${hasSigs?`
+        <div style="display:flex;gap:8px;padding-top:4px;border-top:1px solid var(--border);">
+            <div style="flex:1;text-align:center;">
+                <div style="font-size:10px;color:var(--muted);margin-bottom:3px;font-weight:700;">학생 서명</div>
+                <img src="data:image/png;base64,${r.studentSig}" style="width:100%;max-height:50px;object-fit:contain;border:1px solid var(--border);border-radius:6px;background:#fff;">
+            </div>
+            <div style="flex:1;text-align:center;">
+                <div style="font-size:10px;color:var(--muted);margin-bottom:3px;font-weight:700;">담당자 서명</div>
+                <img src="data:image/png;base64,${r.managerSig}" style="width:100%;max-height:50px;object-fit:contain;border:1px solid var(--border);border-radius:6px;background:#fff;">
+                ${(r.managerName||r.managerPosition||r.managerPhone)?`<div style="font-size:10px;color:var(--muted);margin-top:3px;">${[r.managerName,r.managerPosition,r.managerPhone].filter(Boolean).join(' · ')}</div>`:''}
+            </div>
+        </div>`:'<div style="font-size:11px;color:#ef4444;padding-top:4px;">⚠ 서명 없음 (불완전한 제출)</div>'}
+    </div>`;
+}
+
+function renderAuthReqHistoryCard(r,typeLabel){
+    const stu=studentsList.find(s=>String(s.kakaoId)===String(r.kakaoId));
+    const name=stu?.name||r.kakaoId;
+    const isApproved=r.status==='approved';
+    const phone=maskPhone(r.managerPhone||'');
+    return `<div class="pending-row" style="opacity:0.85;flex-direction:column;align-items:stretch;gap:6px;">
   <div style="display:flex;align-items:center;justify-content:space-between;">
     <div class="pending-info">
-      <div class="pending-name">${escHtml(name)} <span style="font-size:11px;font-weight:700;color:${isApproved?'#10b981':'#ef4444'}">[${isApproved?'승인':'거절'}]</span></div>
+      <div class="pending-name">${authReqTypeBadge()} ${escHtml(name)} <span style="font-size:11px;font-weight:700;color:${isApproved?'#10b981':'#ef4444'}">[${isApproved?'승인':'거절'}]</span></div>
+      <div class="pending-phone">${r.date} · ${typeLabel[r.type]||r.type} · 출근 ${trimToMinutes(r.inTime)||'-'} 퇴근 ${trimToMinutes(r.outTime)||'-'}</div>
+    </div>
+  </div>
+  ${(r.managerName||r.managerPosition||phone||r.managerSig)?`<div style="display:flex;align-items:center;gap:8px;padding-top:4px;border-top:1px solid var(--border);flex-wrap:wrap;">
+    ${r.managerSig?`<img src="data:image/png;base64,${r.managerSig}" style="height:36px;border:1px solid var(--border);border-radius:4px;background:#fff;">`:''}
+    <div style="font-size:11px;color:var(--muted);line-height:1.6;">
+      ${(r.managerName||r.managerPosition)?`<div>${escHtml([r.managerName,r.managerPosition].filter(Boolean).join(' · '))}</div>`:''}
+      ${phone?`<div>${escHtml(phone)}</div>`:''}
+    </div>
+  </div>`:''}
+</div>`;
+}
+
+function renderMissingOutHistoryCard(r){
+    const stu=studentsList.find(s=>String(s.kakaoId)===String(r.kakaoId));
+    const name=stu?.name||r.kakaoId;
+    const isApproved=r.status==='approved';
+    const mgrInfo=[r.managerName,r.managerPosition].filter(Boolean).join(' · ');
+    const mgrPhone=r.managerPhone||'';
+    return`<div class="pending-row" style="opacity:0.85;flex-direction:column;align-items:stretch;gap:6px;">
+  <div style="display:flex;align-items:center;justify-content:space-between;">
+    <div class="pending-info">
+      <div class="pending-name">${missingOutTypeBadge()} ${escHtml(name)} <span style="font-size:11px;font-weight:700;color:${isApproved?'#10b981':'#ef4444'}">[${isApproved?'승인':'거절'}]</span></div>
       <div class="pending-phone">${r.date} · 출근 ${trimToMinutes(r.inTime)} → 퇴근 ${trimToMinutes(r.outTime)||'?'}</div>
     </div>
   </div>
@@ -4139,7 +4171,41 @@ function renderMissingOutApproved(){
     </div>
   </div>`:''}
 </div>`;
-    }).join('');
+}
+
+function renderAttendanceApprovalMerged(){
+    updateApproveCount();
+    const typeLabel={in:'출근',out:'퇴근',both:'출+퇴근'};
+
+    // ── 대기 중(조치 필요) 목록: 출결 인증(pending/submitted) + 퇴근 누락(전부 pending) ──
+    const pendingItems=[];
+    (authRequests||[]).filter(r=>r.status==='pending'||r.status==='submitted').forEach(r=>{
+        const ts=r.status==='submitted'?(r.submittedAt?.seconds||r.requestedAt?.seconds||0):(r.requestedAt?.seconds||0);
+        pendingItems.push({ts,html:renderAuthReqPendingCard(r,typeLabel)});
+    });
+    (missingOutRequests||[]).forEach(r=>{
+        pendingItems.push({ts:r.timestamp?.seconds||0,html:renderMissingOutPendingCard(r)});
+    });
+    pendingItems.sort((a,b)=>b.ts-a.ts);
+    const pendingEl=document.getElementById('attendance-approve-pending-list');
+    if(pendingEl){
+        pendingEl.innerHTML=pendingItems.length?pendingItems.map(i=>i.html).join(''):'<div class="empty-state" style="padding:8px;">대기 중인 요청 없음</div>';
+    }
+
+    // ── 승인/거절 내역: 출결 인증(approved/rejected) + 퇴근 누락(missingOutApproved) ──
+    const historyItems=[];
+    (authRequests||[]).filter(r=>r.status==='approved'||r.status==='rejected').forEach(r=>{
+        const ts=r.approvedAt?.seconds||r.rejectedAt?.seconds||r.submittedAt?.seconds||r.requestedAt?.seconds||0;
+        historyItems.push({ts,html:renderAuthReqHistoryCard(r,typeLabel)});
+    });
+    (missingOutApproved||[]).forEach(r=>{
+        historyItems.push({ts:r.approvedAt?.seconds||r.rejectedAt?.seconds||0,html:renderMissingOutHistoryCard(r)});
+    });
+    historyItems.sort((a,b)=>b.ts-a.ts);
+    const historyEl=document.getElementById('attendance-approve-history-list');
+    if(historyEl){
+        historyEl.innerHTML=historyItems.length?historyItems.map(i=>i.html).join(''):'<div class="empty-state" style="padding:8px;">내역 없음</div>';
+    }
 }
 
 // ── 반코드 빌더 ──────────────────────────────────────────────
