@@ -3890,7 +3890,10 @@ function renderMissingSection(){
     const missing=[];
     studentsList.forEach(stu=>{
         if(stu.droppedOut)return;
-        attendanceRecords.filter(r=>String(r.kakaoId)===String(stu.kakaoId)&&r.inTime&&(!r.outTime||!/^\d/.test(r.outTime))&&r.hospital!=='사하제일간호학원'&&normDate(r.date)!==todayStr).forEach(rec=>{
+        const cls=classesList.find(c=>c.id===stu.classId);
+        const{start:clsStart}=getClsPracticePeriod(cls);
+        const effStart=stu.jabi?null:(stu.practiceStart||clsStart||null);
+        attendanceRecords.filter(r=>String(r.kakaoId)===String(stu.kakaoId)&&r.inTime&&(!r.outTime||!/^\d/.test(r.outTime))&&r.hospital!=='사하제일간호학원'&&normDate(r.date)!==todayStr&&(!effStart||normDate(r.date)>=effStart)).forEach(rec=>{
             missing.push({stu,date:normDate(rec.date),inTime:rec.inTime});
         });
     });
