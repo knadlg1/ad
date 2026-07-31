@@ -837,15 +837,9 @@ body{font-family:'Pretendard',system-ui,sans-serif;background:var(--canvas);colo
                   <button class="att-authreq-tab active" id="authreq-tab-btn-pending" onclick="switchAuthReqTab('pending',this)">
                     요청중 <span id="authreq-pending-count" class="att-authreq-badge" style="display:none;"></span>
                   </button>
-                  <button class="att-authreq-tab" id="authreq-tab-btn-done" onclick="switchAuthReqTab('done',this)">
-                    완료 <span id="authreq-done-count" class="att-authreq-badge att-authreq-badge-done" style="display:none;"></span>
-                  </button>
                 </div>
                 <div class="att-authreq-tab-panel" id="authreq-panel-pending">
                   <div id="authreq-pending-list" class="att-authreq-list-body"><div class="att-authreq-list-empty">없음</div></div>
-                </div>
-                <div class="att-authreq-tab-panel" id="authreq-panel-done" style="display:none;">
-                  <div id="authreq-done-list" class="att-authreq-list-body"><div class="att-authreq-list-empty">없음</div></div>
                 </div>
               </div>
             </div>
@@ -2137,7 +2131,6 @@ function switchAuthReqTab(tab,btn){
     document.querySelectorAll('.att-authreq-tab').forEach(b=>b.classList.remove('active'));
     btn.classList.add('active');
     document.getElementById('authreq-panel-pending').style.display=tab==='pending'?'':'none';
-    document.getElementById('authreq-panel-done').style.display=tab==='done'?'':'none';
 }
 function onAuthReqStuInput(){renderAuthReqStuDropdown();}
 function onAuthReqStuChange(){
@@ -2177,7 +2170,7 @@ async function sendAuthReqFromSidebar(){
 }
 async function loadSidebarAuthReqs(){
     const acId=directorData?.academyId;
-    if(!acId){renderSidebarAuthReqs([],[]);return;}
+    if(!acId){renderSidebarAuthReqs([]);return;}
     try{
         const q=window.fsQuery(
             window.fsCollection(window.db,'attendanceAuthRequests'),
@@ -2188,10 +2181,10 @@ async function loadSidebarAuthReqs(){
         const snap=await window.fsGetDocs(q);
         const all=[];
         snap.forEach(d=>all.push({id:d.id,...d.data()}));
-        renderSidebarAuthReqs(all.filter(r=>r.status==='pending'),all.filter(r=>r.status==='submitted'));
+        renderSidebarAuthReqs(all.filter(r=>r.status==='pending'));
     }catch(e){console.error('loadSidebarAuthReqs:',e);}
 }
-function renderSidebarAuthReqs(pending,done){
+function renderSidebarAuthReqs(pending){
     const typeLabel={in:'출근',out:'퇴근',both:'출+퇴근'};
     const pendingEl=document.getElementById('authreq-pending-list');
     const pendingBadge=document.getElementById('authreq-pending-count');
@@ -2199,22 +2192,17 @@ function renderSidebarAuthReqs(pending,done){
         pendingEl.innerHTML=pending.length
             ?pending.map(r=>{
                 const name=studentsList.find(s=>String(s.kakaoId)===String(r.kakaoId))?.name||r.kakaoId;
-                return `<div class="att-authreq-list-item"><div class="att-authreq-list-item-name">${escHtml(name)}</div><div class="att-authreq-list-item-meta">${r.date} · ${typeLabel[r.type]||r.type}</div></div>`;
+                return `<div class="att-authreq-list-item" style="display:flex;align-items:center;justify-content:space-between;gap:6px;">
+    <div>
+        <div class="att-authreq-list-item-name">${escHtml(name)}</div>
+        <div class="att-authreq-list-item-meta">${r.date} · ${typeLabel[r.type]||r.type}</div>
+    </div>
+    <button class="btn btn-danger btn-sm" style="font-size:10px;padding:2px 8px;flex-shrink:0;" onclick="cancelAuthRequest('${r.id}','${r.kakaoId}')">취소</button>
+</div>`;
             }).join('')
             :'<div class="att-authreq-list-empty">없음</div>';
     }
     if(pendingBadge){pendingBadge.textContent=pending.length;pendingBadge.style.display=pending.length?'':'none';}
-    const doneEl=document.getElementById('authreq-done-list');
-    const doneBadge=document.getElementById('authreq-done-count');
-    if(doneEl){
-        doneEl.innerHTML=done.length
-            ?done.map(r=>{
-                const name=studentsList.find(s=>String(s.kakaoId)===String(r.kakaoId))?.name||r.kakaoId;
-                return `<div class="att-authreq-list-item" style="opacity:.7;"><div class="att-authreq-list-item-name">✓ ${escHtml(name)}</div><div class="att-authreq-list-item-meta">${r.date} · ${typeLabel[r.type]||r.type}${r.inTime?' · '+trimToMinutes(r.inTime)+'~'+(trimToMinutes(r.outTime)||'?'):''}</div></div>`;
-            }).join('')
-            :'<div class="att-authreq-list-empty">없음</div>';
-    }
-    if(doneBadge){doneBadge.textContent=done.length;doneBadge.style.display=done.length?'':'none';}
 }
 
 function getDatesInRange(start,end){
@@ -2754,6 +2742,7 @@ async function cancelAuthRequest(docId,kakaoId){
         await window.fsUpdateDoc(window.fsDoc(window.db,'students',String(kakaoId)),{pendingAuthRequestId:null});
         showToast('요청이 취소됐습니다','info');
         await loadAttendanceAuthRequests();
+        loadSidebarAuthReqs();
     }catch(e){showToast('취소 실패: '+e.message,'error');}
     showLoader(false);
 }
@@ -3538,7 +3527,7 @@ function showVtab(id){
 }
 
 function updateApproveCount(){
-    const authPendingCount=(authRequests||[]).filter(r=>r.status==='pending'||r.status==='submitted').length;
+    const authPendingCount=(authRequests||[]).filter(r=>r.status==='submitted').length;
     const cnt=(pendingStudents?.length||0)+(missingOutRequests?.length||0)+(certRequests?.length||0)+authPendingCount;
     const el=document.getElementById('approve-count');
     if(!el)return;
@@ -4180,9 +4169,9 @@ function renderAttendanceApprovalMerged(){
     updateApproveCount();
     const typeLabel={in:'출근',out:'퇴근',both:'출+퇴근'};
 
-    // ── 대기 중(조치 필요) 목록: 출결 인증(pending/submitted) + 퇴근 누락(전부 pending) ──
+    // ── 대기 중(조치 필요) 목록: 출결 인증(submitted만, 학생 서명 제출 완료건) + 퇴근 누락(전부 pending) ──
     const pendingItems=[];
-    (authRequests||[]).filter(r=>r.status==='pending'||r.status==='submitted').forEach(r=>{
+    (authRequests||[]).filter(r=>r.status==='submitted').forEach(r=>{
         const ts=r.status==='submitted'?(r.submittedAt?.seconds||r.requestedAt?.seconds||0):(r.requestedAt?.seconds||0);
         pendingItems.push({ts,html:renderAuthReqPendingCard(r,typeLabel)});
     });
