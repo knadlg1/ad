@@ -998,11 +998,28 @@ exports.generateCertificatePdf = functions
                 const rec = docSnap.data();
                 if (!rec.date || !rec.inTime || !rec.outTime) return;
                 if (!timetableData || !timetableData[rec.date]) return;
+                if (!isJabi && student.practiceStart && rec.date < student.practiceStart) return;
                 const dateObj = new Date(rec.date); dateObj.setHours(12, 0, 0, 0);
                 if (dateObj < reqStartObj || dateObj > reqEndObj) return;
                 const logic = calculateTimeLogic(rec.inTime, rec.outTime, null, dateObj, isJabi);
                 if (!logic.isAbsent) { participatedDays++; participatedHours += logic.hours; }
             });
+
+            // 예정 실습일수/시간: 신청기간 내 전자시간표상 실습일로 지정된 날짜 수 × 표준 실습시간(7시간/일).
+            // 참여일수 계산과 동일한 자비 예외 규칙을 적용해 분자/분모 기준을 맞춘다.
+            let scheduledDays = 0;
+            if (timetableData) {
+                let d = new Date(startDate); d.setHours(0, 0, 0, 0);
+                const endD = new Date(endDate); endD.setHours(0, 0, 0, 0);
+                while (d <= endD) {
+                    const ds = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+                    if (timetableData[ds] && (isJabi || !student.practiceStart || ds >= student.practiceStart)) {
+                        scheduledDays++;
+                    }
+                    d.setDate(d.getDate() + 1);
+                }
+            }
+            const scheduledHours = scheduledDays * 7;
 
             // HTML 템플릿 채우기(직인은 텍스트 치환이 아니라 <img> 삽입)
             let html = fs.readFileSync(CERT_TEMPLATE_PATH, 'utf8');
@@ -1014,8 +1031,8 @@ exports.generateCertificatePdf = functions
                 .replace(/\{\{전체훈련시작일\}\}/g, totalStartDate)
                 .replace(/\{\{전체훈련종료일\}\}/g, totalEndDate)
                 .replace(/\{\{신청기간\}\}/g, formalPeriodStr)
-                .replace(/\{\{참여일수\}\}/g, String(participatedDays))
-                .replace(/\{\{참여시간\}\}/g, String(participatedHours))
+                .replace(/\{\{참여일수\}\}/g, `${participatedDays}/${scheduledDays}`)
+                .replace(/\{\{참여시간\}\}/g, `${participatedHours}/${scheduledHours}`)
                 .replace(/\{\{신청년\}\}/g, reqYear)
                 .replace(/\{\{신청월\}\}/g, reqMonth)
                 .replace(/\{\{신청일\}\}/g, reqDay)

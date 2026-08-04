@@ -1,3 +1,6 @@
 firebase/admin-key.json
+firebase/backups/
+firebase/migration-logs/
 node_modules/
 npm/
+.gstack/

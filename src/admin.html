@@ -1870,6 +1870,7 @@ function renderAttendance(){
     const tardy=[],absent=[],earlyOut=[],extended=[];
     dateList.forEach(d=>{
         studentsList.forEach(stu=>{
+            if(stu.droppedOut)return;
             if(classFilter&&stu.classId!==classFilter)return;
             if(stuFilter&&String(stu.kakaoId)!==stuFilter)return;
             const cls=classesList.find(c=>c.id===stu.classId);
@@ -4645,6 +4646,7 @@ async function generateDirectEntryHtml(cls,students,startDate,endDate,sigs){
         const dayS=clsTt?clsTt[date]:null;
         const isScheduledDate=clsTt?!!dayS:true;
         for(const stu of students){
+            if(!stu.jabi&&stu.practiceStart&&date<stu.practiceStart)continue;
             const att=getAttForDate(stu.kakaoId,date);
             const inT=att?.inTime||'';
             const outT=(att?.outTime&&/^\d/.test(att.outTime))?att.outTime:'';
@@ -4669,11 +4671,12 @@ async function generateDirectEntryHtml(cls,students,startDate,endDate,sigs){
             }
             if(evStatus)summaryEvents.push({date,name:stu.name||'-',status:evStatus,inT,outT});
         }
-        // 예정일: 학생 전원(결석 포함) 나열. 비예정일(보강): 그날 실제 출퇴근 기록이 있는 학생만 나열
-        const dateStudents=isScheduledDate?students:students.filter(s=>{
+        // 예정일: 학생 전원(결석 포함) 나열. 비예정일(보강): 그날 실제 출퇴근 기록이 있는 학생만 나열.
+        // 자비 학생이 아니면 practiceStart 이전 날짜에는 아예 등장하지 않는다(연습 기록 노출 방지).
+        const dateStudents=(isScheduledDate?students:students.filter(s=>{
             const att=getAttForDate(s.kakaoId,date);
             return !!(att?.inTime||att?.outTime);
-        });
+        })).filter(s=>s.jabi||!s.practiceStart||date>=s.practiceStart);
         const totalChunks=Math.max(1,Math.ceil(dateStudents.length/30));
         for(let pi=0;pi<totalChunks;pi++){
             const chunk=dateStudents.slice(pi*30,(pi+1)*30);
