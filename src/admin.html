@@ -30,6 +30,7 @@
   const db = getFirestore(app);
   const auth = getAuth(app);
   window.db = db;
+  window.auth = auth;
   window.fsDoc = doc; window.fsGetDoc = getDoc; window.fsSetDoc = setDoc;
   window.fsUpdateDoc = updateDoc; window.fsGetDocs = getDocs; window.fsDeleteDoc = deleteDoc;
   window.fsCollection = collection; window.fsQuery = query;
@@ -2515,10 +2516,12 @@ async function approveMissingOut(docId,kakaoId,date,outTime){
         const missingSnap=await window.fsGetDoc(window.fsDoc(window.db,'missingOut',docId));
         const md=missingSnap.exists()?missingSnap.data():{};
         const attRef=window.fsDoc(window.db,'attendance',`${kakaoId}_${date}`);
-        await window.fsSetDoc(attRef,{outTime,missingOutApproved:true,studentSig:md.studentSig||'',managerSig:md.managerSig||'',managerPhone:md.managerPhone||''},{merge:true});
-        await window.fsUpdateDoc(window.fsDoc(window.db,'missingOut',docId),{
+        const batch=window.fsWriteBatch(window.db);
+        batch.set(attRef,{outTime,missingOutApproved:true,studentSig:md.studentSig||'',managerSig:md.managerSig||'',managerPhone:md.managerPhone||''},{merge:true});
+        batch.update(window.fsDoc(window.db,'missingOut',docId),{
             status:'approved',approvedAt:window.fsServerTimestamp()
         });
+        await batch.commit();
     },{successMsg:'퇴근 누락 승인 완료 ✓',delay:1000,onSuccess:async()=>{
         await loadMissingOutRequests();
         await loadMissingOutApproved();
@@ -2613,7 +2616,8 @@ async function approveCertRequest(docId){
         // 승인 자체는 이미 완료됨 — PDF 생성 실패해도 승인을 되돌리지 않고 별도로만 알린다.
         // (GAS가 아니라 Cloud Functions generateCertificatePdf를 호출한다.)
         try{
-            const res=await fetch(`${CF_BASE_URL}/generateCertificatePdf`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({certRequestId:docId})});
+            const idToken=await window.auth.currentUser.getIdToken();
+            const res=await fetch(`${CF_BASE_URL}/generateCertificatePdf`,{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${idToken}`},body:JSON.stringify({certRequestId:docId})});
             const json=await res.json();
             if(json?.status!=='success')showToast('승인은 완료됐지만 PDF 생성에 실패했습니다: '+(json?.message||'알 수 없는 오류'),'error');
         }catch(e){showToast('승인은 완료됐지만 PDF 생성 요청 중 오류가 발생했습니다.','error');}
@@ -2764,9 +2768,11 @@ async function approveAuthRequest(docId,kakaoId,date){
         if(req.managerName)attUpdate.managerName=req.managerName;
         if(req.managerPosition)attUpdate.managerPosition=req.managerPosition;
         if(req.managerPhone)attUpdate.managerPhone=req.managerPhone;
-        await window.fsSetDoc(window.fsDoc(window.db,'attendance',docKey),attUpdate,{merge:true});
-        await window.fsUpdateDoc(window.fsDoc(window.db,'attendanceAuthRequests',docId),{status:'approved'});
-        await window.fsUpdateDoc(window.fsDoc(window.db,'students',String(kakaoId)),{pendingAuthRequestId:null});
+        const batch=window.fsWriteBatch(window.db);
+        batch.set(window.fsDoc(window.db,'attendance',docKey),attUpdate,{merge:true});
+        batch.update(window.fsDoc(window.db,'attendanceAuthRequests',docId),{status:'approved'});
+        batch.update(window.fsDoc(window.db,'students',String(kakaoId)),{pendingAuthRequestId:null});
+        await batch.commit();
         showToast('승인 완료 ✓','success');
         await loadAttendanceAuthRequests();
         loadAttendance();
@@ -4423,7 +4429,7 @@ async function generateFromTemplate(templateUrl,cls,stu,practiceDates,sigs,getMa
                 map[`사유_${i}`]='현장훈련';
                 map[`담당자이름_${i}`]=sigData?.managerName||att?.managerName||'';
                 map[`담당자직위_${i}`]=sigData?.managerPosition||att?.managerPosition||'';
-                map[`실습병원_${i}`]=stu?.hospital||'';
+                map[`실습병원_${i}`]=att?.hospital||stu?.hospital||'';
                 map[`당일시간_${i}`]=dayHoursStr;
             }else{
                 map[`ROW_CELL_STYLE_${i}`]='style="background-color:#e8e8e8"';
@@ -4714,7 +4720,7 @@ async function generateDirectEntryHtml(cls,students,startDate,endDate,sigs){
                     map[`출근시간${i}`]=inT;
                     map[`퇴근시간${i}`]=outT;
                     map[`상태${i}`]=statusText||'';
-                    map[`실습병원${i}`]=stu.hospital||'';
+                    map[`실습병원${i}`]=att?.hospital||stu.hospital||'';
                     map[`해당날짜에 이름${i}서명`]=stuSig?`<img src="data:image/png;base64,${stuSig}" style="max-height:28px;max-width:70px;vertical-align:middle;">`:' ';
                     map[`ROW_HIDDEN_${i}`]='';
                     map[`ROW_BG_${i}`]=(statusText===L.absent||statusText===L.late||statusText===L.makeup)?`style="background-color:${rules.rowHighlightBg}"`:'';
