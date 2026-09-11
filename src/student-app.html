@@ -971,18 +971,6 @@
 </div>
 
 <!-- 원장님 섹션 -->
-<!-- 원장님 버전 선택 오버레이 -->
-<div id="admin-version-overlay" style="display:none;position:fixed;inset:0;background:rgba(30,57,50,0.92);z-index:999998;align-items:center;justify-content:center;">
-  <div style="background:#fff;border-radius:20px;padding:40px 32px;max-width:360px;width:90%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
-    <div style="font-size:32px;margin-bottom:8px;">☕</div>
-    <div style="font-size:20px;font-weight:700;color:#006241;margin-bottom:6px;letter-spacing:-0.01em;">관리자 환경 선택</div>
-    <div style="font-size:13px;color:rgba(0,0,0,0.58);margin-bottom:28px;">사용 중인 기기를 선택해주세요.<br>다음 로그인 시 자동으로 이동합니다.</div>
-    <button onclick="selectAdminVersion('mobile')" style="width:100%;padding:16px;background:#fff;border:1.5px solid #00754A;color:#00754A;border-radius:50px;font-size:15px;font-weight:700;cursor:pointer;margin-bottom:12px;letter-spacing:-0.01em;">📱 모바일 — 빠른 확인</button>
-    <button onclick="selectAdminVersion('pc')"     style="width:100%;padding:16px;background:#00754A;border:none;color:#fff;border-radius:50px;font-size:15px;font-weight:700;cursor:pointer;letter-spacing:-0.01em;">🖥️ PC — 전체 기능</button>
-    <div style="margin-top:16px;font-size:11px;color:rgba(0,0,0,0.4);">설정은 언제든 변경 가능합니다</div>
-  </div>
-</div>
-
 
     <!-- PIN/비밀번호 인증 모달 -->
 <div class="sig-modal-overlay" id="pin-modal" style="z-index:10000;">
@@ -3222,20 +3210,7 @@ if (!document.getElementById('otp-consent-check').checked) { showToast('개인�
         document.getElementById('login-section').style.display = 'none';
         document.getElementById('main-section').style.display  = 'none';
         showLoader(false);
-
-        // 이전 선택이 있으면 바로 이동
-        const saved = localStorage.getItem('adminVersion');
-        if (saved === 'pc')     { window.location.href = 'admin.html';        return; }
-        if (saved === 'mobile') { window.location.href = 'admin-mobile.html'; return; }
-
-        // 버전 선택 오버레이 표시
-        const overlay = document.getElementById('admin-version-overlay');
-        if (overlay) overlay.style.display = 'flex';
-    }
-
-    function selectAdminVersion(v) {
-        localStorage.setItem('adminVersion', v);
-        window.location.href = v === 'pc' ? 'admin.html' : 'admin-mobile.html';
+        window.location.href = 'admin.html';
     }
 
     async function adminLoadData() {
