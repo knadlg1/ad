@@ -1,0 +1,1243 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Here — QR 출석 관리</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-app.js";
+  import { getAuth, signInWithEmailAndPassword, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-auth.js";
+  import { getFirestore, collection, doc, getDoc, query, where, orderBy, getDocs, onSnapshot, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-firestore.js";
+
+  // 로그인한 계정(uid)의 qrAdmins 문서에서 academyId를 조회해 채운다(doLogin 참고).
+  let ACADEMY_ID = null;
+  let academyName = '';
+
+  const FUNC_URL = 'https://us-central1-my-attendance-8122d.cloudfunctions.net';
+
+  const app = initializeApp({
+    apiKey:"AIzaSyBaCpQKykViq6526dCJ8mEYbUZqyg5-NUo",
+    authDomain:"my-attendance-8122d.firebaseapp.com",
+    projectId:"my-attendance-8122d",
+    storageBucket:"my-attendance-8122d.firebasestorage.app",
+    messagingSenderId:"994601190154",
+    appId:"1:994601190154:web:d702adbf20039f73ee70f3"
+  });
+  const db = getFirestore(app);
+  const auth = getAuth(app);
+
+  // ── 상태 ──
+  let currentPeriod = null;
+  let isFinalPeriod = false; // currentPeriod가 "수업종료"로 지정된 마지막 교시인지
+  let rotateInterval = null;
+  let countdownInterval = null;
+  let countdownSec = 5;
+  let rosterUnsub = null;
+  let checkinsUnsub = null;
+
+  function todayKST() {
+    return new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Seoul' });
+  }
+
+  function sessionId() {
+    return `${ACADEMY_ID}_${todayKST()}`;
+  }
+
+  function clearRotateInterval() {
+    if (rotateInterval) { clearInterval(rotateInterval); rotateInterval = null; }
+    if (countdownInterval) { clearInterval(countdownInterval); countdownInterval = null; }
+  }
+
+  window.addEventListener('beforeunload', clearRotateInterval);
+
+  // ── 로그인 ──
+  window.doLogin = async function () {
+    const email = document.getElementById('login-email').value.trim();
+    const pw = document.getElementById('login-pw').value;
+    const errEl = document.getElementById('login-error');
+    errEl.style.display = 'none';
+    try {
+      await signInWithEmailAndPassword(auth, email, pw);
+      // 이후 처리는 onAuthStateChanged 리스너가 전담한다.
+    } catch (e) {
+      errEl.textContent = '로그인 실패: 이메일 또는 비밀번호를 확인해주세요.';
+      errEl.style.display = 'block';
+    }
+  };
+
+  window.doLogout = async function () {
+    clearRotateInterval();
+    if (rosterUnsub) rosterUnsub();
+    if (checkinsUnsub) checkinsUnsub();
+    if (periodCountsUnsub) { periodCountsUnsub(); periodCountsUnsub = null; }
+    stopRosterPoll();
+    await auth.signOut();
+    ACADEMY_ID = null;
+    document.getElementById('dashboard').style.display = 'none';
+    document.getElementById('auth-wrap').style.display = 'flex';
+  };
+
+  async function enterDashboard() {
+    document.getElementById('auth-wrap').style.display = 'none';
+    document.getElementById('dashboard').style.display = 'flex';
+    document.getElementById('topbar-title').textContent = (academyName || '까마귀') + ' QR 출석';
+    document.getElementById('session-date').value = todayKST();
+    startRosterListener();
+    startPeriodCountsListener();
+    startRosterPoll();
+    await resumeIfInProgress();
+  }
+
+  // ── 회원가입 (휴대폰 인증) ──
+  let otpTimer = null;
+  let otpSecondsLeft = 0;
+  let signupPending = null; // 가입 성공 후 로그인 대기중인 { email, password, academyId, academyName }
+
+  window.showSignup = function () {
+    document.getElementById('auth-wrap').querySelector('.auth-card').style.display = 'none';
+    document.getElementById('signup-card').style.display = 'block';
+  };
+
+  window.showLoginFromSignup = function () {
+    document.getElementById('signup-card').style.display = 'none';
+    document.getElementById('auth-wrap').querySelector('.auth-card').style.display = 'block';
+  };
+
+  window.requestSignupOtp = async function () {
+    const phone = document.getElementById('signup-phone').value.replace(/\D/g, '');
+    const errEl = document.getElementById('signup-error');
+    const btn = document.getElementById('btn-signup-request-otp');
+    errEl.style.display = 'none';
+    if (!phone) {
+      errEl.textContent = '휴대폰번호를 입력해주세요.';
+      errEl.style.display = 'block';
+      return;
+    }
+    btn.disabled = true;
+    try {
+      const res = await fetch(`${FUNC_URL}/requestOTP`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone })
+      });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.message || '인증번호 발송 실패');
+      document.getElementById('signup-otp-row').style.display = 'block';
+      startOtpCountdown();
+      // 발송 성공 시 큰 버튼은 숨김(재발송은 아래 카운트다운 버튼으로).
+      btn.style.display = 'none';
+    } catch (e) {
+      errEl.textContent = e.message;
+      errEl.style.display = 'block';
+      btn.disabled = false;
+    }
+  };
+
+  function startOtpCountdown() {
+    if (otpTimer) clearInterval(otpTimer);
+    otpSecondsLeft = 180;
+    updateOtpCountdownLabel();
+    document.getElementById('btn-signup-resend').disabled = true;
+    otpTimer = setInterval(() => {
+      otpSecondsLeft--;
+      updateOtpCountdownLabel();
+      if (otpSecondsLeft <= 0) {
+        clearInterval(otpTimer);
+        otpTimer = null;
+        document.getElementById('btn-signup-resend').disabled = false;
+      }
+    }, 1000);
+  }
+
+  function updateOtpCountdownLabel() {
+    const secs = Math.max(otpSecondsLeft, 0);
+    const m = String(Math.floor(secs / 60)).padStart(2, '0');
+    const s = String(secs % 60).padStart(2, '0');
+    document.getElementById('signup-otp-countdown').textContent = `${m}:${s}`;
+  }
+
+  window.verifySignupOtp = async function () {
+    const phone = document.getElementById('signup-phone').value.replace(/\D/g, '');
+    const code = document.getElementById('signup-otp-code').value.trim();
+    const errEl = document.getElementById('signup-error');
+    errEl.style.display = 'none';
+    if (!code) {
+      errEl.textContent = '인증번호를 입력해주세요.';
+      errEl.style.display = 'block';
+      return;
+    }
+    try {
+      const res = await fetch(`${FUNC_URL}/verifyOTP`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone, code })
+      });
+      const data = await res.json();
+      if (!data.success || !data.verified) throw new Error(data.message || '인증번호가 일치하지 않습니다.');
+      if (otpTimer) { clearInterval(otpTimer); otpTimer = null; }
+      document.getElementById('signup-phone').disabled = true;
+      document.getElementById('signup-step1').style.display = 'none';
+      document.getElementById('signup-step2').style.display = 'block';
+    } catch (e) {
+      errEl.textContent = e.message;
+      errEl.style.display = 'block';
+    }
+  };
+
+  window.submitSignup = async function () {
+    const phone = document.getElementById('signup-phone').value.replace(/\D/g, '');
+    const name = document.getElementById('signup-name').value.trim();
+    const email = document.getElementById('signup-email').value.trim();
+    const password = document.getElementById('signup-pw').value;
+    const academyName = document.getElementById('signup-academy').value.trim();
+    const errEl = document.getElementById('signup-error');
+    const btn = document.getElementById('btn-submit-signup');
+    errEl.style.display = 'none';
+    if (!name || !email || !password || !academyName) {
+      errEl.textContent = '모든 항목을 입력해주세요.';
+      errEl.style.display = 'block';
+      return;
+    }
+    btn.disabled = true;
+    try {
+      const res = await fetch(`${FUNC_URL}/qrAdminSelfSignup`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone, name, email, password, academyName })
+      });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.message || '가입 실패');
+      signupPending = { email, password, academyId: data.academyId, academyName };
+      document.getElementById('signup-invite-code').textContent = data.inviteCode;
+      document.getElementById('signup-invite-modal').style.display = 'flex';
+    } catch (e) {
+      errEl.textContent = '가입 실패: ' + e.message;
+      errEl.style.display = 'block';
+    } finally {
+      btn.disabled = false;
+    }
+  };
+
+  window.closeSignupInviteModal = async function () {
+    document.getElementById('signup-invite-modal').style.display = 'none';
+    if (!signupPending) return;
+    const { email, password } = signupPending;
+    signupPending = null;
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
+      // 이후 처리는 onAuthStateChanged 리스너가 전담한다.
+    } catch (e) {
+      document.getElementById('signup-card').style.display = 'none';
+      document.getElementById('auth-wrap').querySelector('.auth-card').style.display = 'block';
+      const errEl = document.getElementById('login-error');
+      errEl.textContent = '계정은 생성되었습니다. 로그인 화면에서 이메일/비밀번호로 다시 로그인해주세요.';
+      errEl.style.display = 'block';
+    }
+  };
+
+  // ── 탭 전환 ──
+  window.showTab = function (tab) {
+    document.getElementById('tab-qr').classList.toggle('active', tab === 'qr');
+    document.getElementById('tab-history').classList.toggle('active', tab === 'history');
+    document.getElementById('page-qr').style.display = tab === 'qr' ? 'block' : 'none';
+    document.getElementById('page-history').style.display = tab === 'history' ? 'block' : 'none';
+    if (tab === 'history') loadHistoryList();
+  };
+
+  // ── 실시간 QR ──
+  async function authHeader() {
+    const token = await auth.currentUser.getIdToken();
+    return { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' };
+  }
+
+  // final=true면 "수업종료" 버튼 — 새 교시를 시작하면서 동시에 그 교시를 마지막 교시로
+  // 지정한다(startQrPeriod의 final 플래그). 학생이 이 QR을 찍으면 종료 서명이 강제된다.
+  window.startNextPeriod = async function (final) {
+    if (final && !confirm('오늘 수업을 종료하시겠습니까? 마지막 QR이 표시되고, 학생들은 이 QR을 찍으면 종료 서명을 하게 됩니다.')) return;
+    const btn = document.getElementById(final ? 'btn-end-class' : 'btn-start-period');
+    btn.disabled = true;
+    try {
+      const res = await fetch(`${FUNC_URL}/startQrPeriod`, {
+        method: 'POST',
+        headers: await authHeader(),
+        body: JSON.stringify({ academyId: ACADEMY_ID, date: document.getElementById('session-date').value, final: !!final })
+      });
+      if (!res.ok) throw new Error('요청 실패');
+      const data = await res.json();
+      currentPeriod = data.period;
+      isFinalPeriod = !!final;
+      renderPeriodTabs();
+      renderPeriodCounts();
+      document.getElementById('session-date').disabled = true;
+      document.getElementById('btn-end-session').style.display = 'inline-block';
+      drawQr(data.qrPayload);
+      resubscribeCheckins();
+      startRotateLoop();
+    } catch (e) {
+      alert((final ? '수업 종료' : '교시 시작') + '에 실패했습니다: ' + e.message);
+    } finally {
+      btn.disabled = false;
+    }
+  };
+
+  window.endSession = async function () {
+    if (!confirm('오늘 세션을 종료하시겠습니까? 종료 후에는 이 세션으로 더 이상 체크인할 수 없습니다.')) return;
+    const btn = document.getElementById('btn-end-session');
+    btn.disabled = true;
+    try {
+      const res = await fetch(`${FUNC_URL}/endQrSession`, {
+        method: 'POST',
+        headers: await authHeader(),
+        body: JSON.stringify({ date: document.getElementById('session-date').value })
+      });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.message || '종료 실패');
+
+      clearRotateInterval();
+      if (checkinsUnsub) { checkinsUnsub(); checkinsUnsub = null; }
+      currentPeriod = null;
+      isFinalPeriod = false;
+      document.getElementById('qr-canvas').innerHTML = '<span class="qr-placeholder">시작 전</span>';
+      document.getElementById('qr-countdown').textContent = '';
+      document.getElementById('session-date').disabled = false;
+      btn.style.display = 'none';
+      renderPeriodTabs();
+      updatePanelHeader();
+      renderPeriodCounts();
+    } catch (e) {
+      alert('세션 종료에 실패했습니다: ' + e.message);
+    } finally {
+      btn.disabled = false;
+    }
+  };
+
+  async function resumeIfInProgress() {
+    try {
+      const sid = sessionId();
+      const snap = await getDoc(doc(db, 'qrSessions', sid));
+      if (!snap.exists()) return;
+      const data = snap.data();
+      if (!data.currentPeriod || data.status === 'closed') return;
+      currentPeriod = data.currentPeriod;
+      isFinalPeriod = data.finalPeriod === data.currentPeriod;
+      renderPeriodTabs();
+      renderPeriodCounts();
+      document.getElementById('session-date').disabled = true;
+      document.getElementById('btn-end-session').style.display = 'inline-block';
+      const res = await fetch(`${FUNC_URL}/rotateQrToken`, {
+        method: 'POST',
+        headers: await authHeader(),
+        body: JSON.stringify({ academyId: ACADEMY_ID })
+      });
+      if (!res.ok) return;
+      const rdata = await res.json();
+      if (!rdata.success) return;
+      drawQr(rdata.qrPayload);
+      resubscribeCheckins();
+      startRotateLoop();
+    } catch (e) {
+      console.warn('이어받기 실패:', e);
+    }
+  }
+
+  function startRotateLoop() {
+    clearRotateInterval();
+    countdownSec = 5;
+    updateCountdownLabel();
+    countdownInterval = setInterval(() => {
+      countdownSec--;
+      if (countdownSec <= 0) countdownSec = 5;
+      updateCountdownLabel();
+    }, 1000);
+    rotateInterval = setInterval(rotateQr, 5000);
+  }
+
+  function updateCountdownLabel() {
+    document.getElementById('qr-countdown').textContent = `${countdownSec}초 후 갱신`;
+  }
+
+  async function rotateQr() {
+    try {
+      const res = await fetch(`${FUNC_URL}/rotateQrToken`, {
+        method: 'POST',
+        headers: await authHeader(),
+        body: JSON.stringify({ academyId: ACADEMY_ID })
+      });
+      if (!res.ok) throw new Error('갱신 실패');
+      const data = await res.json();
+      if (currentPeriod == null) return; // 응답이 세션 종료 후 도착 — 무시
+      drawQr(data.qrPayload);
+      countdownSec = 5;
+      updateCountdownLabel();
+    } catch (e) {
+      console.warn('QR 갱신 실패:', e);
+    }
+  }
+
+  function drawQr(payload) {
+    const container = document.getElementById('qr-canvas');
+    container.innerHTML = '';
+    new QRCode(container, { text: payload, width: 440, height: 440, correctLevel: QRCode.CorrectLevel.M });
+  }
+
+  function renderPeriodTabs() {
+    document.getElementById('btn-start-period').textContent = currentPeriod ? '다음 교시 시작' : '수업시작';
+    const tabsEl = document.getElementById('period-tabs');
+    const labelEl = document.getElementById('current-period-label');
+    if (!currentPeriod) {
+      tabsEl.innerHTML = '';
+      labelEl.style.display = 'block';
+      labelEl.textContent = '교시 미시작';
+      return;
+    }
+    labelEl.style.display = 'none';
+    let html = '';
+    for (let i = 1; i <= currentPeriod; i++) {
+      const finalBadge = (isFinalPeriod && i === currentPeriod) ? ' 🏁마지막' : '';
+      html += `<div class="period-tab${i === currentPeriod ? ' active' : ''}">${i}교시${finalBadge}</div>`;
+    }
+    tabsEl.innerHTML = html;
+  }
+
+  function startRosterListener() {
+    const sid = sessionId();
+    if (rosterUnsub) rosterUnsub();
+    rosterUnsub = onSnapshot(collection(db, 'qrSessions', sid, 'roster'), (snap) => {
+      lastRosterSize = snap.size;
+      updatePanelHeader();
+    });
+  }
+
+  let rosterPollInterval = null;
+
+  function startRosterPoll() {
+    if (rosterPollInterval) clearInterval(rosterPollInterval);
+    rosterPollInterval = setInterval(async () => {
+      try {
+        const sid = sessionId();
+        const snap = await getDocs(collection(db, 'qrSessions', sid, 'roster'));
+        lastRosterSize = snap.size;
+        updatePanelHeader();
+      } catch (e) {
+        console.warn('수강생 명단 폴링 실패:', e);
+      }
+    }, 5000);
+  }
+
+  function stopRosterPoll() {
+    if (rosterPollInterval) { clearInterval(rosterPollInterval); rosterPollInterval = null; }
+  }
+
+  let lastRosterSize = 0;
+  let lastCheckinSize = 0;
+
+  function updatePanelHeader() {
+    const el = document.getElementById('roster-panel-header');
+    if (currentPeriod == null) {
+      el.innerHTML = `<div>오늘 수강생 ${lastRosterSize}명</div><div style="margin-top:6px;font-size:14px;font-weight:600;color:var(--muted);">이번 교시 체크 -</div>`;
+      return;
+    }
+    const absent = Math.max(lastRosterSize - lastCheckinSize, 0);
+    el.innerHTML = `<div>오늘 수강생 ${lastRosterSize}명</div><div style="margin-top:6px;font-size:14px;font-weight:600;color:var(--muted);">이번 교시 체크 ${lastCheckinSize}명 / 미체크 ${absent}명</div>`;
+  }
+
+  function maskName(name) {
+    const s = String(name || '').trim();
+    if (s.length <= 1) return s;
+    return s.slice(0, -1) + '*';
+  }
+  function last4Phone(phone) {
+    const digits = String(phone || '').replace(/\D/g, '');
+    return digits.length >= 4 ? digits.slice(-4) : digits;
+  }
+  function renderRosterPanel(list) {
+    const listEl = document.getElementById('roster-panel-list');
+    if (!list.length) {
+      listEl.innerHTML = '<div class="roster-empty">아직 체크한 학생이 없습니다.</div>';
+      return;
+    }
+    listEl.innerHTML = list.map(c =>
+      `<div class="roster-item"><span>${escapeHtml(maskName(c.name))}</span><span class="roster-phone">${escapeHtml(last4Phone(c.phone))}</span></div>`
+    ).join('');
+  }
+
+  function resubscribeCheckins() {
+    if (checkinsUnsub) { checkinsUnsub(); checkinsUnsub = null; }
+    if (currentPeriod == null) { renderRosterPanel([]); return; }
+    const sid = sessionId();
+    const q = query(collection(db, 'qrSessions', sid, 'checkins'), where('period', '==', currentPeriod));
+    checkinsUnsub = onSnapshot(q, (snap) => {
+      lastCheckinSize = snap.size;
+      updatePanelHeader();
+      renderPeriodCounts();
+      const list = [];
+      snap.forEach(d => list.push(d.data()));
+      renderRosterPanel(list);
+    });
+  }
+
+  // ── 교시별 출첵 인원 집계 (세션 단위 전체 checkins 구독) ──
+  let periodCountsUnsub = null;
+  let periodCounts = {};
+
+  function startPeriodCountsListener() {
+    const sid = sessionId();
+    if (periodCountsUnsub) periodCountsUnsub();
+    periodCountsUnsub = onSnapshot(collection(db, 'qrSessions', sid, 'checkins'), (snap) => {
+      const counts = {};
+      snap.forEach(d => {
+        const p = d.data().period;
+        if (p != null) counts[p] = (counts[p] || 0) + 1;
+      });
+      periodCounts = counts;
+      renderPeriodCounts();
+    });
+  }
+
+  function renderPeriodCounts() {
+    const el = document.getElementById('period-counts');
+    if (!el) return;
+    if (currentPeriod == null) { el.innerHTML = ''; return; }
+    let html = '';
+    for (let p = 1; p <= currentPeriod; p++) {
+      html += `<span>${p}교시 ${periodCounts[p] || 0}명</span>`;
+    }
+    el.innerHTML = html;
+  }
+
+  // ── 지난 기록 ──
+  window.loadHistoryList = async function () {
+    const listEl = document.getElementById('history-list');
+    listEl.innerHTML = '<div class="hist-empty">불러오는 중...</div>';
+    try {
+      let snap;
+      try {
+        const q = query(
+          collection(db, 'qrSessions'),
+          where('academyId', '==', ACADEMY_ID),
+          orderBy('date', 'desc')
+        );
+        snap = await getDocs(q);
+      } catch (e) {
+        const q2 = query(
+          collection(db, 'qrSessions'),
+          where('academyId', '==', ACADEMY_ID)
+        );
+        snap = await getDocs(q2);
+      }
+      if (snap.empty) {
+        listEl.innerHTML = '<div class="hist-empty">기록이 없습니다.</div>';
+        return;
+      }
+      const docs = [];
+      snap.forEach((d) => docs.push({ id: d.id, data: d.data() }));
+      docs.sort((a, b) => (b.data.date || '').localeCompare(a.data.date || ''));
+      listEl.innerHTML = '';
+      docs.forEach(({ id, data }) => {
+        const item = document.createElement('button');
+        item.className = 'hist-item';
+        item.textContent = data.date || id;
+        item.onclick = () => loadSessionDetail(id, data);
+        listEl.appendChild(item);
+      });
+    } catch (e) {
+      listEl.innerHTML = '<div class="hist-empty">불러오기 실패: ' + e.message + '</div>';
+    }
+  };
+
+  function escapeHtml(s) {
+    return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  async function loadSessionDetail(sid, sessionData) {
+    const myToken = ++docGenLoadToken;
+    const detailEl = document.getElementById('history-detail');
+    detailEl.innerHTML = '<div class="hist-empty">불러오는 중...</div>';
+    const periodsRun = sessionData.periodsRun || [];
+
+    const rosterSnap = await getDocs(collection(db, 'qrSessions', sid, 'roster'));
+    const checkinsSnap = await getDocs(collection(db, 'qrSessions', sid, 'checkins'));
+    if (myToken !== docGenLoadToken) return;
+
+    const students = [];
+    rosterSnap.forEach((d) => students.push({ id: d.id, ...d.data() }));
+    docGenStudents = students;
+    docGenSessionLabel = (sessionData.date || sid) + ' 출석 명단';
+    docGenSessionDate = sessionData.date || sid;
+
+    const checkinMap = {}; // studentId -> { period: time }
+    checkinsSnap.forEach((d) => {
+      const c = d.data();
+      const sid2 = c.kakaoId;
+      if (!checkinMap[sid2]) checkinMap[sid2] = {};
+      let timeStr = '';
+      if (c.checkedAt && c.checkedAt.toDate) {
+        timeStr = c.checkedAt.toDate().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Seoul' });
+      } else if (c.checkedAt) {
+        timeStr = String(c.checkedAt);
+      }
+      checkinMap[sid2][c.period] = timeStr;
+    });
+    docGenCheckinMap = checkinMap;
+
+    let html = '<table class="hist-table"><thead><tr><th>학생</th>';
+    periodsRun.forEach((p) => { html += `<th>${p}교시</th>`; });
+    html += '</tr></thead><tbody>';
+    students.forEach((s) => {
+      html += `<tr><td>${escapeHtml(s.name || s.id)}</td>`;
+      periodsRun.forEach((p) => {
+        const t = (checkinMap[s.id] && checkinMap[s.id][p]) || null;
+        html += `<td>${t ? t : '<span class="absent">결석</span>'}</td>`;
+      });
+      html += '</tr>';
+    });
+    html += '</tbody></table>';
+    detailEl.innerHTML = html;
+    document.getElementById('btn-csv').style.display = students.length ? 'inline-block' : 'none';
+    document.getElementById('btn-gen-doc').style.display = students.length ? 'inline-block' : 'none';
+    document.getElementById('btn-excel-upload').style.display = students.length ? 'inline-block' : 'none';
+  }
+
+  window.downloadCsv = function () {
+    const table = document.querySelector('#history-detail .hist-table');
+    if (!table) return;
+    const rows = [];
+    rows.push(Array.from(table.querySelectorAll('thead th')).map((th) => th.textContent));
+    table.querySelectorAll('tbody tr').forEach((tr) => {
+      rows.push(Array.from(tr.children).map((td) => td.textContent.trim()));
+    });
+    const csvSafe = (v) => {
+      let s = String(v);
+      if (/^[=+\-@]/.test(s)) s = "'" + s;
+      return `"${s.replace(/"/g, '""')}"`;
+    };
+    const csv = rows.map((r) => r.map(csvSafe).join(',')).join('\r\n');
+    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'attendance.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  let docGenStudents = []; // 현재 열려있는 세션의 학생 목록: [{id, name}]
+  let docGenSessionLabel = '';
+  let docGenSessionDate = ''; // 세션 실제 날짜(YYYY-MM-DD) — 문서생성 연도 계산용
+  let docGenCheckinMap = {}; // studentId -> { period: time } — 문서생성 시 교시별 체크인 시간
+  let docGenLoadToken = 0; // loadSessionDetail 요청 토큰 — 응답 순서 역전 시 최신 호출만 반영
+
+  window.openDocGenModal = function () {
+    const listEl = document.getElementById('doc-gen-student-list');
+    listEl.innerHTML = docGenStudents.map((s, i) => `
+      <label style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;background:var(--canvas);font-size:14px;font-weight:600;cursor:pointer;">
+        <input type="checkbox" class="doc-gen-check" data-idx="${i}" checked style="width:18px;height:18px;cursor:pointer;">
+        <span>${escapeHtml(s.name || s.id)}</span>
+      </label>
+    `).join('');
+    document.getElementById('doc-gen-date-label').textContent = docGenSessionLabel;
+    document.getElementById('doc-gen-modal').style.display = 'flex';
+  };
+
+  window.toggleAllDocGenChecks = function (checked) {
+    document.querySelectorAll('.doc-gen-check').forEach(cb => { cb.checked = checked; });
+  };
+
+  window.closeDocGenModal = function () {
+    document.getElementById('doc-gen-modal').style.display = 'none';
+  };
+
+  window.confirmDocGen = async function () {
+    const selected = [];
+    document.querySelectorAll('.doc-gen-check').forEach(cb => {
+      if (cb.checked) selected.push(docGenStudents[Number(cb.dataset.idx)]);
+    });
+    if (!selected.length) { alert('선택된 학생이 없습니다.'); return; }
+    closeDocGenModal();
+
+    const XLSX_NS = 'http://schemas.openxmlformats.org/spreadsheetml/2006/main';
+    function colLetters(c) {
+      let s = '';
+      c = c + 1;
+      while (c > 0) { const m = (c - 1) % 26; s = String.fromCharCode(65 + m) + s; c = Math.floor((c - 1) / 26); }
+      return s;
+    }
+    function cellAddr(r, c) { return colLetters(c) + (r + 1); }
+
+    try {
+      const res = await fetch('./template-연수교육.xlsx');
+      if (!res.ok) throw new Error('템플릿 파일을 불러올 수 없습니다 (' + res.status + ')');
+      const buf = await res.arrayBuffer();
+      const zip = await JSZip.loadAsync(buf);
+      const sheetPath = 'xl/worksheets/sheet1.xml';
+      const sheetFile = zip.file(sheetPath);
+      if (!sheetFile) throw new Error('템플릿 시트를 찾을 수 없습니다.');
+      const xmlText = await sheetFile.async('text');
+      const parser = new DOMParser();
+      const xdoc = parser.parseFromString(xmlText, 'application/xml');
+      const sheetData = xdoc.getElementsByTagNameNS(XLSX_NS, 'sheetData')[0];
+
+      function getCell(r, c) {
+        const a = cellAddr(r, c);
+        const cells = xdoc.getElementsByTagNameNS(XLSX_NS, 'c');
+        for (let i = 0; i < cells.length; i++) {
+          if (cells[i].getAttribute('r') === a) return cells[i];
+        }
+        return null;
+      }
+      function getRow(r) {
+        const rows = xdoc.getElementsByTagNameNS(XLSX_NS, 'row');
+        for (let i = 0; i < rows.length; i++) {
+          if (rows[i].getAttribute('r') === String(r + 1)) return rows[i];
+        }
+        return null;
+      }
+      function setCellValue(r, c, value) {
+        const cellEl = getCell(r, c);
+        if (!cellEl) return false;
+        Array.from(cellEl.childNodes).forEach(n => cellEl.removeChild(n));
+        cellEl.setAttribute('t', 'inlineStr');
+        const isEl = xdoc.createElementNS(XLSX_NS, 'is');
+        const tEl = xdoc.createElementNS(XLSX_NS, 't');
+        tEl.setAttribute('xml:space', 'preserve');
+        tEl.textContent = String(value ?? '');
+        isEl.appendChild(tEl);
+        cellEl.appendChild(isEl);
+        return true;
+      }
+
+      // 제목(A1) 치환: 원본이 공유 문자열(sharedStrings.xml) 참조이면 원본 텍스트를 읽어와 치환 후 inlineStr로 교체
+      const dateStr = String(docGenSessionDate || '');
+      const year = /^\d{4}-\d{2}-\d{2}/.test(dateStr) ? dateStr.slice(0, 4) : String(new Date().getFullYear());
+      const a1Cell = getCell(0, 0);
+      if (a1Cell) {
+        let a1Text = '';
+        const a1V = a1Cell.getElementsByTagNameNS(XLSX_NS, 'v')[0];
+        if (a1Cell.getAttribute('t') === 's' && a1V) {
+          const sstFile = zip.file('xl/sharedStrings.xml');
+          if (sstFile) {
+            const sstText = await sstFile.async('text');
+            const sstDoc = parser.parseFromString(sstText, 'application/xml');
+            const sstItems = Array.from(sstDoc.getElementsByTagNameNS(XLSX_NS, 'si')).map(si => si.textContent);
+            const idx = parseInt(a1V.textContent, 10);
+            a1Text = sstItems[idx] || '';
+          }
+        } else if (a1V) {
+          a1Text = a1V.textContent;
+        }
+        const newTitle = a1Text.replace('{{교육년도}}', year + '년').replace('{{교육기관명}}', academyName || '');
+        setCellValue(0, 0, newTitle);
+      }
+
+      const extraSnaps = await Promise.all(selected.map(s => getDoc(doc(db, 'studentExtraInfo', s.id))));
+
+      // 템플릿에는 학생 15명분 블록(각 3행)이 미리 만들어져 있음. 15명 초과 시 마지막 블록을 복제해서 틀/서식을 그대로 확장
+      const existingBlocks = 15;
+      const totalBlocks = selected.length;
+      if (totalBlocks > existingBlocks) {
+        const lastBlockFirstRow = 3 + 3 * (existingBlocks - 1);
+        const mergeCellsEl = xdoc.getElementsByTagNameNS(XLSX_NS, 'mergeCells')[0];
+        let addedMerges = 0;
+        for (let blockIdx = existingBlocks; blockIdx < totalBlocks; blockIdx++) {
+          const newFirstRow = 3 + 3 * blockIdx;
+          for (let sub = 0; sub < 3; sub++) {
+            const srcRow = getRow(lastBlockFirstRow + sub);
+            if (!srcRow) continue;
+            const clonedRow = srcRow.cloneNode(true);
+            clonedRow.setAttribute('r', String(newFirstRow + sub + 1));
+            Array.from(clonedRow.getElementsByTagNameNS(XLSX_NS, 'c')).forEach(cellEl => {
+              const oldR = cellEl.getAttribute('r');
+              const colPart = oldR.replace(/[0-9]+$/, '');
+              cellEl.setAttribute('r', colPart + (newFirstRow + sub + 1));
+            });
+            sheetData.appendChild(clonedRow);
+          }
+          if (mergeCellsEl) {
+            [0, 1, 2, 3, 4, 11].forEach(c => {
+              const mc = xdoc.createElementNS(XLSX_NS, 'mergeCell');
+              mc.setAttribute('ref', cellAddr(newFirstRow, c) + ':' + cellAddr(newFirstRow + 2, c));
+              mergeCellsEl.appendChild(mc);
+              addedMerges++;
+            });
+          }
+        }
+        if (mergeCellsEl) {
+          mergeCellsEl.setAttribute('count', String(parseInt(mergeCellsEl.getAttribute('count'), 10) + addedMerges));
+        }
+      }
+
+      selected.forEach((s, i) => {
+        const blockFirstRow = 3 + 3 * i;
+        const extraSnap = extraSnaps[i];
+        const extra = extraSnap.exists() ? (extraSnap.data().fields || {}) : {};
+        setCellValue(blockFirstRow, 0, i + 1);
+        setCellValue(blockFirstRow, 1, s.name || '');
+        setCellValue(blockFirstRow, 2, extra['면허번호'] || '');
+        setCellValue(blockFirstRow, 3, extra['근무처명'] || '');
+
+        const times = (docGenCheckinMap && docGenCheckinMap[s.id]) || {};
+        for (let p = 1; p <= 9; p++) {
+          if (!times[p]) continue;
+          const subRow = (p - 1) % 3;
+          const periodCol = 5 + 2 * Math.floor((p - 1) / 3);
+          setCellValue(blockFirstRow + subRow, periodCol + 1, times[p]);
+        }
+      });
+
+      const serializer = new XMLSerializer();
+      const newXml = serializer.serializeToString(xdoc);
+      zip.file(sheetPath, newXml);
+
+      const outBlob = await zip.generateAsync({ type: 'blob' });
+      const url = URL.createObjectURL(outBlob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${docGenSessionLabel || 'session'}_연수교육_참석자명단.xlsx`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      alert('문서 생성 실패: ' + e.message);
+    }
+  };
+
+  window.openExcelUploadModal = function () {
+    document.getElementById('excel-upload-date-label').textContent = docGenSessionLabel || '';
+    document.getElementById('excel-file-input').value = '';
+    document.getElementById('excel-mapping-area').style.display = 'none';
+    document.getElementById('excel-match-area').style.display = 'none';
+    document.getElementById('excel-upload-modal').style.display = 'flex';
+  };
+  window.closeExcelUploadModal = function () {
+    document.getElementById('excel-upload-modal').style.display = 'none';
+  };
+
+  // ── 학생 정보 엑셀 업로드 ──
+  let excelRawRows = []; // 헤더 제외 데이터 행들, 2차원 배열
+  let excelHeaders = [];
+  let pendingMatched = [];   // [{ kakaoId, extra }]
+  let pendingUnmatched = []; // [{ name, phone, extra }]
+
+  window.handleExcelUpload = function (event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function (e) {
+      const data = new Uint8Array(e.target.result);
+      const wb = XLSX.read(data, { type: 'array' });
+      const sheet = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+      if (!rows.length) { alert('빈 파일입니다.'); return; }
+      excelHeaders = rows[0].map(h => String(h ?? '').trim());
+      excelRawRows = rows.slice(1).filter(r => r.some(c => String(c ?? '').trim() !== ''));
+      renderColumnMapping();
+    };
+    reader.readAsArrayBuffer(file);
+  };
+
+  function renderColumnMapping() {
+    const area = document.getElementById('excel-mapping-area');
+    area.style.display = 'block';
+    document.getElementById('excel-match-area').style.display = 'none';
+    area.innerHTML = `
+      <p style="font-size:13px;font-weight:700;margin-bottom:10px;">각 열이 무엇인지 지정해주세요 (${excelRawRows.length}행 감지됨)</p>
+      ${excelHeaders.map((h, i) => `
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
+          <span style="width:160px;font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${escapeHtml(h)}">${escapeHtml(h || '(제목없음 ' + (i + 1) + '열)')}</span>
+          <select class="auth-input" style="margin:0;width:auto;flex:1;" data-col="${i}" id="excel-col-${i}">
+            <option value="extra">기타정보로 저장</option>
+            <option value="name">이름</option>
+            <option value="phone">휴대폰번호</option>
+          </select>
+        </div>
+      `).join('')}
+      <button class="btn-primary" style="margin-top:10px;" onclick="confirmColumnMapping()">다음: 매칭 확인</button>
+    `;
+  }
+
+  function findMappedCol(type) {
+    for (let i = 0; i < excelHeaders.length; i++) {
+      const sel = document.getElementById('excel-col-' + i);
+      if (sel && sel.value === type) return i;
+    }
+    return -1;
+  }
+
+  function normalizePhone(v) {
+    return String(v ?? '').replace(/\D/g, '');
+  }
+
+  window.confirmColumnMapping = async function () {
+    const nameCol = findMappedCol('name');
+    const phoneCol = findMappedCol('phone');
+    if (phoneCol === -1) { alert('휴대폰번호 열을 지정해주세요.'); return; }
+
+    const parsedRows = excelRawRows.map(r => {
+      const extra = {};
+      excelHeaders.forEach((h, i) => {
+        if (i === nameCol || i === phoneCol) return;
+        const type = document.getElementById('excel-col-' + i).value;
+        if (type === 'extra') extra[h || ('열' + (i + 1))] = r[i] ?? '';
+      });
+      return {
+        name: nameCol !== -1 ? String(r[nameCol] ?? '').trim() : '',
+        phone: normalizePhone(r[phoneCol]),
+        extra,
+      };
+    }).filter(row => row.phone);
+
+    const phoneMap = {};
+    const allStudents = (docGenStudents || []).map(s => ({ kakaoId: s.id, name: s.name || '', phone: s.phone || '' }));
+    allStudents.forEach(s => {
+      const p = normalizePhone(s.phone);
+      if (p) phoneMap[p] = { kakaoId: s.kakaoId, name: s.name };
+    });
+
+    renderMatchArea(parsedRows, phoneMap, allStudents);
+  };
+
+  function renderMatchArea(parsedRows, phoneMap, allStudents) {
+    const area = document.getElementById('excel-match-area');
+    area.style.display = 'block';
+
+    pendingMatched = [];
+    pendingUnmatched = [];
+    parsedRows.forEach(row => {
+      const hit = phoneMap[row.phone];
+      if (hit) pendingMatched.push({ kakaoId: hit.kakaoId, extra: row.extra });
+      else pendingUnmatched.push(row);
+    });
+
+    const studentOptions = allStudents.map(s => `<option value="${s.kakaoId}">${escapeHtml(s.name)} (${escapeHtml(String(s.phone || '').slice(-4))})</option>`).join('');
+
+    area.innerHTML = `
+      <p style="font-size:14px;font-weight:800;color:var(--brand);">매칭됨 ${pendingMatched.length}명 / 매칭안됨 ${pendingUnmatched.length}명</p>
+      ${pendingUnmatched.length ? `
+        <div style="margin-top:12px;">
+          <p style="font-size:13px;font-weight:700;margin-bottom:8px;color:#B91C1C;">매칭 안 된 항목 — 직접 선택해주세요</p>
+          ${pendingUnmatched.map((row, i) => `
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">
+              <span style="width:140px;font-size:13px;">${escapeHtml(row.name || '(이름없음)')} · ${escapeHtml(row.phone)}</span>
+              <select class="auth-input" style="margin:0;width:auto;flex:1;" id="unmatched-select-${i}">
+                <option value="">-- 매칭 안 함(건너뛰기) --</option>
+                ${studentOptions}
+              </select>
+            </div>
+          `).join('')}
+        </div>
+      ` : ''}
+      <button class="btn-primary" style="margin-top:16px;" onclick="saveExcelMatches()">저장하기</button>
+    `;
+  }
+
+  window.saveExcelMatches = async function () {
+    const rowsToSave = pendingMatched.slice();
+    pendingUnmatched.forEach((row, i) => {
+      const sel = document.getElementById('unmatched-select-' + i);
+      if (sel && sel.value) rowsToSave.push({ kakaoId: sel.value, extra: row.extra });
+    });
+    if (!rowsToSave.length) { alert('저장할 항목이 없습니다.'); return; }
+    try {
+      for (const row of rowsToSave) {
+        await setDoc(doc(db, 'studentExtraInfo', row.kakaoId), {
+          academyId: ACADEMY_ID,
+          updatedAt: serverTimestamp(),
+          fields: row.extra,
+        }, { merge: true });
+      }
+      alert(`${rowsToSave.length}명의 정보를 저장했습니다.`);
+      document.getElementById('excel-mapping-area').style.display = 'none';
+      document.getElementById('excel-match-area').style.display = 'none';
+      document.getElementById('excel-file-input').value = '';
+      pendingMatched = [];
+      pendingUnmatched = [];
+    } catch (e) {
+      alert('저장 실패: ' + e.message);
+    }
+  };
+
+  // ── 로그인 상태 진입점 ──
+  onAuthStateChanged(auth, async (user) => {
+    if (!user) {
+      document.getElementById('dashboard').style.display = 'none';
+      document.getElementById('auth-wrap').style.display = 'flex';
+      return;
+    }
+    try {
+      const adminSnap = await getDoc(doc(db, 'qrAdmins', user.uid));
+      if (!adminSnap.exists() || !adminSnap.data().academyId) {
+        await auth.signOut();
+        const errEl = document.getElementById('login-error');
+        if (errEl) {
+          errEl.textContent = '이 계정에 연결된 학원 정보를 찾을 수 없습니다. 슈퍼어드민에서 계정 설정을 확인해주세요.';
+          errEl.style.display = 'block';
+        }
+        return;
+      }
+      ACADEMY_ID = adminSnap.data().academyId;
+      academyName = adminSnap.data().academyName || '';
+      await enterDashboard();
+    } catch (e) {
+      console.warn('로그인 상태 확인 실패:', e);
+    }
+  });
+</script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@400;500;600;700;800&display=swap');
+
+:root {
+  --brand: #6c63ff;
+  --brand-dark: #5651d5;
+  --brand-xlight: #ede9fe;
+  --canvas: #f4f5f7;
+  --surface: #FFFFFF;
+  --border: #E5E7EB;
+  --text: #111827;
+  --muted: #6B7280;
+  --radius: 10px;
+  --pill: 50px;
+  --shadow: 0 1px 4px rgba(0,0,0,.08), 0 0 0 1px rgba(0,0,0,.04);
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Pretendard',system-ui,sans-serif;background:var(--canvas);color:var(--text);letter-spacing:-0.01em;min-height:100vh;}
+
+/* ── AUTH (admin.html 재사용) ── */
+.auth-wrap{min-height:100vh;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);display:flex;align-items:center;justify-content:center;padding:24px;}
+.auth-card{background:var(--surface);border-radius:20px;padding:40px 36px;width:100%;max-width:400px;box-shadow:0 24px 64px rgba(0,0,0,0.3);}
+.auth-logo{text-align:center;margin-bottom:28px;}
+.auth-logo-mark{width:64px;height:64px;background:var(--brand);border-radius:18px;display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:800;color:#fff;margin:0 auto 14px;}
+.auth-logo-title{font-size:22px;font-weight:800;color:var(--text);margin-top:8px;letter-spacing:-0.02em;}
+.auth-logo-sub{font-size:13px;color:var(--muted);margin-top:4px;}
+.auth-form-label{font-size:11px;font-weight:700;color:var(--muted);display:block;margin-bottom:6px;letter-spacing:0.06em;text-transform:uppercase;}
+.auth-input{width:100%;padding:13px 16px;border:1.5px solid var(--border);border-radius:10px;font-size:15px;color:var(--text);outline:none;margin-bottom:14px;background:#fff;transition:border-color .15s;}
+.auth-input:focus{border-color:var(--brand);box-shadow:0 0 0 3px rgba(108,99,255,.12);}
+.auth-btn{width:100%;padding:15px;border-radius:var(--pill);border:none;font-size:15px;font-weight:700;cursor:pointer;transition:all 0.2s;letter-spacing:-0.01em;}
+.auth-btn:active{transform:scale(0.97);}
+.auth-btn-primary{background:var(--brand);color:#fff;margin-bottom:10px;}
+.auth-btn-primary:hover{background:var(--brand-dark);}
+.auth-error{background:#FEF2F2;color:#B91C1C;border:1px solid #FECACA;border-radius:8px;padding:10px 14px;font-size:13px;margin-bottom:14px;display:none;}
+.auth-divider{display:flex;align-items:center;gap:10px;margin:16px 0;color:var(--muted);font-size:12px;}
+.auth-divider::before,.auth-divider::after{content:'';flex:1;height:1px;background:var(--border);}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.5);display:none;align-items:center;justify-content:center;padding:24px;z-index:1000;}
+.modal-card{max-width:360px;text-align:center;}
+.invite-code-box{font-size:28px;font-weight:800;color:var(--brand);letter-spacing:0.05em;background:var(--brand-xlight);border-radius:12px;padding:20px;margin:20px 0;}
+
+/* ── TOP BAR ── */
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:14px 28px;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0;}
+.topbar-title{font-size:18px;font-weight:800;color:var(--brand);letter-spacing:-0.02em;}
+.tabs{display:flex;gap:6px;}
+.tab-btn{padding:9px 18px;border-radius:var(--pill);border:1.5px solid var(--border);background:transparent;color:var(--muted);font-size:14px;font-weight:700;cursor:pointer;transition:.15s;}
+.tab-btn:hover{border-color:var(--brand);color:var(--brand);}
+.tab-btn.active{background:var(--brand);border-color:var(--brand);color:#fff;}
+.btn-logout{background:transparent;border:1.5px solid var(--border);color:var(--muted);padding:8px 16px;border-radius:var(--pill);cursor:pointer;font-size:13px;font-weight:600;transition:.15s;}
+.btn-logout:hover{border-color:var(--brand);color:var(--brand);}
+
+#dashboard{display:none;flex-direction:column;min-height:100vh;}
+.page{padding:32px;}
+
+/* ── QR PAGE ── */
+.qr-wrap{display:flex;gap:24px;align-items:stretch;justify-content:center;}
+.qr-left{display:flex;flex-direction:column;align-items:center;gap:18px;}
+.qr-card{background:var(--surface);border-radius:20px;padding:36px;box-shadow:var(--shadow);display:flex;flex-direction:column;align-items:center;gap:16px;}
+#qr-canvas{border-radius:12px;min-width:440px;min-height:440px;display:flex;align-items:center;justify-content:center;}
+.qr-placeholder{font-size:20px;font-weight:700;color:var(--muted);}
+.qr-countdown{font-size:15px;font-weight:700;color:var(--brand);}
+.current-period{font-size:20px;font-weight:800;color:var(--text);}
+.btn-primary{background:var(--brand);color:#fff;border:none;padding:14px 32px;border-radius:var(--pill);font-size:15px;font-weight:700;cursor:pointer;transition:.15s;}
+.btn-primary:hover{background:var(--brand-dark);}
+.btn-primary:disabled{opacity:.5;cursor:not-allowed;}
+.qr-body{display:flex;align-items:center;gap:16px;}
+.period-tabs{display:flex;flex-direction:column;gap:6px;max-height:440px;overflow-y:auto;}
+.period-tab{padding:10px 18px;border-radius:10px;font-size:14px;font-weight:800;text-align:center;background:#fff;color:var(--text);border:1.5px solid var(--border);white-space:nowrap;}
+.period-tab.active{background:var(--brand);color:#fff;border-color:var(--brand);}
+
+/* ── ROSTER PANEL ── */
+.roster-panel{background:var(--surface);border-radius:20px;padding:24px;box-shadow:var(--shadow);width:340px;flex-shrink:0;display:flex;flex-direction:column;}
+.roster-panel-header{font-size:18px;font-weight:800;color:var(--brand);margin-bottom:14px;text-align:center;}
+.roster-panel-list{overflow-y:auto;display:flex;flex-direction:column;gap:6px;flex:1;}
+.roster-item{display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:var(--canvas);border-radius:8px;font-size:14px;font-weight:600;}
+.roster-phone{color:var(--muted);font-weight:700;font-size:13px;}
+.roster-empty{font-size:13px;color:var(--muted);text-align:center;padding:20px;}
+
+/* ── HISTORY PAGE ── */
+.history-wrap{display:flex;gap:20px;align-items:flex-start;}
+.hist-list-card{background:var(--surface);border-radius:14px;box-shadow:var(--shadow);padding:16px;width:220px;flex-shrink:0;display:flex;flex-direction:column;gap:6px;max-height:70vh;overflow-y:auto;}
+.hist-item{background:transparent;border:1.5px solid var(--border);border-radius:8px;padding:10px 12px;font-size:14px;font-weight:600;color:var(--text);cursor:pointer;text-align:left;transition:.15s;}
+.hist-item:hover{border-color:var(--brand);color:var(--brand);background:var(--brand-xlight);}
+.hist-empty{font-size:13px;color:var(--muted);padding:8px;}
+.hist-detail-card{background:var(--surface);border-radius:14px;box-shadow:var(--shadow);padding:20px;flex:1;overflow-x:auto;}
+.hist-table{border-collapse:collapse;width:100%;font-size:13px;}
+.hist-table th,.hist-table td{border:1px solid var(--border);padding:8px 12px;text-align:center;white-space:nowrap;}
+.hist-table th{background:var(--brand-xlight);color:var(--brand);font-weight:800;}
+.absent{color:#B91C1C;font-weight:700;}
+.btn-csv{background:transparent;color:var(--brand);border:1.5px solid var(--brand);padding:9px 18px;border-radius:var(--pill);font-size:13px;font-weight:700;cursor:pointer;margin-bottom:14px;transition:.15s;display:none;}
+.btn-csv:hover{background:var(--brand-xlight);}
+</style>
+</head>
+<body>
+
+<!-- ── AUTH ── -->
+<div id="auth-wrap" class="auth-wrap">
+  <div class="auth-card">
+    <div class="auth-logo">
+      <div class="auth-logo-mark">H</div>
+      <div class="auth-logo-title">QR 출석 관리</div>
+      <div class="auth-logo-sub">원장님 로그인</div>
+    </div>
+    <div class="auth-error" id="login-error"></div>
+    <label class="auth-form-label">이메일</label>
+    <input class="auth-input" id="login-email" type="email" placeholder="admin@example.com">
+    <label class="auth-form-label">비밀번호</label>
+    <input class="auth-input" id="login-pw" type="password" placeholder="비밀번호 입력" onkeydown="if(event.key==='Enter')doLogin()">
+    <button class="auth-btn auth-btn-primary" onclick="doLogin()">로그인</button>
+    <div style="text-align:center;margin-top:6px;">
+      <a href="javascript:void(0)" onclick="showSignup()" style="color:var(--brand);font-size:13px;text-decoration:none;font-weight:600;">계정이 없으신가요? 회원가입</a>
+    </div>
+  </div>
+  <div class="auth-card" id="signup-card" style="display:none;">
+    <div class="auth-logo">
+      <div class="auth-logo-mark">H</div>
+      <div class="auth-logo-title">회원가입</div>
+      <div class="auth-logo-sub">휴대폰 인증 후 가입 정보를 입력하세요</div>
+    </div>
+    <div class="auth-error" id="signup-error"></div>
+
+    <div id="signup-step1">
+      <label class="auth-form-label">휴대폰번호</label>
+      <input class="auth-input" id="signup-phone" type="tel" inputmode="numeric" placeholder="01012345678">
+      <button class="auth-btn auth-btn-primary" id="btn-signup-request-otp" onclick="requestSignupOtp()">인증번호 받기</button>
+
+      <div id="signup-otp-row" style="display:none;margin-top:14px;">
+        <label class="auth-form-label">인증번호</label>
+        <input class="auth-input" id="signup-otp-code" type="text" inputmode="numeric" placeholder="인증번호 입력">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
+          <span id="signup-otp-countdown" style="font-size:13px;color:var(--muted);"></span>
+          <button id="btn-signup-resend" onclick="requestSignupOtp()" disabled style="margin-left:auto;background:transparent;border:1.5px solid var(--border);color:var(--muted);border-radius:var(--pill);padding:8px 14px;font-size:13px;font-weight:600;cursor:pointer;">인증번호 다시 받기</button>
+        </div>
+        <button class="auth-btn auth-btn-primary" onclick="verifySignupOtp()">확인</button>
+      </div>
+    </div>
+
+    <div id="signup-step2" style="display:none;">
+      <label class="auth-form-label">이름</label>
+      <input class="auth-input" id="signup-name" type="text" placeholder="담당자 이름">
+      <label class="auth-form-label">이메일</label>
+      <input class="auth-input" id="signup-email" type="email" placeholder="admin@example.com">
+      <label class="auth-form-label">비밀번호 (최소 6자)</label>
+      <input class="auth-input" id="signup-pw" type="password" placeholder="비밀번호 입력">
+      <label class="auth-form-label">교육기관명</label>
+      <input class="auth-input" id="signup-academy" type="text" placeholder="교육기관명 입력">
+      <button class="auth-btn auth-btn-primary" id="btn-submit-signup" onclick="submitSignup()">가입하기</button>
+    </div>
+
+    <div style="text-align:center;margin-top:6px;">
+      <a href="javascript:void(0)" onclick="showLoginFromSignup()" style="color:var(--muted);font-size:13px;text-decoration:none;">로그인으로 돌아가기</a>
+    </div>
+  </div>
+</div>
+
+<div id="signup-invite-modal" class="modal-overlay" style="display:none;">
+  <div class="auth-card modal-card">
+    <div class="auth-logo">
+      <div class="auth-logo-title">가입이 완료되었습니다</div>
+      <div class="auth-logo-sub">이 코드를 학생들에게 공유하세요</div>
+    </div>
+    <div class="invite-code-box" id="signup-invite-code"></div>
+    <button class="auth-btn auth-btn-primary" onclick="closeSignupInviteModal()">확인</button>
+  </div>
+</div>
+
+<div id="doc-gen-modal" class="modal-overlay" style="display:none;">
+  <div class="auth-card modal-card" style="max-width:420px;text-align:left;">
+    <div class="auth-logo" style="margin-bottom:16px;">
+      <div class="auth-logo-title">문서생성 대상 선택</div>
+      <div class="auth-logo-sub" id="doc-gen-date-label"></div>
+    </div>
+    <div style="display:flex;justify-content:space-between;margin-bottom:10px;">
+      <button type="button" onclick="toggleAllDocGenChecks(true)" style="background:transparent;border:none;color:var(--brand);font-size:13px;font-weight:700;cursor:pointer;">전체 선택</button>
+      <button type="button" onclick="toggleAllDocGenChecks(false)" style="background:transparent;border:none;color:var(--muted);font-size:13px;font-weight:700;cursor:pointer;">전체 해제</button>
+    </div>
+    <div id="doc-gen-student-list" style="max-height:320px;overflow-y:auto;display:flex;flex-direction:column;gap:4px;margin-bottom:16px;"></div>
+    <button class="auth-btn auth-btn-primary" onclick="confirmDocGen()">문서생성</button>
+    <button class="auth-btn" style="background:transparent;border:1.5px solid var(--border);color:var(--muted);margin-top:8px;" onclick="closeDocGenModal()">취소</button>
+  </div>
+</div>
+
+<!-- ── DASHBOARD ── -->
+<div id="dashboard">
+  <div class="topbar">
+    <div class="topbar-title" id="topbar-title">까마귀 QR 출석</div>
+    <div class="tabs">
+      <button class="tab-btn active" id="tab-qr" onclick="showTab('qr')">실시간 QR</button>
+      <button class="tab-btn" id="tab-history" onclick="showTab('history')">지난 기록</button>
+    </div>
+    <button class="btn-logout" onclick="doLogout()">로그아웃</button>
+  </div>
+
+  <div class="page" id="page-qr" style="display:block;">
+    <div class="qr-wrap">
+      <div class="qr-left">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <label class="auth-form-label" style="margin:0;font-size:17px;font-weight:800;">세션 날짜</label>
+          <input type="date" id="session-date" class="auth-input" style="width:auto;margin:0;font-size:26px;font-weight:800;padding:14px 18px;">
+        </div>
+        <div class="qr-card">
+          <div class="current-period" id="current-period-label">교시 미시작</div>
+          <div class="qr-body">
+            <div class="period-tabs" id="period-tabs"></div>
+            <div id="qr-canvas"><span class="qr-placeholder">시작 전</span></div>
+          </div>
+          <div class="qr-countdown" id="qr-countdown"></div>
+        </div>
+        <div style="display:flex;gap:10px;">
+          <button class="btn-primary" id="btn-start-period" onclick="startNextPeriod()">수업시작</button>
+          <button class="btn-primary" id="btn-end-class" onclick="startNextPeriod(true)">수업종료</button>
+        </div>
+        <button class="btn-logout" id="btn-end-session" onclick="endSession()" style="display:none;">세션 종료</button>
+      </div>
+      <div class="roster-panel">
+        <div class="roster-panel-header" id="roster-panel-header"><div>오늘 수강생 0명</div><div style="margin-top:6px;font-size:14px;font-weight:600;color:var(--muted);">이번 교시 체크 -</div></div>
+        <div id="period-counts" style="display:flex;flex-wrap:wrap;gap:6px 12px;justify-content:center;font-size:13px;font-weight:700;color:var(--text);margin-bottom:12px;"></div>
+        <div class="roster-panel-list" id="roster-panel-list">
+          <div class="roster-empty">교시를 시작하면 표시됩니다.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="page" id="page-history" style="display:none;">
+    <div class="history-wrap">
+      <div class="hist-list-card" id="history-list">
+        <div class="hist-empty">불러오는 중...</div>
+      </div>
+      <div style="flex:1;">
+        <button class="btn-csv" id="btn-csv" onclick="downloadCsv()">CSV 다운로드</button>
+        <button class="btn-csv" id="btn-gen-doc" onclick="openDocGenModal()" style="display:none;">엑셀(제출용)</button>
+        <button class="btn-csv" id="btn-excel-upload" onclick="openExcelUploadModal()" style="display:none;">엑셀 업로드</button>
+        <div class="hist-detail-card" id="history-detail">
+          <div class="hist-empty">왼쪽에서 날짜를 선택하세요.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div id="excel-upload-modal" class="modal-overlay" style="display:none;">
+  <div class="auth-card modal-card" style="max-width:520px;text-align:left;max-height:80vh;overflow-y:auto;">
+    <div class="auth-logo" style="margin-bottom:16px;">
+      <div class="auth-logo-title">학생 정보 엑셀 업로드</div>
+      <div class="auth-logo-sub" id="excel-upload-date-label"></div>
+    </div>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:16px;">이름/전화번호가 포함된 엑셀 파일을 업로드하면, 전화번호로 이 날짜의 학생과 매칭해서 나머지 정보를 저장합니다.</p>
+    <input type="file" id="excel-file-input" accept=".xlsx,.xls" onchange="handleExcelUpload(event)">
+    <div id="excel-mapping-area" style="display:none;margin-top:20px;"></div>
+    <div id="excel-match-area" style="display:none;margin-top:20px;"></div>
+    <button class="auth-btn" style="background:transparent;border:1.5px solid var(--border);color:var(--muted);margin-top:16px;" onclick="closeExcelUploadModal()">닫기</button>
+  </div>
+</div>
+
+</body>
+</html>
