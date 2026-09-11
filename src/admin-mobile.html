@@ -6,7 +6,7 @@
 <title>Here — 원장님 모바일</title>
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-app.js";
-  import { getFirestore, doc, getDoc, setDoc, updateDoc, getDocs, collection, query, where, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-firestore.js";
+  import { getFirestore, doc, getDoc, setDoc, updateDoc, getDocs, collection, query, where, orderBy, addDoc, serverTimestamp, writeBatch } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-firestore.js";
   import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-auth.js";
   const app = initializeApp({
     apiKey:"AIzaSyBaCpQKykViq6526dCJ8mEYbUZqyg5-NUo",
@@ -22,6 +22,7 @@
   window.fsDoc = doc; window.fsGetDoc = getDoc; window.fsSetDoc = setDoc;
   window.fsUpdateDoc = updateDoc; window.fsGetDocs = getDocs;
   window.fsCollection = collection; window.fsQuery = query; window.fsWhere = where;
+  window.fsOrderBy = orderBy; window.fsWriteBatch = writeBatch;
   window.fsAddDoc = addDoc; window.fsServerTimestamp = serverTimestamp;
   try { await signInAnonymously(auth); } catch(e) {}
   window.fsReady = true;
@@ -539,13 +540,43 @@ async function loadTodayAttendance(){
     snap.forEach(d=>todayRecords.push({id:d.id,...d.data()}));
 }
 
+let approvalItems = [];
+
 async function loadApprovals(){
     const el = document.getElementById('approvals-list');
     el.innerHTML = '<div class="empty-state"><div class="empty-icon">⏳</div>불러오는 중...</div>';
     try {
-        const res = await fetch(GAS_URL, {method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action:'getPendingApprovals'})});
-        const data = await res.json();
-        renderApprovals(data.records||[]);
+        const acId = directorData?.academyId;
+        const kakaoIds = studentsList.map(s=>String(s.kakaoId));
+        approvalItems = [];
+        if (kakaoIds.length) {
+            // 퇴근 누락 신청 (status: pending)
+            let moSnap;
+            try {
+                const q = window.fsQuery(window.fsCollection(window.db,'missingOut'), window.fsWhere('status','==','pending'), window.fsOrderBy('timestamp','desc'));
+                moSnap = await window.fsGetDocs(q);
+            } catch(e) {
+                const q2 = window.fsQuery(window.fsCollection(window.db,'missingOut'), window.fsWhere('status','==','pending'));
+                moSnap = await window.fsGetDocs(q2);
+            }
+            moSnap.forEach(d=>{
+                const data = d.data();
+                if (kakaoIds.includes(String(data.kakaoId))) {
+                    approvalItems.push({kind:'missingOut', id:d.id, kakaoId:data.kakaoId, date:data.date, outTime:data.outTime, ts:data.timestamp?.seconds||0});
+                }
+            });
+            // 출결 인증 요청 (status: submitted — 학생 서명 제출 완료건)
+            if (acId) {
+                const q3 = window.fsQuery(window.fsCollection(window.db,'attendanceAuthRequests'), window.fsWhere('academyId','==',acId), window.fsWhere('status','==','submitted'));
+                const arSnap = await window.fsGetDocs(q3);
+                arSnap.forEach(d=>{
+                    const data = d.data();
+                    approvalItems.push({kind:'authReq', id:d.id, kakaoId:data.kakaoId, date:data.date, inTime:data.inTime, outTime:data.outTime, type:data.type, ts:data.submittedAt?.seconds||data.requestedAt?.seconds||0});
+                });
+            }
+        }
+        approvalItems.sort((a,b)=>b.ts-a.ts);
+        renderApprovals();
     } catch(e) { el.innerHTML = '<div class="empty-state"><div class="empty-icon">⚠️</div>불러오기 실패</div>'; }
 }
 
@@ -576,21 +607,27 @@ function renderTodayPage(){
     document.getElementById('today-list').innerHTML = rows || '<div class="empty-state"><div class="empty-icon">👤</div>학생 없음</div>';
 }
 
-function renderApprovals(records){
+function renderApprovals(){
     const el = document.getElementById('approvals-list');
-    if (!records.length) {
+    if (!approvalItems.length) {
         el.innerHTML = '<div class="empty-state"><div class="empty-icon">✅</div>승인 대기 중인 서류가 없습니다</div>';
         return;
     }
-    el.innerHTML = records.map((r,i)=>`
+    const typeLabel = {in:'출근',out:'퇴근',both:'출+퇴근'};
+    el.innerHTML = approvalItems.map((r,i)=>{
+        const stu = studentsList.find(s=>String(s.kakaoId)===String(r.kakaoId));
+        const name = stu?.name || r.kakaoId;
+        const metaType = r.kind==='missingOut' ? '퇴근누락' : (typeLabel[r.type]||'출결인증');
+        return `
       <div class="approval-card">
-        <div class="approval-name">${r.name||'-'}</div>
-        <div class="approval-meta">${r.date||'-'} · ${r.type||'-'} · ${r.inTime||'-'}~${r.outTime||'-'}</div>
+        <div class="approval-name">${name}</div>
+        <div class="approval-meta">${r.date||'-'} · ${metaType} · ${r.inTime||'-'}~${r.outTime||'-'}</div>
         <div class="approval-btns">
-          <button class="btn btn-primary btn-sm" style="flex:1;" onclick="approveDoc(${i},true,'${r.recordId||''}','${r.type||''}','${r.inTime||''}','${r.outTime||''}','${r.row||''}')">승인</button>
-          <button class="btn btn-sm" style="flex:1;background:#f1f0ef;color:var(--text);" onclick="approveDoc(${i},false,'${r.recordId||''}','${r.type||''}','${r.inTime||''}','${r.outTime||''}','${r.row||''}')">반려</button>
+          <button class="btn btn-primary btn-sm" style="flex:1;" onclick="approveApprovalItem(${i},true)">승인</button>
+          <button class="btn btn-sm" style="flex:1;background:#f1f0ef;color:var(--text);" onclick="approveApprovalItem(${i},false)">반려</button>
         </div>
-      </div>`).join('');
+      </div>`;
+    }).join('');
 }
 
 // ── Hospital change ────────────────────────────────────────
@@ -624,13 +661,52 @@ async function doChangeHospital(){
     showLoader(false);
 }
 
-async function approveDoc(idx, approved, recordId, type, inTime, outTime, row){
+async function approveApprovalItem(idx, approved){
+    const r = approvalItems[idx];
+    if (!r) return;
+    if (!confirm(approved ? '승인하시겠습니까? 출퇴근 기록에 반영됩니다.' : '반려하시겠습니까?')) return;
     showLoader(true);
     try {
-        await fetch(GAS_URL, {method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action:'approveMissingAttendance',approved,recordId,type,inTime,outTime,row})});
+        if (r.kind === 'missingOut') {
+            if (approved) {
+                if (!r.outTime) { showToast('퇴근시간 정보가 없습니다.','error'); showLoader(false); return; }
+                const missingSnap = await window.fsGetDoc(window.fsDoc(window.db,'missingOut',r.id));
+                const md = missingSnap.exists() ? missingSnap.data() : {};
+                const attRef = window.fsDoc(window.db,'attendance',`${r.kakaoId}_${r.date}`);
+                const batch = window.fsWriteBatch(window.db);
+                batch.set(attRef,{outTime:r.outTime,missingOutApproved:true,studentSig:md.studentSig||'',managerSig:md.managerSig||'',managerPhone:md.managerPhone||''},{merge:true});
+                batch.update(window.fsDoc(window.db,'missingOut',r.id),{status:'approved',approvedAt:window.fsServerTimestamp()});
+                await batch.commit();
+            } else {
+                await window.fsUpdateDoc(window.fsDoc(window.db,'missingOut',r.id),{status:'rejected',rejectedAt:window.fsServerTimestamp()});
+            }
+        } else {
+            if (approved) {
+                const reqSnap = await window.fsGetDoc(window.fsDoc(window.db,'attendanceAuthRequests',r.id));
+                if (!reqSnap.exists()) { showToast('요청을 찾을 수 없습니다','error'); showLoader(false); return; }
+                const req = reqSnap.data();
+                const docKey = String(r.kakaoId)+'_'+r.date;
+                const attUpdate = {kakaoId:String(r.kakaoId)};
+                if (req.inTime) attUpdate.inTime = req.inTime;
+                if (req.outTime) attUpdate.outTime = req.outTime;
+                if (req.studentSig) attUpdate.studentSig = req.studentSig;
+                if (req.managerSig) attUpdate.managerSig = req.managerSig;
+                if (req.managerName) attUpdate.managerName = req.managerName;
+                if (req.managerPosition) attUpdate.managerPosition = req.managerPosition;
+                if (req.managerPhone) attUpdate.managerPhone = req.managerPhone;
+                const batch = window.fsWriteBatch(window.db);
+                batch.set(window.fsDoc(window.db,'attendance',docKey),attUpdate,{merge:true});
+                batch.update(window.fsDoc(window.db,'attendanceAuthRequests',r.id),{status:'approved'});
+                batch.update(window.fsDoc(window.db,'students',String(r.kakaoId)),{pendingAuthRequestId:null});
+                await batch.commit();
+            } else {
+                await window.fsUpdateDoc(window.fsDoc(window.db,'attendanceAuthRequests',r.id),{status:'rejected',rejectedAt:window.fsServerTimestamp()});
+                await window.fsUpdateDoc(window.fsDoc(window.db,'students',String(r.kakaoId)),{pendingAuthRequestId:null});
+            }
+        }
         showToast(approved ? '승인 완료' : '반려 완료', approved ? 'success' : 'info');
         await loadApprovals();
-    } catch(e) { showToast('처리 실패','error'); }
+    } catch(e) { showToast('처리 실패: '+e.message,'error'); }
     showLoader(false);
 }
 
