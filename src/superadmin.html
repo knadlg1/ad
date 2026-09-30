@@ -601,7 +601,7 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--canvas);color:var
     </div>
     <div class="form-group" style="margin-bottom:12px;">
       <label class="form-label">날짜</label>
-      <input class="form-input" id="edit-att-date" type="date">
+      <input class="form-input" id="edit-att-date" type="date" readonly>
     </div>
     <div style="display:flex;gap:12px;margin-bottom:12px;">
       <div class="form-group" style="flex:1;">
@@ -1607,6 +1607,7 @@ function openEditAttModal(docId, name, date, inTime, outTime, hospital){
     document.getElementById('edit-att-doc-id').value = docId;
     document.getElementById('edit-att-name').value = name;
     document.getElementById('edit-att-date').value = date;
+    document.getElementById('edit-att-date').readOnly = true;
     // time input은 HH:MM 형식 (초 제거)
     document.getElementById('edit-att-in').value = inTime ? inTime.slice(0,5) : '';
     document.getElementById('edit-att-out').value = outTime ? outTime.slice(0,5) : '';
@@ -1623,6 +1624,16 @@ async function saveEditAttRecord(){
     if (!docId){ showToast('오류: 문서 ID 없음','error'); return; }
     if (!date)  { showToast('날짜를 입력해주세요','error'); return; }
     if (!inRaw) { showToast('출근 시간을 입력해주세요','error'); return; }
+    // 안전장치: docId(kakaoId_YYYY-MM-DD)에서 역산한 날짜와 폼의 date가 다르면 경고
+    // (실수로 날짜를 바꿔 저장해도 실제로는 docId가 그대로라 엉뚱한 날짜 문서가 덮어써지는 사고 방지)
+    const docDate = docId.slice(-10);
+    if (docDate !== date){
+        const proceed = confirm(
+            `이 수정은 ${docDate} 문서를 대상으로 합니다. 그런데 입력한 날짜는 ${date}로 다릅니다.\n\n`+
+            `날짜를 바꾸려는 게 맞다면, 이 문서(${docDate})의 날짜 필드만 ${date}로 바뀌고 실제 저장 위치는 그대로 ${docDate} 문서입니다. 계속하시겠습니까?`
+        );
+        if (!proceed) return;
+    }
     const inTime  = inRaw.length === 5 ? inRaw+':00' : inRaw;
     const outTime = outRaw ? (outRaw.length === 5 ? outRaw+':00' : outRaw) : null;
     showLoader(true);
