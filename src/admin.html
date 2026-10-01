@@ -2539,7 +2539,7 @@ async function approveMissingOut(docId,kakaoId,date,outTime){
         const md=missingSnap.exists()?missingSnap.data():{};
         const attRef=window.fsDoc(window.db,'attendance',`${kakaoId}_${date}`);
         const batch=window.fsWriteBatch(window.db);
-        batch.set(attRef,{outTime,missingOutApproved:true,studentSig:md.studentSig||'',managerSig:md.managerSig||'',managerPhone:md.managerPhone||''},{merge:true});
+        batch.set(attRef,{date,outTime,missingOutApproved:true,studentSig:md.studentSig||'',managerSig:md.managerSig||'',managerPhone:md.managerPhone||''},{merge:true});
         batch.update(window.fsDoc(window.db,'missingOut',docId),{
             status:'approved',approvedAt:window.fsServerTimestamp()
         });
@@ -2782,7 +2782,7 @@ async function approveAuthRequest(docId,kakaoId,date){
         if(!reqSnap.exists()){showToast('요청을 찾을 수 없습니다','error');return;}
         const req=reqSnap.data();
         const docKey=String(kakaoId)+'_'+date;
-        const attUpdate={kakaoId:String(kakaoId)};
+        const attUpdate={kakaoId:String(kakaoId),date};
         if(req.inTime)attUpdate.inTime=req.inTime;
         if(req.outTime)attUpdate.outTime=req.outTime;
         if(req.studentSig)attUpdate.studentSig=req.studentSig;
