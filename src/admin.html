@@ -123,6 +123,9 @@ body{font-family:'Pretendard',system-ui,sans-serif;background:var(--canvas);colo
 .nav-cls-item:hover{background:var(--canvas);color:var(--text);}
 .nav-cls-item.active{background:var(--brand-xlight);color:var(--brand);font-weight:700;}
 .nav-cls-item.active::before{opacity:1;}
+.nav-cls-grad-toggle{color:var(--muted);font-weight:700;margin-top:4px;border-top:1px solid var(--border);padding-top:10px;}
+.nav-cls-grad-list{display:flex;flex-direction:column;gap:1px;padding-left:12px;}
+.nav-cls-grad-item{font-size:12px;}
 /* 하단 버튼 영역 */
 .sidebar-bottom{margin-top:auto;display:flex;flex-direction:column;gap:6px;}
 .btn-settings{background:transparent;border:1.5px solid var(--border);color:var(--muted);padding:7px 12px;border-radius:var(--pill);cursor:pointer;font-size:12px;font-weight:600;transition:.15s;width:100%;}
@@ -1810,11 +1813,27 @@ async function loadAttendance(){
 }
 
 // ── 반 사이드바 ───────────────────────────────────────────
+let gradSectionOpen = false;
+
 function renderClassSidebar(){
     const list=document.getElementById('nav-cls-list');
     if(!list)return;
-    const allCls=[{id:'',name:'전체'},...classesList];
-    list.innerHTML=allCls.map(c=>`<button class="nav-cls-item${sidebarClassFilter===c.id?' active':''}" data-cls="${c.id}" onclick="onSidebarClassClick(null,'${c.id}')">${escHtml(c.name)}</button>`).join('');
+    const activeCls=classesList.filter(c=>!c.graduated);
+    const gradCls=classesList.filter(c=>c.graduated);
+    const allCls=[{id:'',name:'전체'},...activeCls];
+    let html=allCls.map(c=>`<button class="nav-cls-item${sidebarClassFilter===c.id?' active':''}" data-cls="${c.id}" onclick="onSidebarClassClick(null,'${c.id}')">${escHtml(c.name)}</button>`).join('');
+    if(gradCls.length){
+        html+=`<button class="nav-cls-item nav-cls-grad-toggle" onclick="toggleGradSection()">${gradSectionOpen?'📂':'📁'} 졸업반 (${gradCls.length})</button>`;
+        if(gradSectionOpen){
+            html+=`<div class="nav-cls-grad-list">${gradCls.map(c=>`<button class="nav-cls-item nav-cls-grad-item${sidebarClassFilter===c.id?' active':''}" data-cls="${c.id}" onclick="onSidebarClassClick(null,'${c.id}')">${escHtml(c.name)}</button>`).join('')}</div>`;
+        }
+    }
+    list.innerHTML=html;
+}
+
+function toggleGradSection(){
+    gradSectionOpen=!gradSectionOpen;
+    renderClassSidebar();
 }
 
 function onSidebarClassClick(_btn,clsId){
@@ -1828,7 +1847,8 @@ function onSidebarClassClick(_btn,clsId){
 function renderStudentDropdown(){
     const sel=document.getElementById('att-stu-select');
     if(!sel)return;
-    const list=(sidebarClassFilter?studentsList.filter(s=>s.classId===sidebarClassFilter):studentsList)
+    const gradClassIds=new Set(classesList.filter(c=>c.graduated).map(c=>c.id));
+    const list=(sidebarClassFilter?studentsList.filter(s=>s.classId===sidebarClassFilter):studentsList.filter(s=>!gradClassIds.has(s.classId)))
         .filter(s=>!s.droppedOut)
         .slice().sort((a,b)=>(a.name||'').localeCompare(b.name||'','ko'));
     const prev=studentFilter;
@@ -1843,7 +1863,8 @@ function onStudentSearchInput(){
     const q=document.getElementById('att-stu-search').value.trim();
     attStuNameFilter=q;
     const sel=document.getElementById('att-stu-select');
-    let list=sidebarClassFilter?studentsList.filter(s=>s.classId===sidebarClassFilter):studentsList;
+    const gradClassIds=new Set(classesList.filter(c=>c.graduated).map(c=>c.id));
+    let list=sidebarClassFilter?studentsList.filter(s=>s.classId===sidebarClassFilter):studentsList.filter(s=>!gradClassIds.has(s.classId));
     list=list.filter(s=>!s.droppedOut);
     if(q)list=list.filter(s=>(s.name||'').includes(q));
     list=list.slice().sort((a,b)=>(a.name||'').localeCompare(b.name||'','ko'));
@@ -1860,6 +1881,7 @@ function onStudentSelectChange(){
 
 // ── Render: 실습현황 ──────────────────────────────────────
 function renderAttendance(){
+    const gradClassIds=new Set(classesList.filter(c=>c.graduated).map(c=>c.id));
     const startDate=document.getElementById('att-start-date')?.value||todayKST();
     const endDate=document.getElementById('att-end-date')?.value||startDate;
     const classFilter=sidebarClassFilter;
@@ -1872,7 +1894,7 @@ function renderAttendance(){
     dateList.forEach(d=>{
         studentsList.forEach(stu=>{
             if(stu.droppedOut)return;
-            if(classFilter&&stu.classId!==classFilter)return;
+            if(classFilter){if(stu.classId!==classFilter)return;}else if(gradClassIds.has(stu.classId))return;
             if(stuFilter&&String(stu.kakaoId)!==stuFilter)return;
             const cls=classesList.find(c=>c.id===stu.classId);
             const tt=cls?.timetableData;
@@ -1917,7 +1939,7 @@ function renderAttendance(){
 
     // 테이블 학생 목록 필터
     const emptyEl=document.getElementById('att-empty');
-    let filtered=studentsList.filter(s=>!s.droppedOut&&(!classFilter||s.classId===classFilter)&&(!stuFilter||String(s.kakaoId)===stuFilter)&&(!attStuNameFilter||(s.name||'').includes(attStuNameFilter)));
+    let filtered=studentsList.filter(s=>!s.droppedOut&&(classFilter?s.classId===classFilter:!gradClassIds.has(s.classId))&&(!stuFilter||String(s.kakaoId)===stuFilter)&&(!attStuNameFilter||(s.name||'').includes(attStuNameFilter)));
     filtered.sort((a,b)=>{
         const ca=(classesList.find(c=>c.id===a.classId)||{name:'ㅎ'}).name;
         const cb=(classesList.find(c=>c.id===b.classId)||{name:'ㅎ'}).name;
@@ -4785,13 +4807,14 @@ function renderRegisteredClasses(){
         const metaExtra=[trainPeriod,lunchDisp].filter(Boolean).join(' · ');
         return`<div class="cls-reg-item" id="clsreg-${cls.id}">
             <div class="cls-reg-item-head">
-                <div class="cls-reg-item-name" id="clsname-display-${cls.id}">${cls.name||'(이름없음)'}</div>
+                <div class="cls-reg-item-name" id="clsname-display-${cls.id}">${cls.name||'(이름없음)'}${cls.graduated?' <span style="font-size:11px;color:var(--muted);">(졸업)</span>':''}</div>
             </div>
             <div class="cls-reg-item-meta">${cls.code||'반코드없음'} · ${period} · ${days.length}일${metaExtra?' · '+metaExtra:''}</div>
             <div class="cls-reg-item-actions">
                 <button class="btn btn-outline btn-sm" onclick="startEditClsName('${cls.id}')">이름 수정</button>
                 <button class="btn btn-outline btn-sm" onclick="startEditClsInfo('${cls.id}')">정보 편집</button>
                 <button class="btn btn-outline btn-sm" onclick="startEditClsTimetable('${cls.id}')">시간표 변경</button>
+                <button class="btn btn-outline btn-sm" onclick="toggleClassGraduated('${cls.id}')">${cls.graduated?'↩️ 졸업 해제':'🎓 졸업 처리'}</button>
             </div>
             <div class="cls-edit-info-area" id="clsedit-info-${cls.id}">
                 <div class="cls-info-field">
@@ -4846,6 +4869,21 @@ async function saveClsName(clsId){
         showToast('반 이름 저장됨','success');
         renderRegisteredClasses();
     }catch(e){showToast('저장 실패: '+e.message,'error');}
+    showLoader(false);
+}
+
+async function toggleClassGraduated(clsId){
+    const cls=classesList.find(c=>c.id===clsId);
+    if(!cls)return;
+    const next=!cls.graduated;
+    showLoader(true);
+    try{
+        await window.fsUpdateDoc(window.fsDoc(window.db,'classes',clsId),{graduated:next});
+        cls.graduated=next;
+        showToast(next?'졸업 처리됨 — 메인 화면에서 숨겨집니다':'졸업 해제됨','success');
+        renderRegisteredClasses();
+        renderClassSidebar();
+    }catch(e){showToast('처리 실패: '+e.message,'error');}
     showLoader(false);
 }
 
