@@ -841,7 +841,10 @@ var ap = { students: [], sel: new Set(), busy: false };
 var SKIP = {
   self: '본인 번호와 같은 학생은 인증할 수 없어요',
   already: '이미 인증된 건이 있어요',
-  incomplete: '퇴근 기록이 없는 건은 인증할 수 없어요'
+  already_verified: '이미 인증된 건이 있어요',
+  incomplete: '퇴근 기록이 없는 건은 인증할 수 없어요',
+  hospital_mismatch: '다른 병원 실습 건은 인증할 수 없어요',
+  no_attendance: '출근 기록을 찾을 수 없는 건이 있어요'
 };
 var WD = ['일', '월', '화', '수', '목', '금', '토'];
 function fmtDate(s) {
