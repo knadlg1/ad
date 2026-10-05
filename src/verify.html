@@ -1,0 +1,953 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#4a55e0">
+<title>Here 담당자 인증</title>
+<style>
+:root{--p:#4a55e0;--pd:#3640b8;--pt:#eef0ff;--tx:#1f2430;--mu:#6b7280;--bd:#e5e7eb;--bg:#f4f5f7;--ok:#16a34a;--okt:#e8f7ee;--er:#dc2626;--ert:#fef2f2;--kb:0px}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+[hidden]{display:none!important}
+html{-webkit-text-size-adjust:100%}
+body{font-family:-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Pretendard','Noto Sans KR','Segoe UI',sans-serif;background:var(--bg);color:var(--tx);min-height:100vh;min-height:100dvh;font-size:15px;line-height:1.5;padding-bottom:calc(32px + var(--kb) + env(safe-area-inset-bottom))}
+body.has-bar{padding-bottom:calc(112px + var(--kb) + env(safe-area-inset-bottom))}
+.top{background:#fff;border-bottom:1px solid var(--bd);padding:calc(12px + env(safe-area-inset-top)) 16px 12px;text-align:center;font-weight:800;color:var(--p);font-size:17px;letter-spacing:-.2px}
+.screen{max-width:480px;margin:0 auto;padding:20px 16px}
+h1{font-size:22px;line-height:1.35;letter-spacing:-.4px;margin-bottom:6px}
+h2{font-size:18px;letter-spacing:-.3px}
+.sub{color:var(--mu);font-size:14px;margin-bottom:18px}
+.center{text-align:center}
+.card{background:#fff;border:1px solid var(--bd);border-radius:16px;padding:16px;margin-bottom:12px}
+.card.pre{max-height:0;overflow:hidden;opacity:0;margin:0;padding-top:0;padding-bottom:0;border-width:0;pointer-events:none}
+label.lb,.lb{display:block;font-size:13px;font-weight:700;color:var(--mu);margin-bottom:8px}
+.field{margin-bottom:16px}.field:last-child{margin-bottom:0}
+input.in{width:100%;min-height:52px;border:1.5px solid var(--bd);border-radius:12px;padding:0 14px;font-size:17px;font-family:inherit;color:var(--tx);background:#fff;outline:none;transition:border-color .15s,box-shadow .15s}
+input.in:focus{border-color:var(--p);box-shadow:0 0 0 3px rgba(74,85,224,.15)}
+input.in[readonly]{background:#f3f4f6;color:#4b5563}
+.row{display:flex;gap:10px;align-items:center}.row .in{flex:1;min-width:0}
+.link{background:none;border:0;color:var(--p);font-weight:700;font-size:14px;font-family:inherit;cursor:pointer;min-height:44px;padding:0 6px;white-space:nowrap}
+.link:disabled{color:#a3a9b5;cursor:default}
+.msg{font-size:13px;min-height:0;margin-top:8px;color:var(--er)}.msg:empty{display:none}
+.msg.info{color:var(--mu)}
+.btn{width:100%;min-height:54px;border:0;border-radius:14px;font-size:17px;font-weight:800;font-family:inherit;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:transform .08s,background .15s}
+.btn:focus-visible{outline:3px solid rgba(74,85,224,.45);outline-offset:2px}
+.btn:active:not(:disabled){transform:scale(.985)}
+.btn.primary{background:var(--p);color:#fff}.btn.primary:active:not(:disabled){background:var(--pd)}
+.btn.kakao{background:#FEE500;color:#191919}
+.btn.ghost{background:var(--pt);color:var(--p)}
+.btn:disabled{background:#dfe2e8;color:#9aa1ae;cursor:default}
+.btn.loading{pointer-events:none}
+.btn.loading::before,.btn.spin::before{content:'';width:18px;height:18px;border:2.5px solid currentColor;border-right-color:transparent;border-radius:50%;animation:rot .7s linear infinite}
+.btn.loading:disabled::before{border-color:#fff;border-right-color:transparent}
+.btn.loading:disabled{background:var(--p);color:#fff;opacity:.85}
+@keyframes rot{to{transform:rotate(360deg)}}
+.pill{display:inline-flex;align-items:center;gap:6px;background:var(--pt);color:var(--p);font-weight:800;font-size:13px;padding:7px 14px;border-radius:999px;margin-bottom:14px}
+.pill::before{content:'';width:7px;height:7px;border-radius:50%;background:var(--p)}
+.hero{font-size:44px;margin:28px 0 10px}
+.big{padding:28px 20px}
+/* OTP */
+.otp-wrap{position:relative}
+.otp-boxes{display:grid;grid-template-columns:repeat(6,1fr);gap:8px}
+.otp-box{height:58px;border:1.5px solid var(--bd);border-radius:12px;background:#fff;display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:800;transition:border-color .15s,box-shadow .15s}
+.otp-wrap.focused .otp-box.cur{border-color:var(--p);box-shadow:0 0 0 3px rgba(74,85,224,.18)}
+.otp-wrap.focused .otp-box.cur:empty::after{content:'';width:2px;height:26px;background:var(--p);animation:blink 1s steps(1) infinite}
+.otp-wrap.err .otp-box{border-color:var(--er);background:var(--ert)}
+.otp-wrap.err.focused .otp-box.cur{border-color:var(--er);box-shadow:0 0 0 3px rgba(220,38,38,.15)}
+.otp-wrap input{position:absolute;inset:0;width:100%;height:100%;opacity:.011;border:0;background:transparent;color:transparent;caret-color:transparent;font-size:16px;outline:none;z-index:2}
+.otp-meta{display:flex;justify-content:space-between;align-items:center;margin-top:6px}
+.timer{font-variant-numeric:tabular-nums;font-weight:800;color:var(--p);font-size:15px}.timer.exp{color:var(--er)}
+.shake{animation:shake .42s}
+@keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-9px)}40%{transform:translateX(9px)}60%{transform:translateX(-6px)}80%{transform:translateX(6px)}}
+@keyframes blink{50%{opacity:0}}
+.slide-in{animation:slideUp .38s cubic-bezier(.2,.8,.2,1)}
+@keyframes slideUp{from{opacity:0;transform:translateY(42px)}to{opacity:1;transform:none}}
+.done-chip{display:flex;align-items:center;gap:10px;background:var(--okt);border-color:#bfe8cf;color:#14633a;font-weight:800}
+.done-chip .ck{width:24px;height:24px;border-radius:50%;background:var(--ok);color:#fff;display:flex;align-items:center;justify-content:center;font-size:14px;flex:none}
+.done-chip .grow{flex:1}.done-chip .timer{color:#14633a;font-weight:600;font-size:13px}
+/* chips + signature */
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.chip{border:1.5px solid var(--bd);background:#fff;border-radius:999px;min-height:40px;padding:0 14px;font-size:14px;font-weight:700;color:#4b5563;font-family:inherit;cursor:pointer}
+.chip.on{background:var(--pt);border-color:var(--p);color:var(--p)}
+.sig{position:relative;height:172px;border:1.5px dashed #c3c8d6;border-radius:12px;background:#fff;overflow:hidden}
+.sig canvas{display:block;width:100%;height:100%;touch-action:none;cursor:crosshair}
+.sig-hint{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#b3b8c4;font-size:15px;pointer-events:none}
+.sig.has .sig-hint{display:none}
+.sig-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}.sig-head .lb{margin:0}
+/* approve */
+.ap-head{background:#fff;border:1px solid var(--bd);border-radius:16px;padding:16px;margin-bottom:14px;display:flex;gap:12px;align-items:center}
+.ap-head .grow{flex:1;min-width:0}
+.ap-h{font-size:19px;font-weight:800;letter-spacing:-.3px}
+.ap-m{color:var(--mu);font-size:13px;margin-top:2px}
+.sigprev{width:84px;height:46px;border:1px solid var(--bd);border-radius:8px;background:#fff;object-fit:contain;flex:none}
+.sigcap{font-size:10px;color:var(--mu);text-align:center;margin-top:2px}
+.stu{background:#fff;border:1px solid var(--bd);border-radius:16px;margin-bottom:12px;overflow:hidden}
+.stu-h{display:flex;align-items:center;justify-content:space-between;padding:12px 8px 8px 16px}
+.stu-n{font-size:16px;font-weight:800}.stu-c{font-size:12px;color:var(--mu)}
+.day{position:relative;display:flex;align-items:center;gap:12px;min-height:52px;padding:8px 16px;border-top:1px solid #f0f1f4;cursor:pointer}
+.day input{position:absolute;opacity:0;width:1px;height:1px}
+.cb{width:24px;height:24px;border-radius:7px;border:2px solid #c3c8d6;flex:none;display:flex;align-items:center;justify-content:center;transition:all .12s;color:transparent;font-size:15px;font-weight:900}
+.day input:checked+.cb{background:var(--p);border-color:var(--p);color:#fff}
+.day input:focus-visible+.cb{box-shadow:0 0 0 3px rgba(74,85,224,.25)}
+.d-date{font-weight:800;width:70px;flex:none}
+.d-time{color:#4b5563;font-variant-numeric:tabular-nums}
+.day.off{cursor:default;background:#fafafa}.day.off .cb{background:#eceef2;border-color:#e0e3e9}.day.off .d-date,.day.off .d-time{color:#a3a9b5;font-weight:600}
+/* bar */
+.bar{position:fixed;left:0;right:0;bottom:var(--kb);z-index:50;background:rgba(255,255,255,.97);border-top:1px solid var(--bd);padding:12px 16px calc(12px + env(safe-area-inset-bottom))}
+body.kb-open .bar{padding-bottom:12px}
+.bar-in{max-width:480px;margin:0 auto}
+/* toast + done overlay */
+.toast{position:fixed;left:50%;top:calc(16px + env(safe-area-inset-top));transform:translate(-50%,-90px);background:#1f2430;color:#fff;padding:12px 18px;border-radius:12px;font-weight:700;font-size:14px;z-index:200;max-width:90vw;text-align:center;transition:transform .3s cubic-bezier(.2,.8,.2,1);pointer-events:none}
+.toast.show{transform:translate(-50%,0)}
+.overlay{position:fixed;inset:0;z-index:150;background:rgba(15,18,30,.55);display:flex;align-items:flex-end;justify-content:center;animation:fade .2s}
+@keyframes fade{from{opacity:0}}
+.sheet{width:100%;max-width:480px;background:#fff;border-radius:24px 24px 0 0;padding:28px 20px calc(20px + env(safe-area-inset-bottom));text-align:center;animation:slideUp .35s cubic-bezier(.2,.8,.2,1)}
+.okc{width:84px;height:84px;margin:0 auto 14px}
+.okc circle{fill:var(--ok);transform-origin:center;animation:pop .4s cubic-bezier(.2,1.4,.4,1)}
+.okc path{fill:none;stroke:#fff;stroke-width:6;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:44;stroke-dashoffset:44;animation:draw .4s .25s ease forwards}
+@keyframes pop{from{transform:scale(.3)}to{transform:scale(1)}}
+@keyframes draw{to{stroke-dashoffset:0}}
+.skip{background:#f6f7f9;border-radius:12px;padding:10px 12px;font-size:13px;color:#4b5563;margin:14px 0 4px;text-align:left}
+.skip div+div{margin-top:4px}
+.spinner{width:36px;height:36px;border:4px solid var(--pt);border-top-color:var(--p);border-radius:50%;animation:rot .8s linear infinite;margin:70px auto 14px}
+.login-note{font-size:12px;color:var(--mu);margin-top:12px;text-align:center}
+.kk{width:22px;height:22px}
+@media (prefers-reduced-motion:reduce){*{animation-duration:.01s!important;transition-duration:.01s!important}}
+</style>
+</head>
+<body>
+<div class="top">Here 담당자 인증</div>
+
+<section class="screen center" id="s-loading"><div class="spinner"></div><p class="sub">잠시만 기다려 주세요</p></section>
+
+<section class="screen center" id="s-noqr" hidden>
+  <div class="hero">📷</div>
+  <h1>학생이 보여주는 QR을<br>카메라로 찍어주세요</h1>
+  <p class="sub">학생 휴대폰의 QR을 스캔하면<br>이 화면이 자동으로 열려요.</p>
+</section>
+
+<section class="screen center" id="s-error" hidden>
+  <div class="hero">😥</div>
+  <h1>문제가 생겼어요</h1>
+  <p class="sub" id="err-msg">잠시 후 다시 시도해 주세요.</p>
+  <button class="btn primary" id="err-retry">다시 시도</button>
+</section>
+
+<section class="screen center" id="s-login" hidden>
+  <div class="hero">🏥</div>
+  <h1>실습생 출결 인증</h1>
+  <p class="sub">병원 담당자 확인을 위해<br>카카오 계정으로 시작해 주세요.</p>
+  <div class="msg" id="login-msg" style="margin:0 0 12px"></div>
+  <button class="btn kakao" id="btn-kakao">
+    <svg class="kk" viewBox="0 0 24 24"><path fill="#191919" d="M12 3C6.5 3 2 6.6 2 11c0 2.8 1.8 5.3 4.6 6.7l-1 3.6c-.1.3.2.5.5.4l4.3-2.8c.5.1 1 .1 1.6.1 5.5 0 10-3.6 10-8S17.5 3 12 3z"/></svg>
+    카카오로 시작하기
+  </button>
+  <p class="login-note">한 번 로그인하면 다음부터는 바로 열려요.</p>
+</section>
+
+<section class="screen" id="s-academy" hidden>
+  <div class="card big center">
+    <div class="hero" style="margin-top:0">🎓</div>
+    <h2 style="margin-bottom:8px">학원 체험용 화면이에요</h2>
+    <p class="sub" style="margin:0">여기는 학원에서 체험용으로 보는 화면입니다.<br>실제 실습 병원에서 학생이 보여주는 QR을 찍어주세요.</p>
+  </div>
+</section>
+
+<section class="screen" id="s-join" hidden>
+  <div class="card big center">
+    <div class="hero" style="margin-top:0">🤝</div>
+    <h2 id="join-title" style="margin-bottom:6px"></h2>
+    <p class="sub">이미 등록된 담당자예요.<br>이 병원도 담당하시면 추가해 주세요.</p>
+    <div class="msg" id="join-msg" style="margin:0 0 12px"></div>
+    <button class="btn primary" id="btn-join">담당자로 추가하기</button>
+  </div>
+</section>
+
+<section class="screen" id="s-register" hidden>
+  <div class="pill" id="reg-pill"></div>
+  <h1>담당자 정보를 등록해 주세요</h1>
+  <p class="sub">처음 한 번만 하면, 다음부터는 바로 인증할 수 있어요.</p>
+
+  <div class="card" id="card-phone">
+    <div class="field">
+      <label class="lb" for="phone">휴대폰 번호</label>
+      <div class="row">
+        <input class="in" id="phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="010-0000-0000" maxlength="13">
+        <button class="link" id="phone-change" type="button" hidden>번호 변경</button>
+      </div>
+      <div class="msg" id="phone-msg" role="alert"></div>
+    </div>
+    <button class="btn primary" id="btn-send" type="button" disabled><span id="send-label">인증번호 받기</span></button>
+  </div>
+
+  <div class="card pre" id="card-otp">
+    <div class="field">
+      <div class="lb">인증번호 6자리</div>
+      <div class="otp-wrap" id="otp-wrap">
+        <div class="otp-boxes" id="otp-boxes"><div class="otp-box"></div><div class="otp-box"></div><div class="otp-box"></div><div class="otp-box"></div><div class="otp-box"></div><div class="otp-box"></div></div>
+        <input id="otp" type="text" autocomplete="one-time-code" inputmode="numeric" maxlength="6" pattern="[0-9]*" aria-label="인증번호 6자리">
+      </div>
+      <div class="msg" id="otp-msg" role="alert"></div>
+      <div class="otp-meta"><span class="timer" id="otp-timer">3:00</span><button class="link" id="btn-resend" type="button" disabled>재전송</button></div>
+    </div>
+  </div>
+
+  <div class="card done-chip" id="card-done" hidden>
+    <span class="ck">✓</span><span class="grow">인증번호 입력 완료</span>
+    <span class="timer" id="done-timer"></span>
+    <button class="link" id="btn-otp-edit" type="button">수정</button>
+  </div>
+
+  <div class="card" id="card-info" hidden>
+    <div class="field">
+      <label class="lb" for="name">이름</label>
+      <input class="in" id="name" type="text" autocomplete="name" maxlength="20" placeholder="홍길동">
+    </div>
+    <div class="field">
+      <label class="lb" for="position">직책</label>
+      <input class="in" id="position" type="text" maxlength="20" placeholder="예) 수간호사">
+      <div class="chips" id="chips"></div>
+    </div>
+    <div class="field">
+      <div class="sig-head"><span class="lb">서명</span><button class="link" id="sig-clear" type="button">지우기</button></div>
+      <div class="sig" id="sig-box"><canvas id="sig"></canvas><div class="sig-hint">여기에 손가락으로 서명해 주세요</div></div>
+    </div>
+  </div>
+</section>
+
+<section class="screen" id="s-approve" hidden>
+  <div class="ap-head">
+    <div class="grow"><div class="ap-h" id="ap-hospital"></div><div class="ap-m" id="ap-manager"></div></div>
+    <div id="ap-sig-wrap" hidden><img class="sigprev" id="ap-sig" alt="내 서명"><div class="sigcap">내 서명 미리보기</div></div>
+  </div>
+  <div id="ap-list"></div>
+  <div class="card big center" id="ap-empty" hidden>
+    <h2>인증할 출결이 없어요 🎉</h2>
+    <p class="sub" style="margin:6px 0 0">새로운 출결이 생기면 여기에 나타나요.</p>
+  </div>
+</section>
+
+<div class="bar" id="bar" hidden><div class="bar-in"><button class="btn primary" id="bar-btn" type="button"><span id="bar-label"></span></button></div></div>
+<div class="toast" id="toast" role="status"></div>
+<div class="overlay" id="done" hidden>
+  <div class="sheet">
+    <svg class="okc" id="done-ok" viewBox="0 0 84 84"><circle cx="42" cy="42" r="40"/><path d="M26 43l11 11 21-23"/></svg>
+    <h2 id="done-title"></h2>
+    <div class="skip" id="done-skip" hidden></div>
+    <button class="btn primary" id="done-close" type="button" style="margin-top:18px">확인</button>
+  </div>
+</div>
+
+<script>
+(function () {
+'use strict';
+
+/* ===== 설정 ===== */
+var CFG = {
+  FUNC: 'https://us-central1-my-attendance-8122d.cloudfunctions.net',
+  KAKAO_REST: 'ca34b3c2a0cf2d0fe87d9f18b39aa8d8',
+  REDIRECT: 'https://knadlg1.github.io/ad/src/verify.html',
+  FBV: '12.13.0',
+  FB: {
+    apiKey: 'AIzaSyBaCpQKykViq6526dCJ8mEYbUZqyg5-NUo',
+    authDomain: 'my-attendance-8122d.firebaseapp.com',
+    projectId: 'my-attendance-8122d',
+    storageBucket: 'my-attendance-8122d.firebasestorage.app',
+    messagingSenderId: '994601190154',
+    appId: '1:994601190154:web:d702adbf20039f73ee70f3'
+  }
+};
+var qs = new URLSearchParams(location.search);
+var MOCK = qs.get('mock') === '1';
+var $ = function (id) { return document.getElementById(id); };
+var state = { registered: false, manager: null, info: null };
+
+function ssGet(k) { try { return sessionStorage.getItem(k) || ''; } catch (e) { return ''; } }
+function ssSet(k, v) { try { sessionStorage.setItem(k, v); } catch (e) {} }
+function esc(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+  });
+}
+
+/* ===== 병원/학원 식별자 (카카오 리다이렉트 때 쿼리가 사라지므로 sessionStorage에 보관) ===== */
+var ctx = { h: qs.get('h') || '', a: qs.get('a') || '' };
+if (ctx.h) ssSet('vf_h', ctx.h);
+if (ctx.a) ssSet('vf_a', ctx.a);
+ctx.h = ctx.h || ssGet('vf_h');
+ctx.a = ctx.a || ssGet('vf_a');
+if (MOCK) { ctx.h = ctx.h || 'mock-hosp'; ctx.a = ctx.a || 'mock-acad'; }
+
+/* ===== 화면 / 하단 바 / 토스트 ===== */
+var SCREENS = ['loading', 'noqr', 'login', 'academy', 'register', 'join', 'approve', 'error'];
+function show(name) {
+  SCREENS.forEach(function (s) { $('s-' + s).hidden = (s !== name); });
+  barHide();
+  window.scrollTo(0, 0);
+}
+var bar = { onClick: null };
+function barSet(o) {
+  var b = $('bar'), btn = $('bar-btn');
+  if (o.onClick !== undefined) bar.onClick = o.onClick;
+  b.hidden = false;
+  document.body.classList.add('has-bar');
+  if (o.text !== undefined) $('bar-label').textContent = o.text;
+  if (o.disabled !== undefined) btn.disabled = !!o.disabled;
+  if (o.loading !== undefined) btn.classList.toggle('loading', !!o.loading);
+}
+function barHide() {
+  $('bar').hidden = true;
+  document.body.classList.remove('has-bar');
+  bar.onClick = null;
+}
+$('bar-btn').addEventListener('click', function () { if (bar.onClick) bar.onClick(); });
+
+var toastTimer = null;
+function toast(msg) {
+  var t = $('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(function () { t.classList.remove('show'); }, 2300);
+}
+function setBtnLoading(btn, on, text) {
+  var span = btn.querySelector('span');
+  if (on) { btn.dataset.t = span.textContent; span.textContent = text; btn.classList.add('loading'); btn.disabled = true; }
+  else { if (btn.dataset.t) span.textContent = btn.dataset.t; btn.classList.remove('loading'); }
+}
+function errMsg(e) {
+  if (e && e.code === 'network') return '네트워크 연결을 확인하고 다시 시도해 주세요.';
+  return (e && e.message) || '문제가 생겼어요. 잠시 후 다시 시도해 주세요.';
+}
+
+/* ===== 키보드 대응 ===== */
+function onVV() {
+  var vv = window.visualViewport; if (!vv) return;
+  var kb = Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop));
+  document.documentElement.style.setProperty('--kb', kb + 'px');
+  document.body.classList.toggle('kb-open', kb > 100);
+}
+if (window.visualViewport) {
+  window.visualViewport.addEventListener('resize', onVV);
+  window.visualViewport.addEventListener('scroll', onVV);
+}
+function reveal(el) {
+  var vv = window.visualViewport;
+  if (!vv) { try { el.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch (e) {} return; }
+  var r = el.getBoundingClientRect();
+  var avail = vv.height - 90; /* 하단 바 높이 여유 */
+  var delta = r.top - vv.offsetTop - Math.max(16, (avail - r.height) / 2);
+  window.scrollBy({ top: delta, behavior: 'smooth' });
+}
+document.addEventListener('focusin', function (e) {
+  var t = e.target;
+  if (!t || (t.tagName !== 'INPUT' && t.tagName !== 'TEXTAREA')) return;
+  var box = t.closest('.otp-wrap') || t.closest('.field') || t;
+  setTimeout(function () { reveal(box); }, 250);
+});
+
+/* ===== API ===== */
+var fb = { auth: null, mod: null };
+async function fbInit() {
+  if (fb.auth) return;
+  var base = 'https://www.gstatic.com/firebasejs/' + CFG.FBV + '/';
+  var A = await import(base + 'firebase-app.js');
+  var B = await import(base + 'firebase-auth.js');
+  fb.auth = B.getAuth(A.initializeApp(CFG.FB));
+  fb.mod = B;
+}
+function waitUser() {
+  return new Promise(function (res) {
+    var un = fb.mod.onAuthStateChanged(fb.auth, function (u) { un(); res(u); });
+  });
+}
+async function idToken(force) {
+  var u = fb.auth && fb.auth.currentUser;
+  return u ? u.getIdToken(!!force) : null;
+}
+function mkErr(code, msg, data) { var e = new Error(msg || code); e.code = code; e.data = data || null; return e; }
+
+async function api(name, body, opts) {
+  opts = opts || {};
+  if (MOCK) return mockApi(name, body || {});
+  var headers = { 'Content-Type': 'application/json' };
+  if (opts.auth !== false) {
+    var t = await idToken();
+    if (!t) throw mkErr('unauthenticated', '로그인이 필요해요.');
+    headers.Authorization = 'Bearer ' + t;
+  }
+  var ctl = new AbortController();
+  var to = setTimeout(function () { ctl.abort(); }, 25000);
+  var res;
+  try {
+    res = await fetch(CFG.FUNC + '/' + name, { method: 'POST', headers: headers, body: JSON.stringify(body || {}), signal: ctl.signal });
+  } catch (e) { clearTimeout(to); throw mkErr('network', '네트워크 연결을 확인하고 다시 시도해 주세요.'); }
+  clearTimeout(to);
+  var data = null;
+  try { data = await res.json(); } catch (e) {}
+  if (res.status === 401 || (data && data.code === 'unauthenticated')) throw mkErr('unauthenticated', '로그인이 만료됐어요. 다시 로그인해 주세요.');
+  if (!data || data.status !== 'success') throw mkErr((data && data.code) || ('http_' + res.status), (data && data.message) || '요청에 실패했어요. 잠시 후 다시 시도해 주세요.', data);
+  return data;
+}
+
+/* ===== MOCK (mock=1 일 때만 동작. scenario=login|register|join|academy|approve|empty) ===== */
+var scenario = qs.get('scenario') || 'register';
+var mockDB = {
+  member: scenario !== 'join',
+  students: scenario === 'empty' ? [] : [
+    { kakaoId: 'k1', name: '김하늘', className: '간호 12기 A반', days: [
+      { date: '2026-10-05', inTime: '08:50', outTime: '17:31', complete: true },
+      { date: '2026-10-06', inTime: '08:47', outTime: '17:35', complete: true },
+      { date: '2026-10-07', inTime: '08:55', outTime: '', complete: false } ] },
+    { kakaoId: 'k2', name: '이서준', className: '간호 12기 A반', days: [
+      { date: '2026-10-05', inTime: '08:41', outTime: '17:30', complete: true } ] },
+    { kakaoId: 'k3', name: '박지우(본인번호)', className: '간호 12기 B반', days: [
+      { date: '2026-10-06', inTime: '09:02', outTime: '17:40', complete: true } ] }
+  ]
+};
+function mockApi(name, b) {
+  return new Promise(function (resolve, reject) {
+    setTimeout(function () {
+      var ok = function (o) { resolve(Object.assign({ status: 'success' }, o)); };
+      var no = function (code, msg, extra) { reject(mkErr(code, msg, extra)); };
+      if (name === 'managerHospitalInfo') return ok({ name: '사하 늘푸른병원', academyName: '사하간호학원', isAcademy: scenario === 'academy', isMember: mockDB.member });
+      if (name === 'managerSendOtp') {
+        if (digitsOnly(b.phone) === '01000000000') return no('student_phone', '학생 번호로는 담당자 가입이 어려워요');
+        return ok({ resendAfterSec: 8 });
+      }
+      if (name === 'managerRegister') {
+        if (b.otp === '000000') return no('wrong_code', '인증번호가 맞지 않아요', { remaining: 2 });
+        mockDB.member = true; return ok({ manager: { name: b.name, position: b.position } });
+      }
+      if (name === 'managerJoinHospital') { mockDB.member = true; return ok({}); }
+      if (name === 'managerPending') return ok({ hospital: { id: ctx.h, name: '사하 늘푸른병원' }, manager: { name: '김수진', position: '수간호사' }, students: mockDB.students });
+      if (name === 'managerApprove') {
+        var skipped = [], done = 0;
+        b.items.forEach(function (it) {
+          if (it.kakaoId === 'k3') { skipped.push({ kakaoId: it.kakaoId, date: it.date, reason: 'self' }); return; }
+          done++;
+          mockDB.students.forEach(function (s) { if (s.kakaoId === it.kakaoId) s.days = s.days.filter(function (d) { return d.date !== it.date; }); });
+        });
+        mockDB.students = mockDB.students.filter(function (s) { return s.days.length; });
+        return ok({ approved: done, skipped: skipped });
+      }
+      no('mock_unknown', name);
+    }, 650);
+  });
+}
+
+/* ===== 라우팅 ===== */
+function fatal(msg) { $('err-msg').textContent = msg; show('error'); }
+function showLogin(msg) { $('login-msg').textContent = msg || ''; show('login'); }
+
+async function route() {
+  show('loading');
+  try {
+    state.info = await api('managerHospitalInfo', { academyId: ctx.a, hospitalId: ctx.h });
+  } catch (e) {
+    if (e.code === 'unauthenticated') return signOutToLogin();
+    return fatal(errMsg(e));
+  }
+  var info = state.info;
+  if (info.isAcademy) return show('academy');
+  if (!state.registered) return enterRegister();
+  if (!info.isMember) {
+    $('join-title').textContent = (info.name || '이 병원') + ' 담당자로 추가할까요?';
+    $('join-msg').textContent = '';
+    return show('join');
+  }
+  return loadApproval();
+}
+async function signOutToLogin() {
+  try { if (fb.auth) await fb.mod.signOut(fb.auth); } catch (e) {}
+  showLogin('로그인이 만료됐어요. 다시 로그인해 주세요.');
+}
+
+async function doKakaoLogin(code) {
+  try {
+    var r = await api('managerLogin', { code: code, redirect_uri: CFG.REDIRECT }, { auth: false });
+    await fb.mod.signInWithCustomToken(fb.auth, r.customToken);
+    state.registered = !!r.registered;
+    state.manager = r.manager || null;
+    await route();
+  } catch (e) {
+    showLogin('로그인에 실패했어요. ' + errMsg(e));
+  }
+}
+
+async function boot() {
+  if (!ctx.h || !ctx.a) return show('noqr');
+  show('loading');
+  if (MOCK) {
+    state.registered = scenario !== 'register';
+    if (scenario === 'login') return showLogin();
+    return route();
+  }
+  try { await fbInit(); } catch (e) { return fatal('연결에 문제가 있어요. 네트워크를 확인하고 다시 시도해 주세요.'); }
+  var code = qs.get('code');
+  if (code) {
+    history.replaceState({}, '', location.pathname);
+    return doKakaoLogin(code);
+  }
+  if (qs.get('error')) { history.replaceState({}, '', location.pathname); return showLogin('카카오 로그인이 취소됐어요.'); }
+  var u = await waitUser();
+  if (u) {
+    try {
+      var r = await u.getIdTokenResult();
+      if (r.claims && r.claims.role === 'manager') {
+        state.registered = true;
+        state.manager = { name: r.claims.name || '', position: r.claims.position || '' };
+        return route();
+      }
+    } catch (e) {}
+  }
+  showLogin();
+}
+
+$('btn-kakao').addEventListener('click', function () {
+  if (MOCK) return toast('목업 모드에서는 로그인을 건너뛰어요');
+  location.href = 'https://kauth.kakao.com/oauth/authorize?client_id=' + CFG.KAKAO_REST +
+    '&redirect_uri=' + encodeURIComponent(CFG.REDIRECT) + '&response_type=code';
+});
+$('err-retry').addEventListener('click', function () { boot(); });
+
+/* ===== 병원 추가 ===== */
+$('btn-join').addEventListener('click', async function () {
+  var btn = $('btn-join');
+  if (btn.classList.contains('loading')) return;
+  btn.classList.add('loading'); btn.disabled = true; $('join-msg').textContent = '';
+  try {
+    await api('managerJoinHospital', { academyId: ctx.a, hospitalId: ctx.h });
+    toast('담당자로 추가했어요');
+    state.info.isMember = true;
+    await loadApproval();
+  } catch (e) {
+    if (e.code === 'unauthenticated') return signOutToLogin();
+    $('join-msg').textContent = errMsg(e);
+  } finally { btn.classList.remove('loading'); btn.disabled = false; }
+});
+
+/* ===== 등록 (전화번호 -> 인증번호 -> 이름/직책/서명) ===== */
+var reg = { sent: false, otpDone: false, otp: '', expiresAt: 0, resendAt: 0, expired: false, timer: null, ac: null,
+            sending: false, submitting: false, sigInited: false, ink: 0 };
+var POSITIONS = ['수간호사', '책임간호사', '간호사', '팀장', '교육담당'];
+var SIG_MIN_INK = 120; /* CSS px 기준 최소 획 길이 */
+
+function digitsOnly(s) { return (s || '').replace(/\D/g, ''); }
+function fmtPhone(s) {
+  var d = digitsOnly(s).slice(0, 11);
+  if (d.length < 4) return d;
+  if (d.length < 8) return d.slice(0, 3) + '-' + d.slice(3);
+  return d.slice(0, 3) + '-' + d.slice(3, 7) + '-' + d.slice(7);
+}
+function phoneValid(s) { return /^01\d{9}$/.test(digitsOnly(s)); }
+
+function enterRegister() {
+  resetReg();
+  $('reg-pill').textContent = (state.info.name || '병원') + ' 담당자로 등록';
+  $('chips').innerHTML = POSITIONS.map(function (p) { return '<button type="button" class="chip" data-p="' + esc(p) + '">' + esc(p) + '</button>'; }).join('');
+  show('register');
+}
+function resetReg() {
+  stopTimer(); abortWebOtp();
+  reg.sent = false; reg.otpDone = false; reg.otp = ''; reg.expired = false; reg.sending = false;
+  $('phone').value = ''; $('phone').readOnly = false; $('phone-msg').textContent = '';
+  $('phone-change').hidden = true; $('btn-send').hidden = false; $('btn-send').disabled = true;
+  $('card-otp').classList.add('pre'); $('card-done').hidden = true; $('card-info').hidden = true;
+  $('otp').value = ''; $('otp').disabled = false; paintOtp(); setOtpMsg('', false);
+  $('name').value = ''; $('position').value = ''; syncChips();
+  clearSig();
+  barHide();
+}
+
+/* 전화번호 */
+$('phone').addEventListener('input', function () {
+  this.value = fmtPhone(this.value);
+  $('phone-msg').textContent = '';
+  $('btn-send').disabled = !phoneValid(this.value) || reg.sending;
+});
+$('btn-send').addEventListener('click', function () {
+  /* iOS는 사용자 탭 안에서만 키보드를 띄울 수 있어서, 응답을 기다리기 전에 OTP 입력칸으로 포커스를 옮겨둔다 */
+  try { $('otp').focus({ preventScroll: true }); } catch (e) {}
+  sendOtp(false);
+});
+$('btn-resend').addEventListener('click', function () { sendOtp(true); });
+$('phone-change').addEventListener('click', function () {
+  stopTimer(); abortWebOtp();
+  reg.sent = false; reg.otpDone = false; reg.otp = ''; reg.expired = false;
+  $('phone').readOnly = false; $('phone-change').hidden = true;
+  $('btn-send').hidden = false; $('btn-send').disabled = !phoneValid($('phone').value);
+  $('card-otp').classList.add('pre'); $('card-done').hidden = true; $('card-info').hidden = true;
+  $('otp').value = ''; $('otp').disabled = false; paintOtp(); setOtpMsg('', false);
+  barHide();
+  $('phone').focus();
+});
+
+async function sendOtp(isResend) {
+  if (reg.sending) return;
+  reg.sending = true;
+  var btn = $('btn-send'), rb = $('btn-resend');
+  $('phone-msg').textContent = '';
+  if (isResend) { rb.disabled = true; rb.textContent = '전송 중…'; }
+  else setBtnLoading(btn, true, '전송 중…');
+  try {
+    var r = await api('managerSendOtp', { phone: digitsOnly($('phone').value), academyId: ctx.a, hospitalId: ctx.h });
+    var now = Date.now();
+    reg.expiresAt = now + (Number(r.expiresInSec) || 180) * 1000;
+    reg.resendAt = now + (Number(r.resendAfterSec) || 60) * 1000;
+    reg.sent = true; reg.otpDone = false; reg.expired = false; reg.otp = '';
+    toast('문자를 보냈어요');
+    showOtpStep(isResend ? '' : null);
+  } catch (e) {
+    if (e.code === 'unauthenticated') { reg.sending = false; return signOutToLogin(); }
+    try { $('otp').blur(); } catch (_) {}
+    var msg = errMsg(e);
+    if (e.code === 'student_phone') msg = '학생 번호로는 담당자 가입이 어려워요. 담당자 본인 번호를 입력해 주세요.';
+    else if (e.code === 'too_many_requests' || e.code === 'rate_limited') msg = '요청이 너무 많아요. 잠시 후 다시 시도해 주세요.';
+    if (isResend) { setOtpMsg(msg, true); } else { $('phone-msg').textContent = msg; }
+  } finally {
+    reg.sending = false;
+    setBtnLoading(btn, false);
+    btn.disabled = !phoneValid($('phone').value);
+    tick();
+  }
+}
+
+/* OTP 단계 */
+function showOtpStep() {
+  $('phone').readOnly = true;
+  $('phone-change').hidden = false;
+  $('btn-send').hidden = true;
+  $('card-done').hidden = true; $('card-info').hidden = true;
+  barHide();
+  var card = $('card-otp');
+  var wasPre = card.classList.contains('pre');
+  card.classList.remove('pre');
+  if (wasPre) { card.classList.remove('slide-in'); void card.offsetWidth; card.classList.add('slide-in'); }
+  $('otp').disabled = false; $('otp').value = ''; paintOtp(); setOtpMsg('', false);
+  $('otp-timer').classList.remove('exp');
+  try { $('otp').focus({ preventScroll: true }); } catch (e) {}
+  setTimeout(function () { reveal($('otp-wrap')); }, 320);
+  startTimer(); startWebOtp();
+}
+function setOtpMsg(msg, isErr) {
+  var m = $('otp-msg'); m.textContent = msg || '';
+  m.className = 'msg' + (isErr ? '' : ' info');
+  $('otp-wrap').classList.toggle('err', !!(msg && isErr));
+}
+function paintOtp() {
+  var v = $('otp').value, boxes = $('otp-boxes').children;
+  for (var i = 0; i < 6; i++) {
+    boxes[i].textContent = v.charAt(i) || '';
+    boxes[i].classList.toggle('cur', i === Math.min(v.length, 5));
+  }
+}
+$('otp').addEventListener('focus', function () { $('otp-wrap').classList.add('focused'); });
+$('otp').addEventListener('blur', function () { $('otp-wrap').classList.remove('focused'); });
+$('otp').addEventListener('input', function () {
+  var v = digitsOnly(this.value).slice(0, 6);
+  this.value = v; reg.otp = v; paintOtp();
+  if (v.length) setOtpMsg('', false);
+  if (v.length === 6 && !reg.otpDone) onOtpComplete();
+});
+function onOtpComplete() {
+  reg.otpDone = true; abortWebOtp();
+  $('card-otp').classList.add('pre');
+  $('card-done').hidden = false;
+  var info = $('card-info');
+  info.hidden = false; info.classList.remove('slide-in'); void info.offsetWidth; info.classList.add('slide-in');
+  initSig();
+  try { $('name').focus({ preventScroll: true }); } catch (e) {}
+  updateRegBar();
+  setTimeout(function () { reveal($('name').closest('.field')); }, 300);
+}
+function backToOtp(msg, isErr, shake) {
+  reg.otpDone = false; reg.otp = '';
+  $('card-done').hidden = true; $('card-info').hidden = true;
+  barHide();
+  var card = $('card-otp'); card.classList.remove('pre');
+  card.classList.remove('slide-in'); void card.offsetWidth; card.classList.add('slide-in');
+  var inp = $('otp'); inp.value = ''; inp.disabled = reg.expired; paintOtp();
+  setOtpMsg(msg, isErr);
+  if (shake) { var w = $('otp-wrap'); w.classList.remove('shake'); void w.offsetWidth; w.classList.add('shake'); }
+  if (!reg.expired) { try { inp.focus({ preventScroll: true }); } catch (e) {} startWebOtp(); }
+  setTimeout(function () { reveal($('otp-wrap')); }, 300);
+}
+$('btn-otp-edit').addEventListener('click', function () { backToOtp('', false, false); });
+
+/* 타이머 (3분 만료 + 재전송 쿨다운) */
+function startTimer() { stopTimer(); tick(); reg.timer = setInterval(tick, 1000); }
+function stopTimer() { if (reg.timer) { clearInterval(reg.timer); reg.timer = null; } }
+function tick() {
+  if (!reg.sent) return;
+  var now = Date.now();
+  var left = Math.max(0, Math.ceil((reg.expiresAt - now) / 1000));
+  var t = Math.floor(left / 60) + ':' + ('0' + (left % 60)).slice(-2);
+  $('otp-timer').textContent = t;
+  $('done-timer').textContent = '남은 시간 ' + t;
+  if (!reg.sending) {
+    var rs = Math.ceil((reg.resendAt - now) / 1000), rb = $('btn-resend');
+    if (rs > 0) { rb.disabled = true; rb.textContent = '재전송 (' + rs + '초)'; }
+    else { rb.disabled = false; rb.textContent = '재전송'; }
+  }
+  if (left <= 0 && !reg.expired) {
+    reg.expired = true;
+    abortWebOtp();
+    $('otp-timer').classList.add('exp');
+    backToOtp('인증번호가 만료됐어요. 재전송을 눌러 새 번호를 받아 주세요.', true, false);
+  }
+}
+
+/* Android WebOTP (미지원/실패 시 조용히 무시) */
+function startWebOtp() {
+  abortWebOtp();
+  if (!('OTPCredential' in window) || !navigator.credentials) return;
+  try {
+    reg.ac = new AbortController();
+    navigator.credentials.get({ otp: { transport: ['sms'] }, signal: reg.ac.signal }).then(function (c) {
+      if (c && c.code) { var i = $('otp'); i.value = c.code; i.dispatchEvent(new Event('input')); }
+    }).catch(function () {});
+  } catch (e) {}
+}
+function abortWebOtp() { if (reg.ac) { try { reg.ac.abort(); } catch (e) {} reg.ac = null; } }
+
+/* 이름 / 직책 */
+function syncChips() {
+  var v = $('position').value.trim();
+  Array.prototype.forEach.call($('chips').children, function (c) { c.classList.toggle('on', c.dataset.p === v); });
+}
+$('chips').addEventListener('click', function (e) {
+  var c = e.target.closest('.chip'); if (!c) return;
+  $('position').value = c.dataset.p; syncChips(); updateRegBar();
+});
+$('position').addEventListener('input', function () { syncChips(); updateRegBar(); });
+$('name').addEventListener('input', updateRegBar);
+
+/* 서명 캔버스 */
+var sig = $('sig'), g = null;
+function initSig() {
+  if (reg.sigInited) return;
+  var w = sig.clientWidth, h = sig.clientHeight;
+  if (!w || !h) return;
+  var dpr = Math.min(window.devicePixelRatio || 1, 3);
+  sig.width = Math.round(w * dpr); sig.height = Math.round(h * dpr);
+  g = sig.getContext('2d');
+  g.scale(dpr, dpr);
+  g.lineCap = 'round'; g.lineJoin = 'round'; g.lineWidth = 2.6; g.strokeStyle = '#111827'; g.fillStyle = '#111827';
+  reg.sigInited = true;
+}
+function clearSig() {
+  if (g) { g.save(); g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, sig.width, sig.height); g.restore(); }
+  reg.ink = 0; $('sig-box').classList.remove('has');
+}
+(function () {
+  var drawing = false, pid = null, last = null, mid = null;
+  function pt(e) { var r = sig.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; }
+  sig.addEventListener('pointerdown', function (e) {
+    if (!reg.sigInited) initSig(); if (!g) return;
+    e.preventDefault();
+    drawing = true; pid = e.pointerId;
+    try { sig.setPointerCapture(pid); } catch (_) {}
+    last = pt(e); mid = last;
+    g.beginPath(); g.arc(last.x, last.y, 1.3, 0, Math.PI * 2); g.fill();
+    $('sig-box').classList.add('has');
+    if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+  });
+  sig.addEventListener('pointermove', function (e) {
+    if (!drawing || e.pointerId !== pid) return;
+    e.preventDefault();
+    var evs = e.getCoalescedEvents ? e.getCoalescedEvents() : [e];
+    if (!evs.length) evs = [e];
+    for (var i = 0; i < evs.length; i++) {
+      var p = pt(evs[i]);
+      var m = { x: (last.x + p.x) / 2, y: (last.y + p.y) / 2 };
+      g.beginPath(); g.moveTo(mid.x, mid.y); g.quadraticCurveTo(last.x, last.y, m.x, m.y); g.stroke();
+      reg.ink += Math.hypot(p.x - last.x, p.y - last.y);
+      last = p; mid = m;
+    }
+  });
+  function end(e) {
+    if (!drawing || (e && e.pointerId !== pid)) return;
+    drawing = false;
+    if (g && last && mid) { g.beginPath(); g.moveTo(mid.x, mid.y); g.lineTo(last.x, last.y); g.stroke(); }
+    updateRegBar();
+  }
+  sig.addEventListener('pointerup', end);
+  sig.addEventListener('pointercancel', end);
+  sig.addEventListener('lostpointercapture', end);
+})();
+$('sig-clear').addEventListener('click', function () { clearSig(); updateRegBar(); });
+
+/* 제출 */
+function regReady() {
+  return reg.otpDone && $('name').value.trim().length >= 2 && $('position').value.trim().length >= 1 && reg.ink >= SIG_MIN_INK;
+}
+function updateRegBar() {
+  if (!reg.otpDone || reg.submitting) return;
+  barSet({ text: '담당자 등록하기', disabled: !regReady(), loading: false, onClick: submitRegister });
+}
+async function submitRegister() {
+  if (reg.submitting || !regReady()) return;
+  reg.submitting = true;
+  barSet({ text: '등록 중…', disabled: true, loading: true });
+  var ok = false;
+  try {
+    var name = $('name').value.trim(), position = $('position').value.trim();
+    var r = await api('managerRegister', {
+      phone: digitsOnly($('phone').value), otp: reg.otp, name: name, position: position,
+      signature: sig.toDataURL('image/png'), academyId: ctx.a, hospitalId: ctx.h
+    });
+    state.registered = true;
+    state.manager = r.manager || { name: name, position: position };
+    if (!MOCK) {
+      if (r.customToken) await fb.mod.signInWithCustomToken(fb.auth, r.customToken);
+      else await idToken(true); /* role=manager 클레임 갱신 */
+    }
+    ok = true;
+    toast('등록이 완료됐어요');
+    reg.submitting = false;
+    await route();
+  } catch (e) {
+    reg.submitting = false;
+    if (ok) return fatal(errMsg(e));
+    handleRegisterError(e);
+  }
+}
+function handleRegisterError(e) {
+  var c = e.code || '', d = e.data || {};
+  var remain = d.remaining != null ? d.remaining : (d.attemptsLeft != null ? d.attemptsLeft : d.remainingAttempts);
+  if (c === 'unauthenticated') return signOutToLogin();
+  if (/wrong|invalid_(otp|code)|otp_mismatch|mismatch/.test(c)) {
+    var msg = '인증번호가 맞지 않아요.' + (remain != null ? ' (남은 시도 ' + remain + '회)' : ' 다시 확인해 주세요.');
+    return backToOtp(msg, true, true);
+  }
+  if (/expired/.test(c)) { reg.expired = true; return backToOtp('인증번호가 만료됐어요. 재전송을 눌러 새 번호를 받아 주세요.', true, false); }
+  if (c === 'too_many_attempts') {
+    toast('시도 횟수를 초과했어요');
+    resetReg(); $('phone').value = ''; $('phone-msg').textContent = '인증 시도 횟수를 초과했어요. 잠시 후 인증번호를 다시 받아 주세요.';
+    return;
+  }
+  if (c === 'student_phone') {
+    resetReg(); $('phone-msg').textContent = '학생 번호로는 담당자 가입이 어려워요. 담당자 본인 번호를 입력해 주세요.';
+    return;
+  }
+  toast(errMsg(e));
+  updateRegBar();
+}
+
+/* ===== 승인 화면 ===== */
+var ap = { students: [], sel: new Set(), busy: false };
+var SKIP = {
+  self: '본인 번호와 같은 학생은 인증할 수 없어요',
+  already: '이미 인증된 건이 있어요',
+  incomplete: '퇴근 기록이 없는 건은 인증할 수 없어요'
+};
+var WD = ['일', '월', '화', '수', '목', '금', '토'];
+function fmtDate(s) {
+  var m = /^(\d{4})-(\d{1,2})-(\d{1,2})/.exec(s || ''); if (!m) return esc(s || '');
+  return (+m[2]) + '/' + (+m[3]) + ' (' + WD[new Date(+m[1], +m[2] - 1, +m[3]).getDay()] + ')';
+}
+function fmtTime(t) { var m = /(\d{1,2}):(\d{2})/.exec(t == null ? '' : String(t)); return m ? ('0' + m[1]).slice(-2) + ':' + m[2] : ''; }
+function keyOf(si, di) { return si + ':' + di; }
+
+async function loadApproval(silent) {
+  if (!silent) show('loading');
+  var res;
+  try {
+    res = await api('managerPending', { academyId: ctx.a, hospitalId: ctx.h });
+  } catch (e) {
+    if (e.code === 'unauthenticated') return signOutToLogin();
+    if (silent) return toast(errMsg(e));
+    return fatal(errMsg(e));
+  }
+  if (!silent) show('approve');
+  var h = res.hospital || {}, m = res.manager || state.manager || {};
+  $('ap-hospital').textContent = h.name || (state.info && state.info.name) || '';
+  $('ap-manager').textContent = [m.name, m.position].filter(Boolean).join(' · ') || '담당자';
+  var sg = m.signature, sw = $('ap-sig-wrap');
+  if (typeof sg === 'string' && /^(data:image\/(png|jpeg);base64,|https:\/\/)/.test(sg)) { $('ap-sig').src = sg; sw.hidden = false; } else sw.hidden = true;
+  ap.students = (res.students || []).filter(function (s) { return s.days && s.days.length; });
+  ap.sel = new Set();
+  ap.students.forEach(function (s, si) { s.days.forEach(function (d, di) { if (d.complete) ap.sel.add(keyOf(si, di)); }); });
+  paintList();
+}
+function paintList() {
+  var list = $('ap-list');
+  $('ap-empty').hidden = ap.students.length > 0;
+  list.innerHTML = ap.students.map(function (s, si) {
+    var comp = s.days.filter(function (d) { return d.complete; });
+    var allOn = comp.length > 0 && s.days.every(function (d, di) { return !d.complete || ap.sel.has(keyOf(si, di)); });
+    var rows = s.days.map(function (d, di) {
+      var on = d.complete, inT = fmtTime(d.inTime), outT = fmtTime(d.outTime);
+      var time = on ? esc(inT) + ' → ' + esc(outT) : (inT ? esc(inT) + ' · ' : '') + '퇴근 기록 없음';
+      return '<label class="day' + (on ? '' : ' off') + '"><input type="checkbox" data-si="' + si + '" data-di="' + di + '"' +
+        (ap.sel.has(keyOf(si, di)) ? ' checked' : '') + (on ? '' : ' disabled') + '><span class="cb">✓</span>' +
+        '<span class="d-date">' + fmtDate(d.date) + '</span><span class="d-time">' + time + '</span></label>';
+    }).join('');
+    return '<div class="stu"><div class="stu-h"><div><div class="stu-n">' + esc(s.name) + '</div><div class="stu-c">' + esc(s.className || '') + '</div></div>' +
+      (comp.length ? '<button type="button" class="link" data-all="' + si + '">' + (allOn ? '전체 해제' : '전체 선택') + '</button>' : '') + '</div>' + rows + '</div>';
+  }).join('');
+  updateApproveBar();
+}
+function updateApproveBar() {
+  if (!ap.students.length) return barHide();
+  var n = ap.sel.size;
+  barSet({ text: n ? n + '건 인증하기' : '인증할 항목을 선택해 주세요', disabled: n === 0 || ap.busy, loading: ap.busy, onClick: approve });
+}
+$('ap-list').addEventListener('change', function (e) {
+  var t = e.target; if (!t.dataset || t.dataset.si == null) return;
+  var k = keyOf(t.dataset.si, t.dataset.di);
+  if (t.checked) ap.sel.add(k); else ap.sel.delete(k);
+  paintList();
+});
+$('ap-list').addEventListener('click', function (e) {
+  var b = e.target.closest('[data-all]'); if (!b) return;
+  var si = +b.dataset.all, s = ap.students[si];
+  var allOn = s.days.every(function (d, di) { return !d.complete || ap.sel.has(keyOf(si, di)); });
+  s.days.forEach(function (d, di) { if (!d.complete) return; if (allOn) ap.sel.delete(keyOf(si, di)); else ap.sel.add(keyOf(si, di)); });
+  paintList();
+});
+
+async function approve() {
+  if (ap.busy || !ap.sel.size) return;
+  var items = [];
+  ap.students.forEach(function (s, si) { s.days.forEach(function (d, di) { if (ap.sel.has(keyOf(si, di))) items.push({ kakaoId: s.kakaoId, date: d.date }); }); });
+  ap.busy = true; barSet({ text: '인증 중…', disabled: true, loading: true });
+  try {
+    var r = await api('managerApprove', { academyId: ctx.a, hospitalId: ctx.h, items: items });
+    var skipped = r.skipped || [];
+    var n = typeof r.approved === 'number' ? r.approved : Math.max(0, items.length - skipped.length);
+    ap.busy = false;
+    showDone(n, skipped);
+    loadApproval(true);
+  } catch (e) {
+    ap.busy = false;
+    if (e.code === 'unauthenticated') return signOutToLogin();
+    toast(errMsg(e));
+    updateApproveBar();
+  }
+}
+function showDone(n, skipped) {
+  var seen = {}, lines = [];
+  skipped.forEach(function (s) {
+    var r = (s && s.reason) || (typeof s === 'string' ? s : '');
+    if (seen[r]) return; seen[r] = 1;
+    lines.push(SKIP[r] || '처리하지 못한 건이 있어요');
+  });
+  $('done-ok').hidden = n <= 0;
+  $('done-title').textContent = n > 0 ? n + '건 인증 완료' : '인증된 건이 없어요';
+  var sk = $('done-skip');
+  sk.hidden = !lines.length;
+  sk.innerHTML = lines.map(function (l) { return '<div>' + esc(l) + '</div>'; }).join('');
+  var ov = $('done'); ov.hidden = false;
+  var okc = $('done-ok'); if (n > 0) { var c = okc.cloneNode(true); okc.parentNode.replaceChild(c, okc); }
+  $('done-close').focus();
+}
+$('done-close').addEventListener('click', function () { $('done').hidden = true; });
+
+boot();
+})();
+</script>
+</body>
+</html>
