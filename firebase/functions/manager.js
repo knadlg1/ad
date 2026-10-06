@@ -17,6 +17,8 @@ const ID_RE              = /^[A-Za-z0-9_-]{1,100}$/;
 const KAKAO_ID_RE        = /^\d{1,20}$/;
 const DATE_RE            = /^\d{4}-\d{2}-\d{2}$/;
 const PHONE_RE           = /^01[0-9]{8,9}$/;
+// 테스트 계정(이상준)은 학생이면서도 담당자 화면을 직접 써볼 수 있도록 '학생 번호/학생 계정' 차단을 건너뛴다 (index.js TEST_KAKAO_IDS와 동일)
+const TEST_MANAGER_KAKAO_IDS = new Set(['4801334897']);
 
 class ApiError extends Error {
     constructor(code, message) { super(message); this.code = code; }
@@ -181,7 +183,7 @@ function registerManagerFunctions(exports, deps) {
             db.doc(`students/${kakaoId}`).get(),
         ]);
         if (mSnap.exists) fail('already_registered', '이미 등록된 담당자입니다.');
-        if (selfStudent.exists || await isStudentPhone(phone)) {
+        if (!TEST_MANAGER_KAKAO_IDS.has(kakaoId) && (selfStudent.exists || await isStudentPhone(phone))) {
             await audit('otp-send-blocked', kakaoId, { reason: 'student_phone', academyId, hospitalId });
             fail('student_phone', '학생으로 등록된 번호는 담당자로 등록할 수 없습니다.');
         }
@@ -255,7 +257,7 @@ function registerManagerFunctions(exports, deps) {
             db.doc(`students/${kakaoId}`).get(),
         ]);
         if (mSnap.exists) fail('already_registered', '이미 등록된 담당자입니다. 병원 추가를 이용해주세요.');
-        if (selfStudent.exists || await isStudentPhone(phone)) fail('student_phone', '학생으로 등록된 번호는 담당자로 등록할 수 없습니다.');
+        if (!TEST_MANAGER_KAKAO_IDS.has(kakaoId) && (selfStudent.exists || await isStudentPhone(phone))) fail('student_phone', '학생으로 등록된 번호는 담당자로 등록할 수 없습니다.');
 
         // OTP 검증: 시도 횟수는 실패 때마다 영속 증가 (트랜잭션)
         const otpRef = db.doc(`managerOtps/${kakaoId}`);
