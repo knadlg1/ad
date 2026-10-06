@@ -2298,7 +2298,7 @@ async function onInlineClsChange(kakaoId,sel){
         if(classId){
             await window.fsUpdateDoc(window.fsDoc(window.db,'classes',classId),{students:window.fsArrayUnion(String(kakaoId))});
         }
-        const stuUpdate={classId:classId||null};
+        const stuUpdate={classId:classId||null,verifyRequired:classVerifyFlag(classId)};
         if(classId){
             const cls=classesList.find(c=>c.id===classId);
             if(cls){
@@ -2459,7 +2459,7 @@ async function bulkAssignStudents(){
     if(!checked.length){showToast('학생을 선택해주세요','info');return;}
     await withSave(async()=>{
         await Promise.all(checked.map(async kakaoId=>{
-            await window.fsUpdateDoc(window.fsDoc(window.db,'students',String(kakaoId)),{classId});
+            await window.fsUpdateDoc(window.fsDoc(window.db,'students',String(kakaoId)),{classId,verifyRequired:classVerifyFlag(classId)});
             await window.fsUpdateDoc(window.fsDoc(window.db,'classes',classId),{students:window.fsArrayUnion(String(kakaoId))});
             const stu=studentsList.find(s=>String(s.kakaoId)===String(kakaoId));
             if(stu)stu.classId=classId;
@@ -2475,7 +2475,7 @@ async function assignStudentClass(kakaoId){
     const classId=sel?.value;
     if(!classId){showToast('반을 선택해주세요','info');return;}
     await withSave(async()=>{
-        await window.fsUpdateDoc(window.fsDoc(window.db,'students',String(kakaoId)),{classId});
+        await window.fsUpdateDoc(window.fsDoc(window.db,'students',String(kakaoId)),{classId,verifyRequired:classVerifyFlag(classId)});
         const stu=studentsList.find(s=>String(s.kakaoId)===String(kakaoId));
         if(stu)stu.classId=classId;
     },{successMsg:'반 배정 완료 ✓',delay:900,onSuccess:()=>{
@@ -2872,7 +2872,7 @@ async function bulkApprovePending(){
     if(!confirm(`${checked.length}명을 일괄 승인하시겠습니까?`))return;
     await withSave(async()=>{
         await Promise.all(checked.flatMap(kakaoId=>[
-            window.fsUpdateDoc(window.fsDoc(window.db,'students',String(kakaoId)),{status:'approved',classId:clsId}),
+            window.fsUpdateDoc(window.fsDoc(window.db,'students',String(kakaoId)),{status:'approved',classId:clsId,verifyRequired:classVerifyFlag(clsId)}),
             window.fsUpdateDoc(window.fsDoc(window.db,'classes',clsId),{students:window.fsArrayUnion(String(kakaoId))})
         ]));
     },{successMsg:`${checked.length}명 승인 완료 ✓`,delay:900,onSuccess:async()=>{
@@ -2885,7 +2885,7 @@ async function approveStudent(kakaoId){
     const clsId=(document.getElementById('psel-'+kakaoId)?.value||'').trim();
     if(!clsId){showToast('반을 먼저 선택해주세요','info');return;}
     await withSave(async()=>{
-        await window.fsUpdateDoc(window.fsDoc(window.db,'students',String(kakaoId)),{status:'approved',classId:clsId});
+        await window.fsUpdateDoc(window.fsDoc(window.db,'students',String(kakaoId)),{status:'approved',classId:clsId,verifyRequired:classVerifyFlag(clsId)});
         await window.fsUpdateDoc(window.fsDoc(window.db,'classes',clsId),{students:window.fsArrayUnion(String(kakaoId))});
     },{successMsg:'승인 완료 ✓',delay:900,onSuccess:async()=>{
         await Promise.all([loadStudents(),loadPendingStudents()]);
@@ -2954,7 +2954,7 @@ async function saveStudentEdit(){
         if(classId){
             await window.fsUpdateDoc(window.fsDoc(window.db,'classes',classId),{students:window.fsArrayUnion(String(kakaoId))});
         }
-        const update={classId:classId||null,practiceStart:start||null,practiceEnd:end||null,hospital:hospital||null,hospitalLat,hospitalLon};
+        const update={classId:classId||null,verifyRequired:classVerifyFlag(classId),practiceStart:start||null,practiceEnd:end||null,hospital:hospital||null,hospitalLat,hospitalLon};
         await window.fsUpdateDoc(window.fsDoc(window.db,'students',String(kakaoId)),update);
         if(hospital&&studentsList.find(s=>s.kakaoId===kakaoId)?.hospital!==hospital){
             fetch(GAS_URL,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action:'updateStudentHospital',kakaoId,hospital})}).catch(()=>{});
@@ -3209,6 +3209,9 @@ function toggleAddClassForm(){
     if(f.style.display==='flex'){document.getElementById('new-class-name').focus();}
 }
 
+// 담당자 인증(verifyRequired)은 반 단위로 정해지고, 학생은 배정된 반의 값을 따라간다. 기존 반은 값이 없어 종전대로 동작.
+function classVerifyFlag(classId){return !!classId&&classesList.find(c=>c.id===classId)?.verifyRequired===true;}
+
 async function createClass(){
     const name=document.getElementById('new-class-name').value.trim();
     const code=normalizeClassCode(document.getElementById('new-class-code').value.trim());
@@ -3218,7 +3221,7 @@ async function createClass(){
         await window.fsAddDoc(window.fsCollection(window.db,'classes'),{
             name,code:code||'',
             academyId:directorData?.academyId||'',
-            students:[],createdAt:Date.now()
+            students:[],createdAt:Date.now(),verifyRequired:true
         });
         document.getElementById('new-class-name').value='';
         document.getElementById('new-class-code').value='';
@@ -3792,7 +3795,7 @@ async function createClassFromVtab(){
             practicePeriods:clsTtPracticePeriods,
             trainStart:clsTtTrainStart,trainEnd:clsTtTrainEnd,
             lunchBreakMins:clsTtLunchMins,lunchStart:clsTtLunchStart||null,lunchEnd:clsTtLunchEnd||null,
-            students:[],createdAt:Date.now()
+            students:[],createdAt:Date.now(),verifyRequired:true
         });
         showToast('반 추가 완료','success');
         document.getElementById('cls-name').value='';
