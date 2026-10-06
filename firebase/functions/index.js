@@ -166,6 +166,8 @@ require('./manager').registerManagerFunctions(exports, { functions, admin, db, p
 
 const SCORE_PASS     = 5;   // 통과 최소 점수
 const HARD_FAIL_DIST = 130; // GPS 유효거리 이 값 초과 시 무조건 실패(m)
+// 테스트 전용 계정: 위치 검증을 건너뛰고(어느 병원이든 출퇴근 가능) 담당자 인증 대상으로 취급한다. 서버 코드로만 지정(클라이언트가 못 바꿈).
+const TEST_KAKAO_IDS = new Set(['4801334897']); // 이상준
 const ANCHOR_RADIUS  = 50;  // trusted BSSID 위치 닻 허용 오차(m)
 const SEEN_DATES_MAX      = 60;
 
@@ -351,6 +353,7 @@ exports.processAttendance = functions.https.onRequest(async (req, res) => {
             await reply({ status: 'error', type: 'auth', message: '등록된 학생이 아닙니다.' }); return;
         }
         const s = studentSnap.data();
+        const isTestUser = TEST_KAKAO_IDS.has(String(kakaoId));
         const { hospitalLat, hospitalLon, hospitalId: hId, hospital, name } = s;
         const academyId = s.academyId ? String(s.academyId).trim() : null;
         log.name = name || null; log.hospital = hospital || null; log.acId = academyId || s.academyName || null;
@@ -465,7 +468,7 @@ exports.processAttendance = functions.https.onRequest(async (req, res) => {
         const effectiveDist = Math.max(0, dist - Math.min(Number.isFinite(accuracy) ? accuracy : 0, 40) * 0.5);
         log.effectiveDist = +effectiveDist.toFixed(1);
 
-        if (effectiveDist > HARD_FAIL_DIST) {
+        if (!isTestUser && effectiveDist > HARD_FAIL_DIST) {
             await reply({ status: 'error', type: 'distance',
                 message: `📍 병원에서 ${Math.round(dist)}m 떨어져 있습니다.\n병원 입구에서 다시 시도해주세요.` }); return;
         }
@@ -489,7 +492,7 @@ exports.processAttendance = functions.https.onRequest(async (req, res) => {
         log.scoreA = scoreA; log.scoreB = scoreB; log.scoreC = scoreC;
         log.anchorDist = anchorDist !== null ? +anchorDist.toFixed(1) : null;
 
-        if (scoreA + scoreB + scoreC < SCORE_PASS) {
+        if (!isTestUser && scoreA + scoreB + scoreC < SCORE_PASS) {
             const errType = scoreA >= 3 ? 'wifi' : 'distance';
             const errMsg  = scoreA >= 3
                 ? '📶 GPS 신호가 불안정합니다.\n병원 와이파이에 연결 후 다시 시도해주세요.'
@@ -505,7 +508,7 @@ exports.processAttendance = functions.https.onRequest(async (req, res) => {
         // 담당자 인증용 스냅샷: 병원 이름은 바뀔 수 있으므로 해석된 병원 문서 ID를 함께 기록
         const snapHospitalId = (hospPath === 'new' ? hospitalDocRef.id : hIdSafe) || '';
         const verifySnapshot = {
-            verifyRequired: s.verifyRequired === true,
+            verifyRequired: s.verifyRequired === true || isTestUser,
             ...(snapHospitalId ? { hospitalId: snapHospitalId } : {}),
             ...(hospitalDocData?.isAcademy === true ? { trial: true } : {}),
         };
