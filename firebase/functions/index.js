@@ -507,10 +507,12 @@ exports.processAttendance = functions.https.onRequest(async (req, res) => {
         // ── 10. Firestore 저장 ────────────────────────────────────────────
         // 담당자 인증용 스냅샷: 병원 이름은 바뀔 수 있으므로 해석된 병원 문서 ID를 함께 기록
         const snapHospitalId = (hospPath === 'new' ? hospitalDocRef.id : hIdSafe) || '';
+        // 학생에 verifyStartDate가 있으면 그 날짜(KST) 기록부터 담당자 인증 적용
+        const verifyActive = isTestUser || (s.verifyRequired === true && today >= (s.verifyStartDate || ''));
         const verifySnapshot = {
-            verifyRequired: s.verifyRequired === true || isTestUser,
+            verifyRequired: verifyActive,
             ...(snapHospitalId ? { hospitalId: snapHospitalId } : {}),
-            ...(hospitalDocData?.isAcademy === true ? { trial: true } : {}),
+            ...(verifyActive && hospitalDocData?.isAcademy === true ? { trial: true } : {}),
         };
         if (type === '출근') {
             const saveStatus = await svSaveAttendanceChecked(kakaoId, '출근', today, {

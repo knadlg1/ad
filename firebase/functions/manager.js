@@ -297,6 +297,7 @@ function registerManagerFunctions(exports, deps) {
             t.set(mgrRef, {
                 kakaoId, phone, name, position, signature: sig,
                 hospitals: [{ academyId, hospitalId, joinedAt: Date.now(), via: 'student-qr' }],
+                hospitalIds: [hospitalId],
                 registeredAt: FV.serverTimestamp(),
                 registeredFromHospitalId: hospitalId,
                 lastApprovedAt: null,
@@ -327,7 +328,7 @@ function registerManagerFunctions(exports, deps) {
             const next = [...hospitals, { academyId, hospitalId, joinedAt: Date.now(), via: 'join' }];
             const flags = Array.isArray(m.flags) ? [...m.flags] : [];
             if (new Set(next.map(h => h.hospitalId)).size >= 2 && !flags.includes('multi_hospital')) flags.push('multi_hospital');
-            t.update(mgrRef, { hospitals: next, flags, updatedAt: FV.serverTimestamp() });
+            t.update(mgrRef, { hospitals: next, hospitalIds: [...new Set(next.map(h => h.hospitalId))], flags, updatedAt: FV.serverTimestamp() });
             return { joined: true, flags };
         });
         if (result.joined) await audit('join', kakaoId, { academyId, hospitalId });
@@ -468,6 +469,41 @@ function registerManagerFunctions(exports, deps) {
         });
         return { approved, skipped };
     });
+    // ── 7. 원장님용: 우리 학원 병원별 담당자 목록 (이름/직위/연락처/서명) ────
+    // 원장 사이트는 전화번호+비밀번호 해시 로그인이라 Firebase 토큰으로 원장 여부를 알 수 없다.
+    // 그래서 directors 문서 id + passwordHash 를 서버에서 다시 대조해 본인 학원 것만 내려준다.
+    exports.directorHospitalManagers = route(async ({ body }) => {
+        const docId = strId(body.directorDocId);
+        const hash = typeof body.passwordHash === 'string' ? body.passwordHash : '';
+        if (!docId || !hash) fail('bad_request', '파라미터 누락');
+        const dSnap = await db.doc(`directors/${docId}`).get();
+        const d = dSnap.exists ? dSnap.data() : null;
+        const a = Buffer.from(String((d && d.passwordHash) || ''));
+        const b = Buffer.from(hash);
+        if (!d || d.status !== 'approved' || !d.academyId || a.length === 0 || a.length !== b.length || !crypto.timingSafeEqual(a, b)) {
+            fail('forbidden', '권한이 없습니다.');
+        }
+        const academyId = d.academyId;
+        const hSnap = await db.collection(`academies/${academyId}/hospitals`).get();
+        const hospitals = hSnap.docs.map(x => ({ hospitalId: x.id, name: x.data().name || '', isAcademy: x.data().isAcademy === true, managers: [] }));
+        const byId = new Map(hospitals.map(h => [h.hospitalId, h]));
+        for (const ids of chunk([...byId.keys()], 30)) {
+            const q = await db.collection('hospitalManagers').where('hospitalIds', 'array-contains-any', ids).get();
+            q.docs.forEach(m => {
+                const x = m.data();
+                (x.hospitals || []).forEach(j => {
+                    if (j.academyId !== academyId || !byId.has(j.hospitalId)) return;
+                    byId.get(j.hospitalId).managers.push({
+                        kakaoId: m.id, name: x.name || '', position: x.position || '', phone: x.phone || '',
+                        signature: x.signature || '', approveCount: x.approveCount || 0,
+                        lastApprovedAt: x.lastApprovedAt && x.lastApprovedAt.toMillis ? x.lastApprovedAt.toMillis() : null,
+                        joinedAt: j.joinedAt || null,
+                    });
+                });
+            });
+        }
+        return { hospitals };
+    }, { auth: false });
 }
 
 module.exports = { registerManagerFunctions };
