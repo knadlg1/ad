@@ -46,6 +46,7 @@ input.in[readonly]{background:#f3f4f6;color:#4b5563}
 .pill{display:inline-flex;align-items:center;gap:6px;background:var(--pt);color:var(--p);font-weight:800;font-size:13px;padding:7px 14px;border-radius:999px;margin-bottom:14px}
 .pill::before{content:'';width:7px;height:7px;border-radius:50%;background:var(--p)}
 .hero{font-size:44px;margin:28px 0 10px}
+.logo{width:96px;height:96px;border-radius:22px;margin:28px 0 14px;display:block}
 .big{padding:28px 20px}
 /* OTP */
 .otp-wrap{position:relative}
@@ -119,7 +120,7 @@ body.kb-open .bar{padding-bottom:12px}
 <body>
 <div class="top">Here 담당자 인증</div>
 
-<section class="screen center" id="s-loading"><div class="spinner"></div><p class="sub">잠시만 기다려 주세요</p></section>
+<section class="screen center" id="s-loading"><img class="logo" src="here-logo.png" alt="Here" width="96" height="96"><div class="spinner"></div><p class="sub">잠시만 기다려 주세요</p></section>
 
 <section class="screen center" id="s-noqr" hidden>
   <div class="hero">📷</div>
@@ -135,7 +136,7 @@ body.kb-open .bar{padding-bottom:12px}
 </section>
 
 <section class="screen center" id="s-login" hidden>
-  <div class="hero">🏥</div>
+  <img class="logo" src="here-logo.png" alt="Here" width="96" height="96">
   <h1>실습생 출결 인증</h1>
   <p class="sub">병원 담당자 확인을 위해<br>카카오 계정으로 시작해 주세요.</p>
   <div class="msg" id="login-msg" style="margin:0 0 12px"></div>
