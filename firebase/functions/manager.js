@@ -160,6 +160,7 @@ function registerManagerFunctions(exports, deps) {
             name: hosp.data.name || '',
             academyName: await loadAcademyName(academyId),
             isAcademy: hosp.data.isAcademy === true,
+            registered: mSnap.exists,
             isMember: mSnap.exists && isMember(mSnap.data(), academyId, hospitalId),
         };
     });

@@ -450,6 +450,7 @@ async function route() {
     return fatal(errMsg(e));
   }
   var info = state.info;
+  if (typeof info.registered === 'boolean') state.registered = info.registered;
   if (info.isAcademy) return show('academy');
   if (!state.registered) return enterRegister();
   if (!info.isMember) {
