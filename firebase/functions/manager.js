@@ -354,12 +354,16 @@ function registerManagerFunctions(exports, deps) {
         const cutoff = kstDate(-PENDING_DAYS);
         const ids = students.map(d => d.id);
         const attSnaps = await Promise.all(chunk(ids, 30).map(c => db.collection('attendance').where('kakaoId', 'in', c).get()));
-        const byStudent = {};
+        const byStudent = {}, doneByStudent = {};
         for (const qs of attSnaps) for (const d of qs.docs) {
             const a = d.data();
             const date = a.date || d.id.split('_')[1];
-            if (!a.inTime || a.verifiedAt || a.trial === true || !DATE_RE.test(date || '') || date < cutoff) continue;
+            if (!a.inTime || a.trial === true || !DATE_RE.test(date || '') || date < cutoff) continue;
             if (a.hospitalId && a.hospitalId !== hospitalId) continue;
+            if (a.verifiedAt) {
+                (doneByStudent[a.kakaoId] = doneByStudent[a.kakaoId] || []).push({ date, inTime: a.inTime, outTime: a.outTime || null });
+                continue;
+            }
             (byStudent[a.kakaoId] = byStudent[a.kakaoId] || []).push({
                 date, inTime: a.inTime, outTime: a.outTime || null, complete: !!(a.inTime && a.outTime),
             });
@@ -374,11 +378,12 @@ function registerManagerFunctions(exports, deps) {
 
         const out = [];
         for (const d of students) {
-            const days = byStudent[d.id];
-            if (!days || !days.length) continue;
-            days.sort((x, y) => x.date < y.date ? -1 : x.date > y.date ? 1 : 0);
+            const days = byStudent[d.id] || [], done = doneByStudent[d.id] || [];
+            if (!days.length && !done.length) continue;
+            const byDate = (x, y) => x.date < y.date ? -1 : x.date > y.date ? 1 : 0;
+            days.sort(byDate); done.sort(byDate);
             const s = d.data();
-            out.push({ kakaoId: d.id, name: s.name || '', className: classNames[s.classId] || '', days });
+            out.push({ kakaoId: d.id, name: s.name || '', className: classNames[s.classId] || '', days, done });
         }
         out.sort((x, y) => x.name.localeCompare(y.name, 'ko'));
         return { hospital: { id: hospitalId, name: hosp.data.name || '' }, students: out };

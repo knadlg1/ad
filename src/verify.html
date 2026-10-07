@@ -81,23 +81,66 @@ input.in[readonly]{background:#f3f4f6;color:#4b5563}
 .sig.has .sig-hint{display:none}
 .sig-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}.sig-head .lb{margin:0}
 /* approve */
-.ap-head{background:#fff;border:1px solid var(--bd);border-radius:16px;padding:16px;margin-bottom:14px;display:flex;gap:12px;align-items:center}
-.ap-head .grow{flex:1;min-width:0}
-.ap-h{font-size:19px;font-weight:800;letter-spacing:-.3px}
-.ap-m{color:var(--mu);font-size:13px;margin-top:2px}
-.sigprev{width:84px;height:46px;border:1px solid var(--bd);border-radius:8px;background:#fff;object-fit:contain;flex:none}
-.sigcap{font-size:10px;color:var(--mu);text-align:center;margin-top:2px}
-.stu{background:#fff;border:1px solid var(--bd);border-radius:16px;margin-bottom:12px;overflow:hidden}
-.stu-h{display:flex;align-items:center;justify-content:space-between;padding:12px 8px 8px 16px}
-.stu-n{font-size:16px;font-weight:800}.stu-c{font-size:12px;color:var(--mu)}
-.day{position:relative;display:flex;align-items:center;gap:12px;min-height:52px;padding:8px 16px;border-top:1px solid #f0f1f4;cursor:pointer}
-.day input{position:absolute;opacity:0;width:1px;height:1px}
+.ap-card{background:#fff;border:1px solid var(--bd);border-radius:16px;margin-bottom:12px}
+.ap-who{padding:16px 16px 14px;font-size:17px;font-weight:800;letter-spacing:-.3px;line-height:1.45;word-break:keep-all}
+.ap-who .pos{font-size:12px;font-weight:700;color:var(--mu);letter-spacing:0}
+.ap-who .dot{color:#c3c8d6;margin:0 2px}
+.ap-sum{display:flex;align-items:center;justify-content:space-between;padding:12px 16px 14px;border-top:1px solid #f0f1f4}
+.ap-sum .lab{font-size:15px;font-weight:800}
+.ap-tot{display:flex;flex-direction:column;align-items:center;gap:3px}
+.ap-tot .ov{min-width:56px;height:32px;padding:0 14px;border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:800;background:var(--ert);color:var(--er);border:1.5px solid #fca5a5}
+.ap-tot .ov.zero{background:var(--okt);color:var(--ok);border-color:#bfe8cf}
+.ap-tot .cap{font-size:11px;color:var(--mu)}
+.cal{padding:12px 8px 10px;margin-bottom:0}
+.cal-nav{display:flex;align-items:center;justify-content:space-between;padding:0 4px 10px}
+.cal-nav .t{font-size:14px;font-weight:800;color:#374151;text-align:center}
+.nav-b{width:40px;height:40px;border:0;background:#f3f4f6;border-radius:12px;font-size:22px;line-height:1;color:#374151;cursor:pointer;display:flex;align-items:center;justify-content:center;font-family:inherit}
+.nav-b:disabled{opacity:.35;cursor:default}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px}
+.wd{border:0;background:none;font-family:inherit;padding:2px 0;display:flex;flex-direction:column;align-items:center;gap:6px;cursor:pointer;min-width:0}
+.wd-dow{font-size:12px;font-weight:700;color:#64748b}
+.wd.sat .wd-dow{color:#2563eb}.wd.sun .wd-dow{color:#dc2626}
+.wd-oval{width:100%;max-width:46px;height:66px;border-radius:23px;border:1.5px solid #e5e7eb;background:#f8fafc;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;color:#9aa1ae;font-weight:700}
+.wd-num{font-size:14px;line-height:1}
+.wd.has .wd-oval{background:#fff;border-color:#cbd5e1;color:var(--tx)}
+.wd.pend .wd-oval{background:var(--ert);border-color:#fca5a5}
+.wd.sel .wd-oval{border-color:var(--p);background:var(--pt);box-shadow:0 0 0 3px rgba(74,85,224,.14)}
+.wd.pend.sel .wd-oval{background:var(--ert)}
+.wd.today .wd-num{color:var(--p)}
+.wd-sub{font-size:11px;font-weight:700;color:var(--mu)}
+.cnt{min-width:26px;height:26px;padding:0 6px;border-radius:13px;background:var(--er);color:#fff;font-size:14px;font-weight:800;line-height:1;display:flex;align-items:center;justify-content:center}
+.stamp{display:inline-block;color:#dc2626;border:2px solid #dc2626;border-radius:6px;font-weight:900;font-size:12px;line-height:1.1;padding:2px 3px;transform:rotate(-14deg);letter-spacing:-.5px;background:rgba(255,255,255,.7);white-space:nowrap}
+.ap-panel{position:relative;margin-top:14px;background:#fff;border:1px solid var(--bd);border-radius:16px}
+.ap-panel::before{content:'';position:absolute;top:-8px;left:var(--cx,50%);width:14px;height:14px;background:#fff;border-left:1px solid var(--bd);border-top:1px solid var(--bd);transform:translateX(-50%) rotate(45deg)}
+.pn-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px 12px}
+.pn-d{font-size:16px;font-weight:800}
+.pn-s{font-size:12px;color:var(--mu);margin-top:1px}
+.pn-empty{padding:30px 16px;text-align:center;color:var(--mu);font-size:14px;border-top:1px solid #f0f1f4}
+.sr{position:relative;display:flex;align-items:center;gap:12px;min-height:62px;padding:10px 16px;border-top:1px solid #f0f1f4;cursor:pointer}
+.sr input{position:absolute;opacity:0;width:1px;height:1px}
 .cb{width:24px;height:24px;border-radius:7px;border:2px solid #c3c8d6;flex:none;display:flex;align-items:center;justify-content:center;transition:all .12s;color:transparent;font-size:15px;font-weight:900}
-.day input:checked+.cb{background:var(--p);border-color:var(--p);color:#fff}
-.day input:focus-visible+.cb{box-shadow:0 0 0 3px rgba(74,85,224,.25)}
-.d-date{font-weight:800;width:70px;flex:none}
-.d-time{color:#4b5563;font-variant-numeric:tabular-nums}
-.day.off{cursor:default;background:#fafafa}.day.off .cb{background:#eceef2;border-color:#e0e3e9}.day.off .d-date,.day.off .d-time{color:#a3a9b5;font-weight:600}
+.sr input:checked+.cb{background:var(--p);border-color:var(--p);color:#fff}
+.sr input:focus-visible+.cb{box-shadow:0 0 0 3px rgba(74,85,224,.25)}
+.sr-who{flex:1;min-width:0}
+.sr-n{display:block;font-size:16px;font-weight:800;line-height:1.3;word-break:keep-all}
+.sr-c{display:block;font-size:12px;color:var(--mu);margin-top:1px;word-break:keep-all}
+.sr-t{flex:none;text-align:right;font-size:15px;font-weight:700;color:#374151;font-variant-numeric:tabular-nums;white-space:nowrap}
+.sr-t small{display:block;font-size:11px;font-weight:600;color:var(--mu);margin-top:1px}
+.sr.off{cursor:default;background:#fafafa}.sr.off .cb{background:#eceef2;border-color:#e0e3e9}.sr.off .sr-n,.sr.off .sr-t{color:#a3a9b5}
+.sr.done{cursor:default}.sr.done .sr-n,.sr.done .sr-t{color:#6b7280}
+.cb.ok{background:var(--ok);border-color:var(--ok);color:#fff}
+.cf{text-align:left}
+.cf h2{text-align:center}
+.cf-sub{text-align:center;color:var(--mu);font-size:14px;margin-top:8px;word-break:keep-all}
+.cf-sub b{color:var(--er)}
+.cf-list{max-height:32vh;overflow:auto;background:#f6f7f9;border-radius:12px;padding:2px 14px;margin:16px 0}
+.cf-li{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:10px 0;font-size:15px;border-top:1px solid #eceef2}
+.cf-li:first-child{border-top:0}
+.cf-li b{font-weight:800;word-break:keep-all}
+.cf-li span{color:#4b5563;font-variant-numeric:tabular-nums;white-space:nowrap;font-size:14px}
+.cf-btns{display:flex;gap:10px}
+.cf-btns .btn{width:auto}
+#cf-no{flex:1}#cf-ok{flex:1.5}
 /* bar */
 .bar{position:fixed;left:0;right:0;bottom:var(--kb);z-index:50;background:rgba(255,255,255,.97);border-top:1px solid var(--bd);padding:12px 16px calc(12px + env(safe-area-inset-bottom))}
 body.kb-open .bar{padding-bottom:12px}
@@ -225,19 +268,43 @@ body.kb-open .bar{padding-bottom:12px}
 </section>
 
 <section class="screen" id="s-approve" hidden>
-  <div class="ap-head">
-    <div class="grow"><div class="ap-h" id="ap-hospital"></div><div class="ap-m" id="ap-manager"></div></div>
-    <div id="ap-sig-wrap" hidden><img class="sigprev" id="ap-sig" alt="내 서명"><div class="sigcap">내 서명 미리보기</div></div>
+  <div class="ap-card">
+    <div class="ap-who" id="ap-who"></div>
+    <div class="ap-sum">
+      <div class="lab">출결인증</div>
+      <div class="ap-tot"><div class="ov" id="ap-total">0</div><div class="cap">미인증</div></div>
+    </div>
   </div>
-  <div id="ap-list"></div>
-  <div class="card big center" id="ap-empty" hidden>
-    <h2>인증할 출결이 없어요 🎉</h2>
-    <p class="sub" style="margin:6px 0 0">새로운 출결이 생기면 여기에 나타나요.</p>
+  <div class="ap-card cal">
+    <div class="cal-nav">
+      <button class="nav-b" id="cal-prev" type="button" aria-label="이전 주">‹</button>
+      <div class="t" id="cal-t"></div>
+      <button class="nav-b" id="cal-next" type="button" aria-label="다음 주">›</button>
+    </div>
+    <div class="cal-grid" id="cal-grid"></div>
+  </div>
+  <div class="ap-panel" id="ap-panel">
+    <div class="pn-head">
+      <div><div class="pn-d" id="pn-d"></div><div class="pn-s" id="pn-s"></div></div>
+      <button class="link" id="pn-all" type="button" hidden></button>
+    </div>
+    <div id="pn-list"></div>
   </div>
 </section>
 
 <div class="bar" id="bar" hidden><div class="bar-in"><button class="btn primary" id="bar-btn" type="button"><span id="bar-label"></span></button></div></div>
 <div class="toast" id="toast" role="status"></div>
+<div class="overlay" id="confirm" hidden>
+  <div class="sheet cf">
+    <h2 id="cf-title"></h2>
+    <p class="cf-sub">승인하면 <b>되돌릴 수 없어요.</b><br>실제로 실습한 학생이 맞는지<br>한 번 더 확인해 주세요.</p>
+    <div class="cf-list" id="cf-list"></div>
+    <div class="cf-btns">
+      <button class="btn ghost" id="cf-no" type="button">다시 확인</button>
+      <button class="btn primary" id="cf-ok" type="button">승인하기</button>
+    </div>
+  </div>
+</div>
 <div class="overlay" id="done" hidden>
   <div class="sheet">
     <svg class="okc" id="done-ok" viewBox="0 0 84 84"><circle cx="42" cy="42" r="40"/><path d="M26 43l11 11 21-23"/></svg>
@@ -415,13 +482,15 @@ var mockDB = {
   member: scenario !== 'join',
   students: scenario === 'empty' ? [] : [
     { kakaoId: 'k1', name: '김하늘', className: '간호 12기 A반', days: [
-      { date: '2026-10-05', inTime: '08:50', outTime: '17:31', complete: true },
       { date: '2026-10-06', inTime: '08:47', outTime: '17:35', complete: true },
-      { date: '2026-10-07', inTime: '08:55', outTime: '', complete: false } ] },
+      { date: '2026-10-07', inTime: '08:55', outTime: '', complete: false } ],
+      done: [ { date: '2026-10-05', inTime: '08:50', outTime: '17:31' }, { date: '2026-09-30', inTime: '08:44', outTime: '17:30' } ] },
     { kakaoId: 'k2', name: '이서준', className: '간호 12기 A반', days: [
-      { date: '2026-10-05', inTime: '08:41', outTime: '17:30', complete: true } ] },
+      { date: '2026-10-06', inTime: '08:14', outTime: '16:30', complete: true } ],
+      done: [ { date: '2026-10-05', inTime: '08:41', outTime: '17:30' } ] },
     { kakaoId: 'k3', name: '박지우(본인번호)', className: '간호 12기 B반', days: [
-      { date: '2026-10-06', inTime: '09:02', outTime: '17:40', complete: true } ] }
+      { date: '2026-10-06', inTime: '09:02', outTime: '17:40', complete: true },
+      { date: '2026-10-01', inTime: '08:58', outTime: '17:20', complete: true } ], done: [] }
   ]
 };
 function mockApi(name, b) {
@@ -445,9 +514,12 @@ function mockApi(name, b) {
         b.items.forEach(function (it) {
           if (it.kakaoId === 'k3') { skipped.push({ kakaoId: it.kakaoId, date: it.date, reason: 'self' }); return; }
           done++;
-          mockDB.students.forEach(function (s) { if (s.kakaoId === it.kakaoId) s.days = s.days.filter(function (d) { return d.date !== it.date; }); });
+          mockDB.students.forEach(function (s) {
+            if (s.kakaoId !== it.kakaoId) return;
+            s.days.forEach(function (d) { if (d.date === it.date) s.done.push({ date: d.date, inTime: d.inTime, outTime: d.outTime }); });
+            s.days = s.days.filter(function (d) { return d.date !== it.date; });
+          });
         });
-        mockDB.students = mockDB.students.filter(function (s) { return s.days.length; });
         return ok({ approved: done, skipped: skipped });
       }
       no('mock_unknown', name);
@@ -864,7 +936,7 @@ function handleRegisterError(e) {
 }
 
 /* ===== 승인 화면 ===== */
-var ap = { students: [], sel: new Set(), busy: false };
+var ap = { students: [], sel: new Set(), busy: false, day: '', week: '', minWeek: '', idx: {}, total: 0, who: '' };
 var SKIP = {
   self: '본인 번호와 같은 학생은 인증할 수 없어요',
   already: '이미 인증된 건이 있어요',
@@ -874,12 +946,45 @@ var SKIP = {
   no_attendance: '출근 기록을 찾을 수 없는 건이 있어요'
 };
 var WD = ['일', '월', '화', '수', '목', '금', '토'];
+var WK = ['월', '화', '수', '목', '금', '토', '일'];
 function fmtDate(s) {
   var m = /^(\d{4})-(\d{1,2})-(\d{1,2})/.exec(s || ''); if (!m) return esc(s || '');
   return (+m[2]) + '/' + (+m[3]) + ' (' + WD[new Date(+m[1], +m[2] - 1, +m[3]).getDay()] + ')';
 }
+function fmtMD(s) { var m = /^\d{4}-(\d{1,2})-(\d{1,2})/.exec(s || ''); return m ? (+m[1]) + '/' + (+m[2]) : ''; }
 function fmtTime(t) { var m = /(\d{1,2}):(\d{2})/.exec(t == null ? '' : String(t)); return m ? ('0' + m[1]).slice(-2) + ':' + m[2] : ''; }
-function keyOf(si, di) { return si + ':' + di; }
+function addDays(s, n) { var d = new Date(s + 'T00:00:00Z'); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); }
+function mondayOf(s) { var w = new Date(s + 'T00:00:00Z').getUTCDay(); return addDays(s, w === 0 ? -6 : 1 - w); }
+function todayStr() { return new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10); }
+function selKey(kid, date) { return kid + '|' + date; }
+
+function buildIndex() {
+  var idx = {}, total = 0;
+  function slot(dt) { return idx[dt] || (idx[dt] = { pend: [], done: [] }); }
+  ap.students.forEach(function (s) {
+    (s.days || []).forEach(function (d) { slot(d.date).pend.push({ s: s, d: d }); if (d.complete) total++; });
+    (s.done || []).forEach(function (d) { slot(d.date).done.push({ s: s, d: d }); });
+  });
+  ap.idx = idx; ap.total = total;
+}
+function okRows(x) { return x ? x.pend.filter(function (r) { return r.d.complete; }) : []; }
+
+function bestDayOf(week) {
+  var today = todayStr(), best = '', any = '', i, dt, x;
+  for (i = 0; i < 7; i++) {
+    dt = addDays(week, i); x = ap.idx[dt];
+    if (x && okRows(x).length) best = dt;
+    if (x) any = dt;
+  }
+  if (best) return best;
+  if (today >= week && today <= addDays(week, 6)) return today;
+  return any || week;
+}
+function pickDay(dt) {
+  ap.day = dt;
+  ap.sel = new Set(okRows(ap.idx[dt]).map(function (r) { return selKey(r.s.kakaoId, dt); }));
+  paintAll();
+}
 
 async function loadApproval(silent) {
   if (!silent) show('loading');
@@ -893,57 +998,113 @@ async function loadApproval(silent) {
   }
   if (!silent) show('approve');
   var h = res.hospital || {}, m = res.manager || state.manager || {};
-  $('ap-hospital').textContent = h.name || (state.info && state.info.name) || '';
-  $('ap-manager').textContent = [m.name, m.position].filter(Boolean).join(' · ') || '담당자';
-  var sg = m.signature, sw = $('ap-sig-wrap');
-  if (typeof sg === 'string' && /^(data:image\/(png|jpeg);base64,|https:\/\/)/.test(sg)) { $('ap-sig').src = sg; sw.hidden = false; } else sw.hidden = true;
-  ap.students = (res.students || []).filter(function (s) { return s.days && s.days.length; });
-  ap.sel = new Set();
-  ap.students.forEach(function (s, si) { s.days.forEach(function (d, di) { if (d.complete) ap.sel.add(keyOf(si, di)); }); });
-  paintList();
+  ap.who = '<b>' + esc(m.name || '담당자') + '</b>' + (m.position ? ' <span class="pos">' + esc(m.position) + '</span>' : '') +
+    ' <span class="dot">·</span> ' + esc(h.name || (state.info && state.info.name) || '');
+  ap.students = (res.students || []).filter(function (s) { return (s.days && s.days.length) || (s.done && s.done.length); });
+  buildIndex();
+  var today = todayStr(), dates = Object.keys(ap.idx).sort();
+  ap.minWeek = mondayOf(dates.length && dates[0] < today ? dates[0] : today);
+  if (!ap.day) {
+    var best = '';
+    dates.forEach(function (dt) { if (okRows(ap.idx[dt]).length && dt > best) best = dt; });
+    ap.day = best || today;
+    ap.week = mondayOf(ap.day);
+  }
+  pickDay(ap.day);
 }
-function paintList() {
-  var list = $('ap-list');
-  $('ap-empty').hidden = ap.students.length > 0;
-  list.innerHTML = ap.students.map(function (s, si) {
-    var comp = s.days.filter(function (d) { return d.complete; });
-    var allOn = comp.length > 0 && s.days.every(function (d, di) { return !d.complete || ap.sel.has(keyOf(si, di)); });
-    var rows = s.days.map(function (d, di) {
-      var on = d.complete, inT = fmtTime(d.inTime), outT = fmtTime(d.outTime);
-      var time = on ? esc(inT) + ' → ' + esc(outT) : (inT ? esc(inT) + ' · ' : '') + '퇴근 기록 없음';
-      return '<label class="day' + (on ? '' : ' off') + '"><input type="checkbox" data-si="' + si + '" data-di="' + di + '"' +
-        (ap.sel.has(keyOf(si, di)) ? ' checked' : '') + (on ? '' : ' disabled') + '><span class="cb">✓</span>' +
-        '<span class="d-date">' + fmtDate(d.date) + '</span><span class="d-time">' + time + '</span></label>';
-    }).join('');
-    return '<div class="stu"><div class="stu-h"><div><div class="stu-n">' + esc(s.name) + '</div><div class="stu-c">' + esc(s.className || '') + '</div></div>' +
-      (comp.length ? '<button type="button" class="link" data-all="' + si + '">' + (allOn ? '전체 해제' : '전체 선택') + '</button>' : '') + '</div>' + rows + '</div>';
-  }).join('');
-  updateApproveBar();
+
+function paintAll() {
+  $('ap-who').innerHTML = ap.who;
+  var tot = $('ap-total'); tot.textContent = ap.total; tot.classList.toggle('zero', !ap.total);
+  paintCal(); paintPanel(); updateApproveBar();
+}
+function paintCal() {
+  var today = todayStr(), cells = '', i;
+  for (i = 0; i < 7; i++) {
+    var dt = addDays(ap.week, i), x = ap.idx[dt], n = okRows(x).length;
+    var pn = x ? x.pend.length : 0, dn = x ? x.done.length : 0;
+    var cls = 'wd' + (i === 5 ? ' sat' : i === 6 ? ' sun' : '') + (dt === today ? ' today' : '') + (dt === ap.day ? ' sel' : '') + (x ? ' has' : '') + (n ? ' pend' : '');
+    var mark = n ? '<span class="cnt">' + n + '</span>' : (dn && !pn ? '<span class="stamp">완료</span>' : (pn ? '<span class="wd-sub">대기</span>' : ''));
+    cells += '<button type="button" class="' + cls + '" data-date="' + dt + '"><span class="wd-dow">' + WK[i] + '</span>' +
+      '<span class="wd-oval"><span class="wd-num">' + (+dt.slice(8)) + '</span>' + mark + '</span></button>';
+  }
+  $('cal-grid').innerHTML = cells;
+  $('cal-t').textContent = fmtMD(ap.week) + ' ~ ' + fmtMD(addDays(ap.week, 6));
+  $('cal-prev').disabled = ap.week <= ap.minWeek;
+  $('cal-next').disabled = ap.week >= mondayOf(today);
+}
+function paintPanel() {
+  var x = ap.idx[ap.day], ok = okRows(x), i, k, html = '';
+  var di = Math.round((new Date(ap.day + 'T00:00:00Z') - new Date(ap.week + 'T00:00:00Z')) / 86400000);
+  $('ap-panel').style.setProperty('--cx', 'calc(8px + (100% - 16px) * ' + ((di + 0.5) / 7) + ')');
+  $('pn-d').textContent = fmtDate(ap.day);
+  $('pn-s').textContent = !x ? '출결 기록이 없어요' : ok.length ? '미승인 ' + ok.length + '명' : (x.pend.length ? '승인할 수 있는 학생이 없어요' : '모두 승인 완료');
+  var allOn = ok.length > 0 && ok.every(function (r) { return ap.sel.has(selKey(r.s.kakaoId, ap.day)); });
+  var allBtn = $('pn-all'); allBtn.hidden = !ok.length; allBtn.textContent = allOn ? '전체 해제' : '전체 선택';
+  if (x) {
+    x.pend.forEach(function (r) {
+      var on = r.d.complete, key = selKey(r.s.kakaoId, ap.day), inT = fmtTime(r.d.inTime), outT = fmtTime(r.d.outTime);
+      html += '<label class="sr' + (on ? '' : ' off') + '"><input type="checkbox" data-k="' + esc(key) + '"' + (ap.sel.has(key) ? ' checked' : '') + (on ? '' : ' disabled') + '>' +
+        '<span class="cb">✓</span>' + whoHtml(r.s) +
+        '<span class="sr-t">' + (on ? esc(inT) + ' → ' + esc(outT) : esc(inT) + '<small>퇴근 기록 없음</small>') + '</span></label>';
+    });
+    x.done.forEach(function (r) {
+      html += '<div class="sr done"><span class="cb ok">✓</span>' + whoHtml(r.s) +
+        '<span class="sr-t">' + esc(fmtTime(r.d.inTime)) + ' → ' + esc(fmtTime(r.d.outTime)) + '<small>승인 완료</small></span></div>';
+    });
+  }
+  $('pn-list').innerHTML = html || '<div class="pn-empty">이 날은 출결 기록이 없어요</div>';
+}
+function whoHtml(s) {
+  return '<span class="sr-who"><span class="sr-n">' + esc(s.name) + '</span>' + (s.className ? '<span class="sr-c">' + esc(s.className) + '</span>' : '') + '</span>';
 }
 function updateApproveBar() {
-  if (!ap.students.length) return barHide();
+  if (!ap.total) return barHide();
   var n = ap.sel.size;
-  barSet({ text: n ? n + '건 인증하기' : '인증할 항목을 선택해 주세요', disabled: n === 0 || ap.busy, loading: ap.busy, onClick: approve });
+  barSet({ text: n ? '일괄 승인 · ' + n + '명' : '승인할 학생을 선택해 주세요', disabled: n === 0 || ap.busy, loading: ap.busy, onClick: askApprove });
 }
-$('ap-list').addEventListener('change', function (e) {
-  var t = e.target; if (!t.dataset || t.dataset.si == null) return;
-  var k = keyOf(t.dataset.si, t.dataset.di);
-  if (t.checked) ap.sel.add(k); else ap.sel.delete(k);
-  paintList();
+
+$('cal-grid').addEventListener('click', function (e) {
+  var b = e.target.closest('[data-date]'); if (!b || ap.busy) return;
+  pickDay(b.dataset.date);
 });
-$('ap-list').addEventListener('click', function (e) {
-  var b = e.target.closest('[data-all]'); if (!b) return;
-  var si = +b.dataset.all, s = ap.students[si];
-  var allOn = s.days.every(function (d, di) { return !d.complete || ap.sel.has(keyOf(si, di)); });
-  s.days.forEach(function (d, di) { if (!d.complete) return; if (allOn) ap.sel.delete(keyOf(si, di)); else ap.sel.add(keyOf(si, di)); });
-  paintList();
+function moveWeek(n) {
+  if (ap.busy) return;
+  ap.week = addDays(ap.week, n * 7);
+  pickDay(bestDayOf(ap.week));
+}
+$('cal-prev').addEventListener('click', function () { moveWeek(-1); });
+$('cal-next').addEventListener('click', function () { moveWeek(1); });
+$('pn-list').addEventListener('change', function (e) {
+  var t = e.target; if (!t.dataset || !t.dataset.k) return;
+  if (t.checked) ap.sel.add(t.dataset.k); else ap.sel.delete(t.dataset.k);
+  paintPanel(); updateApproveBar();
 });
+$('pn-all').addEventListener('click', function () {
+  var ok = okRows(ap.idx[ap.day]);
+  var allOn = ok.every(function (r) { return ap.sel.has(selKey(r.s.kakaoId, ap.day)); });
+  ok.forEach(function (r) { var k = selKey(r.s.kakaoId, ap.day); if (allOn) ap.sel.delete(k); else ap.sel.add(k); });
+  paintPanel(); updateApproveBar();
+});
+
+function askApprove() {
+  if (ap.busy || !ap.sel.size) return;
+  var rows = okRows(ap.idx[ap.day]).filter(function (r) { return ap.sel.has(selKey(r.s.kakaoId, ap.day)); });
+  if (!rows.length) return;
+  $('cf-title').textContent = fmtDate(ap.day) + ' · ' + rows.length + '명을 승인할까요?';
+  $('cf-list').innerHTML = rows.map(function (r) {
+    return '<div class="cf-li"><b>' + esc(r.s.name) + '</b><span>' + esc(fmtTime(r.d.inTime)) + ' → ' + esc(fmtTime(r.d.outTime)) + '</span></div>';
+  }).join('');
+  $('confirm').hidden = false;
+  $('cf-no').focus();
+}
+$('cf-no').addEventListener('click', function () { $('confirm').hidden = true; });
+$('cf-ok').addEventListener('click', function () { $('confirm').hidden = true; approve(); });
 
 async function approve() {
   if (ap.busy || !ap.sel.size) return;
-  var items = [];
-  ap.students.forEach(function (s, si) { s.days.forEach(function (d, di) { if (ap.sel.has(keyOf(si, di))) items.push({ kakaoId: s.kakaoId, date: d.date }); }); });
-  ap.busy = true; barSet({ text: '인증 중…', disabled: true, loading: true });
+  var items = Array.from(ap.sel).map(function (k) { var p = k.split('|'); return { kakaoId: p[0], date: p[1] }; });
+  ap.busy = true; barSet({ text: '승인 중…', disabled: true, loading: true });
   try {
     var r = await api('managerApprove', { academyId: ctx.a, hospitalId: ctx.h, items: items });
     var skipped = r.skipped || [];
@@ -958,6 +1119,7 @@ async function approve() {
     updateApproveBar();
   }
 }
+
 function showDone(n, skipped) {
   var seen = {}, lines = [];
   skipped.forEach(function (s) {
