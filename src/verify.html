@@ -88,15 +88,13 @@ input.in[readonly]{background:#f3f4f6;color:#4b5563}
 .sig-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}.sig-head .lb{margin:0}
 /* approve */
 .ap-card{background:#fff;border:1px solid var(--bd);border-radius:16px;margin-bottom:12px}
-.ap-who{padding:16px 16px 14px;font-size:17px;font-weight:800;letter-spacing:-.3px;line-height:1.45;word-break:keep-all}
-.ap-who .pos{font-size:12px;font-weight:700;color:var(--mu);letter-spacing:0}
-.ap-who .dot{color:#c3c8d6;margin:0 2px}
-.ap-sum{display:flex;align-items:center;justify-content:space-between;padding:12px 16px 14px;border-top:1px solid #f0f1f4}
-.ap-sum .lab{font-size:15px;font-weight:800}
-.ap-tot{display:flex;flex-direction:column;align-items:center;gap:3px}
-.ap-tot .ov{min-width:56px;height:32px;padding:0 14px;border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:800;background:var(--ert);color:var(--er);border:1.5px solid #fca5a5}
-.ap-tot .ov.zero{background:var(--okt);color:var(--ok);border-color:#bfe8cf}
-.ap-tot .cap{font-size:11px;color:var(--mu)}
+.ap-sum{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:16px}
+.ap-who{flex:1;min-width:0;word-break:keep-all}
+.ap-who .nm{font-size:18px;font-weight:800;letter-spacing:-.3px;line-height:1.35}
+.ap-who .hp{font-size:13px;color:var(--mu);margin-top:3px;line-height:1.4}
+.ap-tot{flex:none;display:flex;flex-direction:column;align-items:center;gap:4px}
+.ap-tot .ov{min-width:58px;height:36px;padding:0 14px;border-radius:18px;display:flex;align-items:center;justify-content:center;font-size:19px;font-weight:800;background:var(--ert);color:var(--er);border:1.5px solid #fca5a5}
+.ap-tot .cap{font-size:11px;font-weight:700;color:var(--er)}
 .cal{padding:12px 8px 10px;margin-bottom:0}
 .cal-nav{display:flex;align-items:center;justify-content:space-between;padding:0 4px 10px}
 .cal-nav .t{font-size:14px;font-weight:800;color:#374151;text-align:center}
@@ -283,10 +281,9 @@ body.kb-open .bar{padding-bottom:12px}
 
 <section class="screen" id="s-approve" hidden>
   <div class="ap-card">
-    <div class="ap-who" id="ap-who"></div>
     <div class="ap-sum">
-      <div class="lab">출결인증</div>
-      <div class="ap-tot"><div class="ov" id="ap-total">0</div><div class="cap">미인증</div></div>
+      <div class="ap-who"><div class="nm" id="ap-nm"></div><div class="hp" id="ap-hp"></div></div>
+      <div class="ap-tot"><div class="ov" id="ap-total">0</div><div class="cap">출결 미인증</div></div>
     </div>
   </div>
   <div class="ap-card cal">
@@ -950,7 +947,7 @@ function handleRegisterError(e) {
 }
 
 /* ===== 승인 화면 ===== */
-var ap = { students: [], sel: new Set(), busy: false, day: '', week: '', minWeek: '', idx: {}, total: 0, who: '' };
+var ap = { students: [], sel: new Set(), busy: false, day: '', week: '', minWeek: '', idx: {}, total: 0, nm: '', hp: '' };
 var SKIP = {
   self: '본인 번호와 같은 학생은 인증할 수 없어요',
   already: '이미 인증된 건이 있어요',
@@ -1012,8 +1009,8 @@ async function loadApproval(silent) {
   }
   if (!silent) show('approve');
   var h = res.hospital || {}, m = res.manager || state.manager || {};
-  ap.who = '<b>' + esc(m.name || '담당자') + '</b>' + (m.position ? ' <span class="pos">' + esc(m.position) + '</span>' : '') +
-    ' <span class="dot">·</span> ' + esc(h.name || (state.info && state.info.name) || '');
+  ap.nm = [m.position, m.name].filter(Boolean).join(' ') || '담당자';
+  ap.hp = h.name || (state.info && state.info.name) || '';
   ap.students = (res.students || []).filter(function (s) { return (s.days && s.days.length) || (s.done && s.done.length); });
   buildIndex();
   var today = todayStr(), dates = Object.keys(ap.idx).sort();
@@ -1028,8 +1025,8 @@ async function loadApproval(silent) {
 }
 
 function paintAll() {
-  $('ap-who').innerHTML = ap.who;
-  var tot = $('ap-total'); tot.textContent = ap.total; tot.classList.toggle('zero', !ap.total);
+  $('ap-nm').textContent = ap.nm; $('ap-hp').textContent = ap.hp;
+  $('ap-total').textContent = ap.total;
   paintCal(); paintPanel(); updateApproveBar();
 }
 function paintCal() {

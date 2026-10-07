@@ -349,7 +349,8 @@ function registerManagerFunctions(exports, deps) {
         const stuSnap = await db.collection('students')
             .where('academyId', '==', academyId).where('hospitalId', '==', hospitalId).get();
         const students = stuSnap.docs.filter(d => d.data().verifyRequired === true);
-        if (!students.length) return { hospital: { id: hospitalId, name: hosp.data.name || '' }, students: [] };
+        const manager = { name: mgr.name || '', position: mgr.position || '' };
+        if (!students.length) return { hospital: { id: hospitalId, name: hosp.data.name || '' }, manager, students: [] };
 
         const cutoff = kstDate(-PENDING_DAYS);
         const ids = students.map(d => d.id);
@@ -386,7 +387,7 @@ function registerManagerFunctions(exports, deps) {
             out.push({ kakaoId: d.id, name: s.name || '', className: classNames[s.classId] || '', days, done });
         }
         out.sort((x, y) => x.name.localeCompare(y.name, 'ko'));
-        return { hospital: { id: hospitalId, name: hosp.data.name || '' }, students: out };
+        return { hospital: { id: hospitalId, name: hosp.data.name || '' }, manager, students: out };
     });
 
     // ── 7. 인증(승인) ───────────────────────────────────────────────────────
