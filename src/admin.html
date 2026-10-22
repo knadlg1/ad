@@ -4477,7 +4477,7 @@ async function generateFromTemplate(templateUrl,cls,stu,practiceDates,sigs,getMa
                     else{statusText=L.present;}
                 }else{statusText=hasAtt?L.present:'';}
                 const stdCumMins=clsTt?(stdCumByDate[date]||0):0;
-                const stuSig=sigData?.studentSig||att?.studentSig||(hasAtt?(stu.profileSig||''):'');
+                const stuSig='';// 학생서명칸은 당분간 빈칸으로 둠
                 const mgrSig=getManagerSig(att,sigData);
                 const isAbsOrLate=(!hasAtt&&isScheduled)||(statusText&&(statusText.includes(L.late)||statusText.includes(L.makeup)));
                 map[`ROW_CELL_STYLE_${i}`]=isAbsOrLate?`style="background-color:${rules.rowHighlightBg}"`:'';
@@ -4767,7 +4767,7 @@ async function generateDirectEntryHtml(cls,students,startDate,endDate,sigs){
                     const inT=trimToMinutes(att?.inTime||'');
                     const outT=trimToMinutes((att?.outTime&&/^\d/.test(att.outTime))?att.outTime:'');
                     const hasAtt=!!(inT||outT);
-                    const stuSig=sigData?.studentSig||att?.studentSig||(hasAtt?(stu.profileSig||''):'');
+                    const stuSig='';// 학생서명칸은 당분간 빈칸으로 둠
                     const inM=timeToMinutes(inT),outM=timeToMinutes(outT);
                     const isScheduled=clsTt?!!clsTt[date]:true;
                     let statusText;
