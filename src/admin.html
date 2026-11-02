@@ -2541,6 +2541,42 @@ document.addEventListener('click',e=>{
     if(rj){rejectMissingOut(rj.dataset.id);}
 });
 
+// 같은 학생·같은 날짜에 겹치는 요청(원장 발송 출결 인증 / 학생 퇴근 누락)이 남아 있으면 자동으로 닫는다.
+// 승인된 출결 기록에 이미 해당 시각이 있으면 그 요청은 더 필요 없으므로 'superseded'로 바꿔 목록에서 숨긴다.
+async function closeOverlappingRequests(kakaoId,date,exceptAuthId,exceptMissingId){
+    try{
+        const attSnap=await window.fsGetDoc(window.fsDoc(window.db,'attendance',String(kakaoId)+'_'+date));
+        const att=attSnap.exists()?attSnap.data():{};
+        const hasIn=!!att.inTime,hasOut=!!att.outTime;
+        const stamp={status:'superseded',supersededAt:window.fsServerTimestamp()};
+        const closedAuthIds=[];
+        const aSnap=await window.fsGetDocs(window.fsQuery(window.fsCollection(window.db,'attendanceAuthRequests'),
+            window.fsWhere('kakaoId','==',String(kakaoId)),window.fsWhere('date','==',date)));
+        for(const d of aSnap.docs){
+            const r=d.data();
+            if(d.id===exceptAuthId||(r.status!=='pending'&&r.status!=='submitted'))continue;
+            const done=r.type==='in'?hasIn:r.type==='out'?hasOut:(hasIn&&hasOut);
+            if(!done)continue;
+            await window.fsUpdateDoc(d.ref,stamp);
+            closedAuthIds.push(d.id);
+        }
+        if(hasOut){
+            const mSnap=await window.fsGetDocs(window.fsQuery(window.fsCollection(window.db,'missingOut'),
+                window.fsWhere('kakaoId','==',String(kakaoId)),window.fsWhere('date','==',date)));
+            for(const d of mSnap.docs){
+                if(d.id===exceptMissingId||d.data().status!=='pending')continue;
+                await window.fsUpdateDoc(d.ref,stamp);
+            }
+        }
+        if(closedAuthIds.length){
+            const stu=await window.fsGetDoc(window.fsDoc(window.db,'students',String(kakaoId)));
+            if(stu.exists()&&closedAuthIds.includes(stu.data().pendingAuthRequestId)){
+                await window.fsUpdateDoc(stu.ref,{pendingAuthRequestId:null});
+            }
+        }
+    }catch(e){console.error('겹치는 요청 정리 실패(무시):',e);}
+}
+
 async function approveMissingOut(docId,kakaoId,date,outTime){
     if(!outTime){showToast('퇴근시간 정보가 없습니다.','error');return;}
     if(!confirm(`${date} 퇴근 누락을 승인하시겠습니까?\n출퇴근 기록에 퇴근시간(${outTime})이 반영됩니다.`))return;
@@ -2555,6 +2591,8 @@ async function approveMissingOut(docId,kakaoId,date,outTime){
         });
         await batch.commit();
     },{successMsg:'퇴근 누락 승인 완료 ✓',delay:1000,onSuccess:async()=>{
+        await closeOverlappingRequests(kakaoId,date,null,docId);
+        loadAttendanceAuthRequests();loadSidebarAuthReqs();
         await loadMissingOutRequests();
         await loadMissingOutApproved();
     }});
@@ -2805,8 +2843,10 @@ async function approveAuthRequest(docId,kakaoId,date){
         batch.update(window.fsDoc(window.db,'attendanceAuthRequests',docId),{status:'approved'});
         batch.update(window.fsDoc(window.db,'students',String(kakaoId)),{pendingAuthRequestId:null});
         await batch.commit();
+        await closeOverlappingRequests(kakaoId,date,docId,null);
         showToast('승인 완료 ✓','success');
         await loadAttendanceAuthRequests();
+        loadMissingOutRequests();loadSidebarAuthReqs();
         loadAttendance();
     }catch(e){showToast('승인 실패: '+e.message,'error');}
     showLoader(false);
