@@ -455,13 +455,14 @@ css inline edit/* 출결 인증 요청 */
 .overdue-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:9500;backdrop-filter:blur(3px);align-items:center;justify-content:center;padding:24px;overflow-y:auto;}
 .paywall-steps{display:flex;justify-content:center;gap:6px;flex-wrap:wrap;font-size:12px;font-weight:700;color:var(--brand);margin-bottom:16px;}
 .paywall-steps span{background:var(--brand-xlight);border-radius:20px;padding:5px 12px;}
-.notice-bar{display:none;align-items:center;gap:8px;padding:0 16px;height:38px;flex-shrink:0;background:#FFFBEB;border-bottom:1px solid #FDE68A;cursor:pointer;}
-.notice-viewport{flex:1;height:38px;overflow:hidden;position:relative;min-width:0;}
-.notice-track.slide{transition:transform .6s cubic-bezier(.4,0,.2,1);}
-.notice-item{height:38px;display:flex;align-items:center;gap:8px;font-size:13px;color:#78350F;min-width:0;}
+.notice-bar{display:none;flex:1;min-width:0;align-items:center;gap:10px;height:40px;padding:0 16px;border:2px solid #F97316;border-radius:20px;background:#FFEDD5;cursor:pointer;animation:noticePulse 2.6s ease-in-out infinite;}
+@keyframes noticePulse{0%,100%{box-shadow:0 0 0 0 rgba(249,115,22,.5);background:#FFEDD5;}50%{box-shadow:0 0 0 8px rgba(249,115,22,0);background:#FFDDB8;}}
+.notice-icon{flex-shrink:0;font-size:16px;}
+.notice-view{flex:1;min-width:0;display:flex;align-items:center;gap:8px;font-size:14px;font-weight:700;color:#9A3412;opacity:1;transition:opacity .8s ease;}
+.notice-view.fade{opacity:0;}
 .notice-text{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;}
-.notice-new{flex-shrink:0;font-size:10px;font-weight:800;color:#fff;background:#EF4444;border-radius:4px;padding:1px 5px;line-height:1.4;}
-@media (prefers-reduced-motion:reduce){.notice-track.slide{transition:none;}}
+.notice-new{flex-shrink:0;font-size:10px;font-weight:800;color:#fff;background:#EA580C;border-radius:4px;padding:1px 6px;line-height:1.4;}
+@media (prefers-reduced-motion:reduce){.notice-bar{animation:none;}.notice-view{transition:none;}}
 .overdue-box{background:var(--surface);border-radius:20px;padding:36px 32px;max-width:460px;width:100%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.4);}
 
 /* ── 버튼 ── */
@@ -774,7 +775,7 @@ css inline edit/* 출결 인증 요청 */
     <div class="blocked-title">미납된 이용료가 있습니다</div>
     <div class="blocked-desc" style="margin-bottom:14px;">월 이용료 결제가 완료되지 않아 관리자 화면이 잠겼습니다.<br>아래 <b>연체 결제</b>를 완료하면 바로 이용하실 수 있습니다.</div>
     <div id="overdue-detail" style="background:var(--canvas);border-radius:12px;padding:14px 16px;font-size:14px;line-height:1.7;margin-bottom:14px;text-align:left;"></div>
-    <div class="pay-notice" style="max-width:none;text-align:left;margin-bottom:18px;">결제를 늦게 하셔도 청구 기준일은 <b>'처음 시작한 날(첫 청구 기준일)'</b>부터 계속 계산됩니다. 연체 기간에도 학생들은 앱으로 출퇴근을 계속할 수 있기 때문입니다.</div>
+    <div class="pay-notice" style="max-width:none;text-align:left;margin-bottom:18px;">학생들의 앱 사용에 차질없도록, 정기결제 연체 후 재결제 시, <b>첫 청구일</b>을 기준으로 일수 계산됩니다.</div>
     <button class="btn btn-primary" id="btn-overdue-pay" style="width:100%;padding:14px;font-size:15px;" onclick="payOverdue()">연체 결제</button>
     <button class="btn btn-outline" style="width:100%;padding:12px;font-size:14px;margin-top:8px;" onclick="registerCard()">카드 등록 / 변경</button>
     <button class="btn btn-ghost" style="width:100%;padding:10px;font-size:13px;margin-top:8px;" onclick="adminLogout()">로그아웃</button>
@@ -839,6 +840,10 @@ css inline edit/* 출결 인증 요청 */
           <div class="att-col-head">
             <div class="att-col-head-top">
               <div class="att-col-title">실습 현황</div>
+              <div id="notice-bar" class="notice-bar" onclick="showNotice(noticeIdx)" onmouseenter="pauseNoticeRoll()" onmouseleave="resumeNoticeRoll()">
+                <span class="notice-icon">📢</span>
+                <div id="notice-view" class="notice-view"></div>
+              </div>
             </div>
           </div>
           <!-- 세로 바 + 콘텐츠 영역 -->
@@ -970,10 +975,6 @@ css inline edit/* 출결 인증 요청 */
 
         <!-- 오른쪽 패널 (수평 탭) -->
         <div class="right-col">
-          <div id="notice-bar" class="notice-bar" onmouseenter="pauseNoticeRoll()" onmouseleave="resumeNoticeRoll()">
-            <span style="flex-shrink:0;">📢</span>
-            <div class="notice-viewport"><div id="notice-track" class="notice-track"></div></div>
-          </div>
           <div class="htab-bar">
             <button class="htab-btn active" data-tab="docs" onclick="showVtab('docs')">문서발급</button>
             <button class="htab-btn" data-tab="approve" onclick="showVtab('approve')">승인&ensp;<span id="approve-count" class="badge badge-yellow" style="display:none;"></span></button>
@@ -1222,7 +1223,7 @@ css inline edit/* 출결 인증 요청 */
             <button class="stab-btn" onclick="showSettingsTab('subs',this)">구독 현황</button>
           </div>
 
-          <div class="pay-notice">결제를 늦게 하셔도 청구 기준일은 <b>'처음 시작한 날(첫 청구 기준일)'</b>부터 계속 계산됩니다. 연체 기간에도 학생들은 앱으로 출퇴근을 계속할 수 있기 때문입니다.</div>
+          <div class="pay-notice">학생들의 앱 사용에 차질없도록, 정기결제 연체 후 재결제 시, <b>첫 청구일</b>을 기준으로 일수 계산됩니다.</div>
 
           <div id="stab-card" class="stab-panel active">
             <div class="card" style="margin-bottom:16px;">
@@ -1680,7 +1681,7 @@ function adminLogout(){
     directorData=null; directorDocId=null; billingInfo=null;
     document.getElementById('paywall-overlay').style.display='none';
     applyOverdueOverlay(false,false);
-    clearInterval(noticeTimer);noticeTimer=null;noticeList=[];document.getElementById('notice-bar').style.display='none';
+    pauseNoticeRoll();noticeList=[];document.getElementById('notice-bar').style.display='none';
     document.getElementById('app').style.display='none';
     document.getElementById('auth-wrap').style.display='flex';
     showScreen('login');
@@ -3715,8 +3716,8 @@ function applyLockOverlays(ps){
 
 // ── 공지 (표시 전용 — 작성·수정·삭제는 최종관리자 사이트) ─────────────────
 // notices 컬렉션 전체를 한 번 읽고 만료(expiresAt<=now)된 것은 클라이언트에서 거른다. 최신(publishedAt) 순.
-let noticeList=[],noticeTimer=null,noticeIdx=0;
-const NOTICE_ROW_H=38,NOTICE_NEW_MS=3*24*3600*1000;
+let noticeList=[],noticeTimer=null,noticeFadeTimer=null,noticeIdx=0;
+const NOTICE_NEW_MS=3*24*3600*1000,NOTICE_HOLD_MS=6000,NOTICE_FADE_MS=800;
 async function loadNotices(){
     try{
         const snap=await window.fsGetDocs(window.fsCollection(window.db,'notices'));
@@ -3727,34 +3728,39 @@ async function loadNotices(){
     }catch(e){noticeList=[];}
     renderNotices();
 }
+function paintNotice(){
+    const n=noticeList[noticeIdx];
+    if(!n)return;
+    const isNew=Date.now()-n.publishedAt<=NOTICE_NEW_MS;
+    document.getElementById('notice-view').innerHTML=(isNew?'<span class="notice-new">NEW</span>':'')+'<span class="notice-text">'+escHtml(n.text)+'</span>';
+}
 function renderNotices(){
-    const bar=document.getElementById('notice-bar'),track=document.getElementById('notice-track');
-    clearInterval(noticeTimer);noticeTimer=null;noticeIdx=0;
+    const bar=document.getElementById('notice-bar');
+    pauseNoticeRoll();noticeIdx=0;
     if(!noticeList.length){bar.style.display='none';return;}
     bar.style.display='flex';
-    const now=Date.now();
-    const item=(n,i)=>`<div class="notice-item" onclick="showNotice(${i})">${now-n.publishedAt<=NOTICE_NEW_MS?'<span class="notice-new">NEW</span>':''}<span class="notice-text">${escHtml(n.text)}</span></div>`;
-    track.classList.remove('slide');
-    track.style.transform='translateY(0)';
-    // 여러 개면 첫 항목을 끝에 한 번 더 붙여, 마지막→첫 항목 전환도 같은 방향으로 이어지게 한다
-    track.innerHTML=noticeList.map(item).join('')+(noticeList.length>1?item(noticeList[0],0):'');
+    paintNotice();
     if(noticeList.length>1)startNoticeRoll();
 }
+// 여러 개면 한 개씩 천천히 사라졌다(페이드 아웃) 다음 공지가 나타나는(페이드 인) 방식 — 읽을 시간을 충분히 둔다
 function startNoticeRoll(){
-    const track=document.getElementById('notice-track'),n=noticeList.length;
+    const view=document.getElementById('notice-view');
     const reduce=!!(window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches);
     clearInterval(noticeTimer);
     noticeTimer=setInterval(()=>{
-        noticeIdx++;
-        track.classList.add('slide');
-        track.style.transform=`translateY(-${noticeIdx*NOTICE_ROW_H}px)`;
-        if(noticeIdx>=n){
-            const done=()=>{track.classList.remove('slide');track.style.transform='translateY(0)';noticeIdx=0;};
-            if(reduce)done();else setTimeout(done,650); // 전환(0.6s) 후 점프 — transitionend는 백그라운드 탭 등에서 안 올 수 있어 타이머 사용
-        }
-    },4500);
+        const next=()=>{noticeIdx=(noticeIdx+1)%noticeList.length;paintNotice();view.classList.remove('fade');};
+        if(reduce){next();return;}
+        view.classList.add('fade');
+        clearTimeout(noticeFadeTimer);
+        noticeFadeTimer=setTimeout(next,NOTICE_FADE_MS);
+    },NOTICE_HOLD_MS);
 }
-function pauseNoticeRoll(){clearInterval(noticeTimer);noticeTimer=null;}
+function pauseNoticeRoll(){
+    clearInterval(noticeTimer);noticeTimer=null;
+    clearTimeout(noticeFadeTimer);noticeFadeTimer=null;
+    const v=document.getElementById('notice-view');
+    if(v)v.classList.remove('fade');
+}
 function resumeNoticeRoll(){if(noticeList.length>1&&!noticeTimer)startNoticeRoll();}
 function showNotice(i){
     const n=noticeList[i];
