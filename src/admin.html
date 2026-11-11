@@ -227,6 +227,7 @@ body{font-family:'Pretendard',system-ui,sans-serif;background:var(--canvas);colo
 /* 학생 검색 카드 */
 .att-th-sel{width:100%;max-width:150px;box-sizing:border-box;appearance:none;-webkit-appearance:none;padding:5px 26px;border:1.5px solid #C7D2FE;border-radius:14px;background:#EEF2FF url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%234338CA' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E") no-repeat right 9px center;background-size:12px;color:#4338CA;font-size:12px;font-weight:800;text-align:center;text-align-last:center;cursor:pointer;outline:none;transition:background-color .15s ease,border-color .15s ease,box-shadow .15s ease,transform .15s ease;}
 .att-th-sel option{padding:6px 0;text-align:center;text-align-last:center;color:#4338CA;font-weight:700;}
+.att-th-sel-sm{max-width:84px;padding:5px 18px;}
 .att-th-sel:hover{background-color:#E0E7FF;border-color:#818CF8;box-shadow:0 3px 8px rgba(99,102,241,.18);transform:translateY(-1px);}
 .att-th-sel:focus{border-color:#6366F1;box-shadow:0 0 0 3px rgba(99,102,241,.18);}
 .att-th-search{width:100%;max-width:130px;box-sizing:border-box;padding:5px 28px;text-align:center;border:1.5px solid var(--border);border-radius:14px;background:#fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236c63ff' stroke-width='2.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='10.5' cy='10.5' r='6.5'/%3E%3Cline x1='15.5' y1='15.5' x2='21' y2='21'/%3E%3C/svg%3E") no-repeat 9px center;background-size:13px;color:var(--text);font-size:12px;font-weight:700;outline:none;transition:border-color .15s ease,box-shadow .15s ease;}
@@ -547,7 +548,7 @@ css inline edit/* 출결 인증 요청 */
 .att-tr-none{background:#FAFAFA;}
 .att-table td{padding:8px 8px;vertical-align:middle;white-space:nowrap;text-align:center;}
 .att-td-cls{font-size:13px;color:var(--brand);font-weight:700;max-width:88px;overflow:hidden;text-overflow:ellipsis;}
-.att-th-jabi,.att-td-jabi{width:48px;padding-left:2px!important;padding-right:2px!important;text-align:center;}
+.att-th-jabi,.att-td-jabi{width:88px;padding-left:2px!important;padding-right:2px!important;text-align:center;}
 .att-jabi-tag{display:inline-block;padding:1px 8px;border-radius:10px;background:#E0E7FF;color:#4338CA;font-size:10px;font-weight:800;vertical-align:middle;line-height:1.5;}
 .att-td-name{font-weight:700;font-size:15px;}
 .att-td-hosp{font-size:13px;color:var(--muted);max-width:100px;overflow:hidden;text-overflow:ellipsis;}
@@ -1000,7 +1001,7 @@ css inline edit/* 출결 인증 요청 */
                   <thead>
                     <tr>
                       <th><select class="att-th-sel att-cls-filter-sel" onchange="onAttClsFilterChange(this)" title="반 선택(졸업반 제외)"><option value="">전체</option></select></th>
-                      <th class="att-th-jabi"></th>
+                      <th class="att-th-jabi"><select class="att-th-sel att-th-sel-sm att-jabi-filter-sel" onchange="onAttJabiFilterChange(this)" title="자비 학생 분류"><option value="">전체</option><option value="normal">일반</option><option value="jabi">자비</option></select></th>
                       <th><input type="text" class="att-th-search att-name-search-inp" placeholder="이름" oninput="onAttNameSearch(this)" title="이름 검색 — 글자 또는 초성(예: 이, ㅇㅅ)"></th>
                       <th><select class="att-th-sel att-hosp-filter-sel" onchange="onAttHospFilterChange(this)" title="실습병원 선택"><option value="">전체</option></select></th>
                       <th class="prog-cell">누적시간</th>
@@ -1016,7 +1017,7 @@ css inline edit/* 출결 인증 요청 */
                   <thead>
                     <tr>
                       <th><select class="att-th-sel att-cls-filter-sel" onchange="onAttClsFilterChange(this)" title="반 선택(졸업반 제외)"><option value="">전체</option></select></th>
-                      <th class="att-th-jabi"></th>
+                      <th class="att-th-jabi"><select class="att-th-sel att-th-sel-sm att-jabi-filter-sel" onchange="onAttJabiFilterChange(this)" title="자비 학생 분류"><option value="">전체</option><option value="normal">일반</option><option value="jabi">자비</option></select></th>
                       <th><input type="text" class="att-th-search att-name-search-inp" placeholder="이름" oninput="onAttNameSearch(this)" title="이름 검색 — 글자 또는 초성(예: 이, ㅇㅅ)"></th>
                       <th><select class="att-th-sel att-hosp-filter-sel" onchange="onAttHospFilterChange(this)" title="실습병원 선택"><option value="">전체</option></select></th>
                       <th>출근일수</th>
@@ -1533,6 +1534,7 @@ let attendanceRecords = [];
 let sidebarClassFilter = '';
 let attNameQuery = '';
 let attHospFilter = '';
+let attJabiFilter = '';
 let calYear = new Date().getFullYear();
 let calMonth = new Date().getMonth();
 let calStart = '';
@@ -2024,6 +2026,16 @@ function syncAttHeaderControls(){
     if(attHospFilter&&attHospFilter!=='__none__'&&!hospNames.includes(attHospFilter))attHospFilter='';
     const hopts='<option value="">전체</option>'+hospNames.map(n=>`<option value="${escHtml(n)}">${escHtml(n)}</option>`).join('')+'<option value="__none__">미지정</option>';
     document.querySelectorAll('.att-hosp-filter-sel').forEach(sel=>{sel.innerHTML=hopts;sel.value=attHospFilter;});
+    document.querySelectorAll('.att-jabi-filter-sel').forEach(sel=>{sel.value=attJabiFilter;});
+}
+function jabiMatches(stu){
+    if(!attJabiFilter)return true;
+    return attJabiFilter==='jabi'?!!stu.jabi:!stu.jabi;
+}
+function onAttJabiFilterChange(el){
+    attJabiFilter=el.value;
+    document.querySelectorAll('.att-jabi-filter-sel').forEach(sel=>{if(sel!==el)sel.value=el.value;});
+    renderAttendance();
 }
 function hospMatches(stu){
     if(!attHospFilter)return true;
@@ -2061,7 +2073,7 @@ function renderAttendance(){
         studentsList.forEach(stu=>{
             if(stu.droppedOut)return;
             if(classFilter){if(stu.classId!==classFilter)return;}else if(gradClassIds.has(stu.classId))return;
-            if(!nameMatches(stu.name,nameQ)||!hospMatches(stu))return;
+            if(!nameMatches(stu.name,nameQ)||!hospMatches(stu)||!jabiMatches(stu))return;
             const cls=classesList.find(c=>c.id===stu.classId);
             const tt=cls?.timetableData;
             const pracDays=cls?(cls.practiceDays||[]):[];
@@ -2105,7 +2117,7 @@ function renderAttendance(){
 
     // 테이블 학생 목록 필터
     const emptyEl=document.getElementById('att-empty');
-    let filtered=studentsList.filter(s=>!s.droppedOut&&(classFilter?s.classId===classFilter:!gradClassIds.has(s.classId))&&nameMatches(s.name,nameQ)&&hospMatches(s));
+    let filtered=studentsList.filter(s=>!s.droppedOut&&(classFilter?s.classId===classFilter:!gradClassIds.has(s.classId))&&nameMatches(s.name,nameQ)&&hospMatches(s)&&jabiMatches(s));
     filtered.sort((a,b)=>{
         const ca=(classesList.find(c=>c.id===a.classId)||{name:'ㅎ'}).name;
         const cb=(classesList.find(c=>c.id===b.classId)||{name:'ㅎ'}).name;
