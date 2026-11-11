@@ -136,7 +136,7 @@ body{font-family:'Pretendard',system-ui,sans-serif;background:var(--canvas);colo
 .btn-logout:hover{border-color:var(--brand);color:var(--brand);}
 
 /* ── SIDEBAR ── */
-.sidebar{width:220px;background:var(--sidebar);border-right:1px solid var(--border);display:flex;flex-direction:column;padding:0 10px 16px;gap:2px;flex-shrink:0;}
+.sidebar{width:184px;background:var(--sidebar);border-right:1px solid var(--border);display:flex;flex-direction:column;padding:0 10px 16px;gap:2px;flex-shrink:0;}
 .nav-item{display:flex;align-items:center;padding:11px 16px;border-radius:8px;cursor:pointer;font-size:14px;color:var(--muted);font-weight:600;transition:all 0.15s;border:none;background:none;width:100%;text-align:left;letter-spacing:-0.01em;}
 .nav-item:hover{background:var(--canvas);color:var(--text);}
 .nav-item.active{background:var(--brand);color:#fff;}
@@ -211,9 +211,9 @@ body{font-family:'Pretendard',system-ui,sans-serif;background:var(--canvas);colo
 .att-cls-btn:hover{background:var(--brand-xlight);color:var(--brand);}
 .att-cls-btn.active{background:var(--brand);color:#fff;box-shadow:0 3px 8px rgba(108,99,255,.3);}
 /* ── 사이드바 2: 날짜 + 학생 검색 ── */
-.att-date-stu-sidebar{width:220px;padding:18px 14px;gap:8px;justify-content:center;}
+.att-date-stu-sidebar{width:256px;padding:18px 14px;gap:8px;justify-content:center;}
 /* 날짜 카드 */
-.att-cal-card{background:#fff;border:2px solid var(--border);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:8px;transition:border-color .15s;}
+.att-cal-card{background:#fff;border:2px solid var(--border);border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:8px;transition:border-color .15s;}
 .att-cal-card:focus-within{border-color:var(--brand);}
 .att-cal-header{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:800;color:var(--brand);text-transform:uppercase;letter-spacing:0.06em;}
 .att-cal-field{display:flex;flex-direction:column;gap:3px;}
@@ -234,14 +234,14 @@ body{font-family:'Pretendard',system-ui,sans-serif;background:var(--canvas);colo
 /* ── 인라인 달력 위젯 ── */
 .att-mini-cal{width:100%;}
 .att-cal-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;}
-.att-cal-nav-btn{border:none;background:transparent;color:var(--brand);font-size:18px;cursor:pointer;padding:1px 5px;border-radius:4px;line-height:1;font-weight:900;}
+.att-cal-nav-btn{border:none;background:transparent;color:var(--brand);font-size:22px;cursor:pointer;padding:1px 5px;border-radius:4px;line-height:1;font-weight:900;}
 .att-cal-nav-btn:hover{background:var(--brand-xlight);}
-.att-cal-nav-label{font-size:12px;font-weight:800;color:var(--text);letter-spacing:-0.01em;}
+.att-cal-nav-label{font-size:14px;font-weight:800;color:var(--text);letter-spacing:-0.01em;}
 .att-cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:1px;}
-.att-cal-dow{font-size:9px;font-weight:700;color:var(--muted);text-align:center;padding-bottom:3px;}
+.att-cal-dow{font-size:11px;font-weight:700;color:var(--muted);text-align:center;padding-bottom:4px;}
 .att-cal-dow.sun{color:#EF4444;}.att-cal-dow.sat{color:var(--brand);}
 .att-cal-empty{aspect-ratio:1;}
-.att-cal-day{font-size:11px;font-weight:600;text-align:center;padding:3px 1px;border-radius:3px;cursor:pointer;transition:background .1s;color:var(--text);display:flex;align-items:center;justify-content:center;min-height:22px;}
+.att-cal-day{font-size:14px;font-weight:600;text-align:center;padding:3px 1px;border-radius:3px;cursor:pointer;transition:background .1s;color:var(--text);display:flex;align-items:center;justify-content:center;min-height:31px;}
 .att-cal-day.sun{color:#EF4444;}.att-cal-day.sat{color:var(--brand);}
 .att-cal-day:hover{background:var(--brand-xlight);}
 .att-cal-day.cal-today{box-shadow:inset 0 0 0 1.5px var(--brand);}
@@ -249,10 +249,15 @@ body{font-family:'Pretendard',system-ui,sans-serif;background:var(--canvas);colo
 .att-cal-day.cal-start{background:var(--brand)!important;color:#fff!important;border-radius:5px 0 0 5px;}
 .att-cal-day.cal-end{background:var(--brand)!important;color:#fff!important;border-radius:0 5px 5px 0;}
 .att-cal-day.cal-in-range{background:var(--brand-xlight);color:var(--brand);border-radius:0;}
-.att-cal-hint{font-size:15px;font-weight:800;color:var(--brand);text-align:center;margin-top:6px;min-height:22px;letter-spacing:0.03em;}
+.att-cal-hint{font-size:17px;font-weight:800;color:var(--brand);text-align:center;margin-top:6px;min-height:22px;letter-spacing:0.03em;}
 /* 업데이트 일시 */
 .last-updated-bar{padding:6px 0 10px;text-align:center;}
-.last-updated-label{font-size:10px;font-weight:700;color:var(--muted);letter-spacing:0.05em;display:block;margin-bottom:3px;}
+.refresh-btn{display:inline-flex;align-items:center;gap:6px;padding:6px 18px;margin-bottom:5px;border:1.5px solid #C7D2FE;border-radius:16px;background:#EEF2FF;color:#4338CA;font-size:13px;font-weight:800;cursor:pointer;transition:background .15s ease,transform .15s ease,box-shadow .15s ease;}
+.refresh-btn:hover{background:#E0E7FF;transform:translateY(-1px);box-shadow:0 4px 10px rgba(99,102,241,.2);}
+.refresh-btn:active{transform:scale(.96);}
+.refresh-ico{display:inline-block;font-size:15px;line-height:1;transition:transform .5s ease;}
+.refresh-btn:hover .refresh-ico{transform:rotate(360deg);}
+@media (prefers-reduced-motion:reduce){.refresh-btn,.refresh-ico{transition:none;}}
 .last-updated-val{font-size:14px;font-weight:800;color:var(--brand);display:block;}
 /* 문서발급 탭 */
 .doc-type-btns{display:flex;gap:12px;margin-bottom:18px;}
@@ -925,7 +930,7 @@ css inline edit/* 출결 인증 요청 */
             <!-- 사이드바: 날짜 + 학생 검색 -->
             <div class="att-sidebar-col att-date-stu-sidebar">
               <div class="last-updated-bar">
-                <span class="last-updated-label">업데이트 일시</span>
+                <button class="refresh-btn" onclick="location.reload()" title="페이지 새로고침"><span class="refresh-ico">⟳</span>새로고침</button>
                 <span class="last-updated-val" id="last-updated-at">-</span>
               </div>
               <div class="att-cal-card">
@@ -2842,7 +2847,7 @@ function renderAttendanceAuthRequests(){
 }
 
 async function cancelAuthRequest(docId,kakaoId){
-    if(!confirm('인증 요청을 취소하시겠습니까?'))return;
+    if(!confirm('이 출결 인증 요청을 취소하시겠습니까?\n학생 앱에 표시된 요청이 사라집니다.'))return;
     showLoader(true);
     try{
         await window.fsDeleteDoc(window.fsDoc(window.db,'attendanceAuthRequests',docId));
@@ -4271,6 +4276,8 @@ async function sendMissingRequest(){
     const dup=(authRequests||[]).some(r=>String(r.kakaoId)===String(kakaoId)&&normDate(r.date)===date&&(r.status==='pending'||r.status==='submitted'))
         ||(missingOutRequests||[]).some(r=>String(r.kakaoId)===String(kakaoId)&&normDate(r.date)===date);
     if(dup){showToast('이미 진행 중인 요청이 있습니다','info');return;}
+    const who=(studentsList.find(s=>String(s.kakaoId)===String(kakaoId))||{}).name||'';
+    if(!confirm(`${who}에게 ${date} 출근·퇴근 인증을 요청하시겠습니까?`))return;
     await withSave(async()=>{
         const ref=await window.fsAddDoc(window.fsCollection(window.db,'attendanceAuthRequests'),{
             kakaoId:String(kakaoId),academyId:acId,date,type:'both',note:'',status:'pending',
@@ -4352,6 +4359,9 @@ function renderMissingSection(){
 async function approveNureok(kind,docId,kakaoId,date,btn){
     const card=btn.closest('.mo-card');
     if(!card||card.classList.contains('busy'))return;
+    const who=(studentsList.find(s=>String(s.kakaoId)===String(kakaoId))||{}).name||'';
+    if(!confirm(`${who} ${date} 출퇴근 기록을 승인하시겠습니까?
+승인하면 출퇴근 기록에 반영됩니다.`))return;
     card.classList.add('busy');
     card.querySelectorAll('.mo-veil button').forEach(b=>b.disabled=true);
     btn.textContent='처리 중…';
@@ -4397,7 +4407,8 @@ async function approveNureok(kind,docId,kakaoId,date,btn){
 async function rejectNureok(kind,docId,kakaoId,btn){
     const card=btn.closest('.mo-card');
     if(!card||card.classList.contains('busy'))return;
-    if(!confirm('이 요청을 거절하시겠습니까?'))return;
+    const who=(studentsList.find(s=>String(s.kakaoId)===String(kakaoId))||{}).name||'';
+    if(!confirm(`${who} ${card.dataset.date} 요청을 거절하시겠습니까?`))return;
     card.classList.add('busy');
     card.querySelectorAll('.mo-veil button').forEach(b=>b.disabled=true);
     try{
