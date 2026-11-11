@@ -313,29 +313,22 @@ body{font-family:'Pretendard',system-ui,sans-serif;background:var(--canvas);colo
 /* 승인 탭 구분 */
 .approve-section-head{font-size:12px;font-weight:800;color:var(--brand);padding:7px 10px;background:var(--brand-xlight);border-radius:8px;margin-bottom:10px;margin-top:4px;letter-spacing:0.03em;}
 /* 반정보 - 등록된 반 목록 */
-.cls-reg-item{background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:10px 12px;margin-bottom:8px;}
-.cls-reg-item-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;}
-.cls-reg-item-name{font-size:13px;font-weight:700;color:var(--text);}
-.cls-reg-item-meta{font-size:11px;color:var(--muted);margin-bottom:6px;}
-.cls-reg-item-actions{display:flex;gap:6px;}
+.cls-card{display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:10px 12px;margin-bottom:8px;}
+.cls-card-main{min-width:0;flex:1;}
+.cls-card-name{font-size:14px;font-weight:700;color:var(--text);margin-bottom:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.cls-card-meta{font-size:11px;color:var(--muted);line-height:1.4;word-break:keep-all;}
+.cls-edit-btn{flex-shrink:0;white-space:nowrap;}
+.cls-grad-badge{display:inline-block;margin-left:6px;padding:1px 7px;border-radius:10px;font-size:10px;font-weight:700;color:#6b7280;background:#e5e7eb;vertical-align:middle;}
+.cls-card.grad{background:#f1f2f5;border-color:#dcdfe5;}
+.cls-card.grad .cls-card-name{color:#6b7280;}
+.cls-card.grad .btn-outline{color:#6b7280;border-color:#b6bbc5;}
+.cls-section-title.grad{color:#6b7280;background:#eceef2;}
 /* 신규가입 - 체크박스 bulk */
 .pending-row-check{display:flex;align-items:flex-start;gap:8px;}
 .pending-cls-sel{width:100%;padding:5px 8px;border:1.5px solid var(--border-strong);border-radius:6px;font-size:12px;color:var(--text);background:#fff;outline:none;margin-top:6px;}
 .pending-bulk-bar{display:none;align-items:center;gap:8px;padding:7px 10px;background:var(--brand-xlight);border-radius:8px;margin-bottom:10px;flex-wrap:wrap;}
 .pending-bulk-bar.visible{display:flex;}
-/* 시간표 수정 인라인 */
-.cls-edit-tt-area{display:none;padding:8px;background:var(--canvas);border:1px solid var(--border);border-radius:7px;margin-top:6px;}
-.cls-edit-tt-area.open{display:block;}
-.cls-edit-info-area{display:none;padding:10px 12px;background:#f8fafc;border:1px solid var(--border);border-radius:7px;margin-top:6px;}
-.cls-edit-info-area.open{display:block;}
-.cls-info-field{display:flex;align-items:center;gap:6px;margin-bottom:8px;font-size:12px;}
-.cls-info-label{color:var(--muted);font-weight:600;min-width:80px;}
-.cls-info-date{font-size:12px;padding:3px 6px;border:1px solid var(--border);border-radius:5px;background:#fff;}
-.cls-info-num{font-size:12px;padding:3px 6px;border:1px solid var(--border);border-radius:5px;background:#fff;width:56px;text-align:center;}
-.cls-info-text{font-size:12px;padding:3px 8px;border:1px solid var(--border);border-radius:5px;background:#fff;width:180px;}
-.cls-info-tt-row{display:flex;align-items:center;gap:6px;margin-bottom:8px;flex-wrap:wrap;}
-.cls-info-tt-result{font-size:11px;color:var(--brand);font-weight:700;}
-/* 출결 인증 요청 */
+css inline edit/* 출결 인증 요청 */
 .auth-req-btn{padding:3px 7px;border:1.5px solid #6c63ff;border-radius:6px;font-size:11px;font-weight:700;color:#6c63ff;background:#fff;cursor:pointer;transition:.15s;white-space:nowrap;}
 .auth-req-btn:hover{background:#6c63ff;color:#fff;}
 .auth-modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:3000;align-items:center;justify-content:center;}
@@ -1117,10 +1110,16 @@ body{font-family:'Pretendard',system-ui,sans-serif;background:var(--canvas);colo
                 </div>
               </div>
 
-              <!-- 등록된 반 목록 -->
+              <!-- 진행 중인 반 -->
               <div class="cls-section">
-                <div class="cls-section-title">등록된 반 목록</div>
+                <div class="cls-section-title">진행 중인 반 <span id="cls-active-count"></span></div>
                 <div id="cls-reg-list"><div class="empty-state" style="padding:8px;">등록된 반 없음</div></div>
+              </div>
+
+              <!-- 졸업한 반 -->
+              <div class="cls-section" id="cls-grad-section" style="display:none;">
+                <div class="cls-section-title grad">졸업한 반 <span id="cls-grad-count"></span></div>
+                <div id="cls-grad-list"></div>
               </div>
 
             </div>
@@ -1373,11 +1372,34 @@ body{font-family:'Pretendard',system-ui,sans-serif;background:var(--canvas);colo
   </div>
 </div>
 
+<!-- 반 정보 수정 모달 -->
+<div class="auth-modal-overlay" id="cls-edit-modal">
+  <div class="auth-modal-card">
+    <div class="auth-modal-title">반 정보 수정</div>
+    <div>
+      <div class="auth-modal-label">반 이름</div>
+      <input class="auth-modal-input" id="cls-edit-name" placeholder="예: 26.3.23 주간반">
+    </div>
+    <div>
+      <div class="auth-modal-label">반코드</div>
+      <input class="auth-modal-input" id="cls-edit-code" placeholder="AIG-2025-0000-123456-1" oninput="this.value=normalizeClassCode(this.value)">
+    </div>
+    <div>
+      <div class="auth-modal-label">전자시간표</div>
+      <div id="cls-edit-tt-cur" style="font-size:11px;color:var(--muted);margin-bottom:6px;"></div>
+      <button class="btn btn-outline btn-sm" onclick="selectEditClsInfoTimetable()">📅 새 전자시간표 등록</button>
+      <div id="cls-edit-tt-result" style="font-size:11px;color:var(--brand);font-weight:700;margin-top:6px;"></div>
+    </div>
+    <button class="doc-preview-btn" onclick="saveEditClsInfo()">저장</button>
+    <button style="padding:8px;border-radius:8px;border:1.5px solid var(--border);background:#fff;font-size:13px;cursor:pointer;color:var(--muted);" onclick="closeClsEdit()">취소</button>
+    <button id="cls-edit-grad-btn" style="padding:8px;border-radius:8px;border:none;background:none;font-size:12px;cursor:pointer;color:var(--muted);text-decoration:underline;" onclick="toggleClassGraduated(editingClsInfoId)"></button>
+  </div>
+</div>
+
 <div class="loading-overlay" id="loading"><div class="spinner"></div><div class="loading-success-icon">✓</div><div class="loading-text" id="loading-text">처리 중...</div></div>
 <div id="toast-container"></div>
 <input type="file" id="tt-file" accept=".xlsx,.xls" style="display:none;" onchange="parseTimetable(event)">
 <input type="file" id="cls-tt-file" accept=".xlsx,.xls" style="display:none;" onchange="parseClsTimetable(event)">
-<input type="file" id="cls-edit-tt-file" accept=".xlsx,.xls" style="display:none;" onchange="parseEditClsTimetable(event)">
 <input type="file" id="cls-info-tt-file" accept=".xlsx,.xls" style="display:none;" onchange="parseEditClsInfoTimetable(event)">
 
 <!-- 문서 미리보기 오버레이 -->
@@ -4997,221 +5019,73 @@ async function generateDirectEntryHtml(cls,students,startDate,endDate,sigs){
 }
 
 // ── 등록된 반 목록 ────────────────────────────────────────
-let editingClsId=null, editClsTtData={}, editClsTtPracticeDays=[], editClsTtFileName='', editClsTtTrainStart=null, editClsTtTrainEnd=null, editClsTtLunchMins=30, editClsTtLunchStart=null, editClsTtLunchEnd=null, editClsTtPracticePeriods=[];
 let editingClsInfoId=null, editInfoTtData={}, editInfoTtPracticeDays=[], editInfoTtFileName='', editInfoTtTrainStart=null, editInfoTtTrainEnd=null, editInfoTtLunchMins=30, editInfoTtLunchStart=null, editInfoTtLunchEnd=null, editInfoTtPracticePeriods=[];
+
+function clsCardHtml(cls){
+    const grad=!!cls.graduated;
+    const dot=s=>String(s).slice(2).replace(/-/g,'.');
+    const period=cls.trainStart&&cls.trainEnd?`${dot(cls.trainStart)} ~ ${dot(cls.trainEnd)}`:'훈련기간 없음';
+    return`<div class="cls-card${grad?' grad':''}">
+        <div class="cls-card-main">
+            <div class="cls-card-name">${escHtml(cls.name||'(이름없음)')}${grad?'<span class="cls-grad-badge">졸업</span>':''}</div>
+            <div class="cls-card-meta"><span style="white-space:nowrap;">${escHtml(cls.code||'반코드 없음')}</span> · <span style="white-space:nowrap;">${period}</span></div>
+        </div>
+        <button class="btn btn-outline btn-sm cls-edit-btn" onclick="openClsEdit('${cls.id}')">수정</button>
+    </div>`;
+}
 
 function renderRegisteredClasses(){
     const el=document.getElementById('cls-reg-list');
     if(!el)return;
-    if(!classesList.length){el.innerHTML='<div class="empty-state" style="padding:8px;">등록된 반 없음</div>';return;}
-    el.innerHTML=classesList.map(cls=>{
-        const days=cls.timetableData?Object.keys(cls.timetableData):(cls.practiceDays||[]);
-        const sorted=days.slice().sort();
-        const period=sorted.length?`${sorted[0]} ~ ${sorted[sorted.length-1]}`:'기간 없음';
-        const trainPeriod=cls.trainStart&&cls.trainEnd?`${cls.trainStart} ~ ${cls.trainEnd}`:'';
-        const lunchDisp=cls.lunchBreakMins?`점심 ${cls.lunchBreakMins}분`:'';
-        const metaExtra=[trainPeriod,lunchDisp].filter(Boolean).join(' · ');
-        return`<div class="cls-reg-item" id="clsreg-${cls.id}">
-            <div class="cls-reg-item-head">
-                <div class="cls-reg-item-name" id="clsname-display-${cls.id}">${cls.name||'(이름없음)'}${cls.graduated?' <span style="font-size:11px;color:var(--muted);">(졸업)</span>':''}</div>
-            </div>
-            <div class="cls-reg-item-meta">${cls.code||'반코드없음'} · ${period} · ${days.length}일${metaExtra?' · '+metaExtra:''}</div>
-            <div class="cls-reg-item-actions">
-                <button class="btn btn-outline btn-sm" onclick="startEditClsName('${cls.id}')">이름 수정</button>
-                <button class="btn btn-outline btn-sm" onclick="startEditClsInfo('${cls.id}')">정보 편집</button>
-                <button class="btn btn-outline btn-sm" onclick="startEditClsTimetable('${cls.id}')">시간표 변경</button>
-                <button class="btn btn-outline btn-sm" onclick="toggleClassGraduated('${cls.id}')">${cls.graduated?'↩️ 졸업 해제':'🎓 졸업 처리'}</button>
-            </div>
-            <div class="cls-edit-info-area" id="clsedit-info-${cls.id}">
-                <div class="cls-info-field">
-                    <span class="cls-info-label">반코드</span>
-                    <input class="cls-info-text" id="cls-info-code-${cls.id}" value="${cls.code||''}" placeholder="AIG-2025-0000-123456-1" oninput="this.value=normalizeClassCode(this.value)">
-                </div>
-                <div class="cls-info-tt-row">
-                    <button class="btn btn-outline btn-sm" onclick="selectEditClsInfoTimetable('${cls.id}')">📅 전자시간표 업로드</button>
-                    <span class="cls-info-tt-result" id="cls-info-tt-result-${cls.id}"></span>
-                </div>
-                <div style="display:flex;gap:6px;">
-                    <button class="btn btn-primary btn-sm" onclick="saveEditClsInfo('${cls.id}')">저장</button>
-                    <button class="btn btn-ghost btn-sm" onclick="cancelEditClsInfo('${cls.id}')">취소</button>
-                </div>
-            </div>
-            <div class="cls-edit-tt-area" id="clsedit-tt-${cls.id}">
-                <div class="cls-file-row" style="margin-bottom:6px;">
-                    <button class="btn btn-outline btn-sm" onclick="selectEditClsTimetableFile('${cls.id}')">📅 새 시간표 선택</button>
-                    <span class="cls-file-label" id="cls-edit-file-label-${cls.id}">선택된 파일 없음</span>
-                </div>
-                <div id="cls-edit-tt-parse-${cls.id}" style="display:none;font-size:12px;color:var(--brand);font-weight:700;margin-bottom:6px;"></div>
-                <div style="display:flex;gap:6px;">
-                    <button class="btn btn-primary btn-sm" id="cls-edit-save-btn-${cls.id}" disabled onclick="saveEditedClsTimetable('${cls.id}')">저장</button>
-                    <button class="btn btn-ghost btn-sm" onclick="cancelEditClsTimetable('${cls.id}')">취소</button>
-                </div>
-            </div>
-        </div>`;
-    }).join('');
-}
-
-function startEditClsName(clsId){
-    const cls=classesList.find(c=>c.id===clsId);
-    if(!cls)return;
-    const dispEl=document.getElementById(`clsname-display-${clsId}`);
-    if(!dispEl)return;
-    const cur=cls.name||'';
-    dispEl.outerHTML=`<div style="display:flex;gap:6px;align-items:center;" id="clsname-edit-${clsId}">
-        <input class="cls-input" style="flex:1;" id="clsname-input-${clsId}" value="${cur}">
-        <button class="btn btn-primary btn-sm" onclick="saveClsName('${clsId}')">저장</button>
-        <button class="btn btn-ghost btn-sm" onclick="renderRegisteredClasses()">취소</button>
-    </div>`;
-}
-
-async function saveClsName(clsId){
-    const name=(document.getElementById(`clsname-input-${clsId}`)?.value||'').trim();
-    if(!name){showToast('이름을 입력해주세요','info');return;}
-    showLoader(true);
-    try{
-        await window.fsUpdateDoc(window.fsDoc(window.db,'classes',clsId),{name});
-        const cls=classesList.find(c=>c.id===clsId);
-        if(cls)cls.name=name;
-        showToast('반 이름 저장됨','success');
-        renderRegisteredClasses();
-    }catch(e){showToast('저장 실패: '+e.message,'error');}
-    showLoader(false);
+    const active=classesList.filter(c=>!c.graduated);
+    const grad=classesList.filter(c=>c.graduated);
+    el.innerHTML=active.length?active.map(clsCardHtml).join(''):'<div class="empty-state" style="padding:8px;">'+(classesList.length?'진행 중인 반 없음':'등록된 반 없음')+'</div>';
+    document.getElementById('cls-active-count').textContent=active.length?`(${active.length})`:'';
+    document.getElementById('cls-grad-section').style.display=grad.length?'':'none';
+    document.getElementById('cls-grad-count').textContent=grad.length?`(${grad.length})`:'';
+    document.getElementById('cls-grad-list').innerHTML=grad.map(clsCardHtml).join('');
 }
 
 async function toggleClassGraduated(clsId){
     const cls=classesList.find(c=>c.id===clsId);
     if(!cls)return;
     const next=!cls.graduated;
+    if(next&&!confirm('졸업 처리하면 메인 화면에서 숨겨집니다. 진행할까요?'))return;
     showLoader(true);
     try{
         await window.fsUpdateDoc(window.fsDoc(window.db,'classes',clsId),{graduated:next});
         cls.graduated=next;
         showToast(next?'졸업 처리됨 — 메인 화면에서 숨겨집니다':'졸업 해제됨','success');
+        closeClsEdit();
         renderRegisteredClasses();
         renderClassSidebar();
     }catch(e){showToast('처리 실패: '+e.message,'error');}
     showLoader(false);
 }
 
-function startEditClsTimetable(clsId){
-    editingClsId=clsId;
-    editClsTtData={};editClsTtPracticeDays=[];editClsTtFileName='';editClsTtPracticePeriods=[];
-    const area=document.getElementById(`clsedit-tt-${clsId}`);
-    if(area)area.classList.add('open');
-}
-
-function cancelEditClsTimetable(clsId){
-    editingClsId=null;
-    const area=document.getElementById(`clsedit-tt-${clsId}`);
-    if(area)area.classList.remove('open');
-    const parseEl=document.getElementById(`cls-edit-tt-parse-${clsId}`);
-    if(parseEl){parseEl.style.display='none';parseEl.textContent='';}
-    const lbl=document.getElementById(`cls-edit-file-label-${clsId}`);
-    if(lbl)lbl.textContent='선택된 파일 없음';
-    const saveBtn=document.getElementById(`cls-edit-save-btn-${clsId}`);
-    if(saveBtn)saveBtn.disabled=true;
-    document.getElementById('cls-edit-tt-file').value='';
-}
-
-function selectEditClsTimetableFile(clsId){
-    editingClsId=clsId;
-    editClsTtData={};editClsTtPracticeDays=[];editClsTtFileName='';editClsTtPracticePeriods=[];
-    const parseEl=document.getElementById(`cls-edit-tt-parse-${clsId}`);
-    if(parseEl){parseEl.style.display='none';parseEl.textContent='';}
-    const lbl=document.getElementById(`cls-edit-file-label-${clsId}`);
-    if(lbl)lbl.textContent='선택된 파일 없음';
-    const saveBtn=document.getElementById(`cls-edit-save-btn-${clsId}`);
-    if(saveBtn)saveBtn.disabled=true;
-    document.getElementById('cls-edit-tt-file').value='';
-    document.getElementById('cls-edit-tt-file').click();
-}
-
-function parseEditClsTimetable(e){
-    const clsId=editingClsId;
-    if(!clsId)return;
-    const f=e.target.files[0];
-    if(!f)return;
-    editClsTtFileName=f.name;
-    // reuse the same parseDate/parseTime logic via a sub-reader
-    const reader=new FileReader();
-    reader.onload=ev=>{
-        try{
-            const wb=XLSX.read(ev.target.result,{type:'binary'});
-            const ws=wb.Sheets[wb.SheetNames[0]];
-            const rows=XLSX.utils.sheet_to_json(ws,{header:1,raw:true});
-            editClsTtData={};editClsTtPracticeDays=[];editClsTtTrainStart=null;editClsTtTrainEnd=null;editClsTtLunchStart=null;editClsTtPracticePeriods=[];
-            function parseDate(raw){if(raw==null||raw==='')return null;if(typeof raw==='number'){const adj=raw>59?raw-1:raw;const d=new Date((adj-25569)*86400000);const yr=d.getUTCFullYear(),mo=String(d.getUTCMonth()+1).padStart(2,'0'),dy=String(d.getUTCDate()).padStart(2,'0');if(yr<1990||yr>2100)return null;return`${yr}-${mo}-${dy}`;}const s=raw.toString().trim();if(/^\d{8}$/.test(s))return`${s.slice(0,4)}-${s.slice(4,6)}-${s.slice(6,8)}`;if(/^\d{4}-\d{2}-\d{2}$/.test(s))return s;return null;}
-            function parseTime(raw){if(raw==null||raw==='')return null;if(typeof raw==='number'){const totalMins=Math.round(raw*24*60);const h=Math.floor(totalMins/60),m=totalMins%60;return`${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;}const s=raw.toString().trim();if(/^\d{4}$/.test(s))return`${s.slice(0,2)}:${s.slice(2,4)}`;if(/^\d{1,2}:\d{2}/.test(s))return s.slice(0,5);return null;}
-            const editClsTtOtherSubjectDates=new Set();
-            rows.forEach(row=>{const date=parseDate(row[0]);if(!date)return;if(!editClsTtTrainStart||date<editClsTtTrainStart)editClsTtTrainStart=date;if(!editClsTtTrainEnd||date>editClsTtTrainEnd)editClsTtTrainEnd=date;const subj=((row[8]||'').toString()).trim();if(subj&&!subj.includes('현장실습'))editClsTtOtherSubjectDates.add(date);if(editClsTtData[date])return;if(!subj.includes('현장실습'))return;const start=parseTime(row[1]);const end=parseTime(row[2]);if(!start||!end)return;editClsTtData[date]={start,end};editClsTtPracticeDays.push(date);});
-            editClsTtPracticePeriods=computePracticePeriodBlocks(editClsTtPracticeDays.slice().sort(),editClsTtOtherSubjectDates);
-            editClsTtLunchMins=30;editClsTtLunchStart=null;editClsTtLunchEnd=null;
-            (()=>{if(!editClsTtPracticeDays.length)return;const pDays=editClsTtPracticeDays.slice().sort();const pStart=pDays[0],pEnd=pDays[pDays.length-1];const hIdx=rows.findIndex(r=>(r||[]).some(c=>(c||'').toString().trim()==='시간구분'));if(hIdx<0)return;const hdr=(rows[hIdx]||[]).map(c=>(c||'').toString().trim());const tgIdx=hdr.indexOf('시간구분');const stIdx=hdr.findIndex(h=>h==='시작시간'||h==='시작 시간');if(tgIdx>=0&&stIdx>=0){for(let ri=hIdx+1;ri<rows.length-1;ri++){const date=parseDate(rows[ri][0]);if(!date||date<pStart||date>pEnd)continue;const tg=(rows[ri][tgIdx]||'').toString().trim();if(tg==='2'){const ls=parseTime(rows[ri][stIdx]);const le=parseTime(rows[ri+1][stIdx]);if(ls&&le){const[sh,sm]=ls.split(':').map(Number);const[eh,em]=le.split(':').map(Number);const lm=(eh*60+em)-(sh*60+sm);if(lm>0&&lm<=120){editClsTtLunchMins=lm;editClsTtLunchStart=ls;editClsTtLunchEnd=le;}}break;}}}})();
-            const lbl=document.getElementById(`cls-edit-file-label-${clsId}`);
-            if(lbl)lbl.textContent=editClsTtFileName;
-            const parseEl=document.getElementById(`cls-edit-tt-parse-${clsId}`);
-            if(editClsTtPracticeDays.length){
-                const sorted=editClsTtPracticeDays.slice().sort();
-                if(parseEl){parseEl.textContent=`현장실습 ${editClsTtPracticeDays.length}일 | ${sorted[0]} ~ ${sorted[sorted.length-1]}`;parseEl.style.display='block';}
-                const saveBtn=document.getElementById(`cls-edit-save-btn-${clsId}`);
-                if(saveBtn)saveBtn.disabled=false;
-            } else {
-                showToast('현장실습 항목을 찾지 못했습니다','info');
-                editClsTtFileName='';editClsTtData={};
-                if(lbl)lbl.textContent='파싱 실패 — 다시 선택';
-            }
-        }catch(err){console.error(err);showToast('파일 읽기 실패: '+err.message,'error');}
-    };
-    reader.readAsBinaryString(f);
-    e.target.value='';
-}
-
-async function saveEditedClsTimetable(clsId){
-    if(!editClsTtFileName||!editClsTtPracticeDays.length){showToast('시간표 파일을 선택해주세요','info');return;}
-    showLoader(true);
-    try{
-        const sortedDays=editClsTtPracticeDays.slice().sort();
-        await window.fsUpdateDoc(window.fsDoc(window.db,'classes',clsId),{
-            timetableData:editClsTtData,
-            practiceDays:editClsTtPracticeDays,
-            timetableFileName:editClsTtFileName,
-            timetableUpdatedAt:Date.now(),
-            practiceStart:sortedDays[0],
-            practiceEnd:sortedDays[sortedDays.length-1],
-            practicePeriods:editClsTtPracticePeriods,
-            trainStart:editClsTtTrainStart,
-            trainEnd:editClsTtTrainEnd,
-            lunchBreakMins:editClsTtLunchMins,lunchStart:editClsTtLunchStart||null,lunchEnd:editClsTtLunchEnd||null
-        });
-        const cls=classesList.find(c=>c.id===clsId);
-        if(cls){cls.timetableData=editClsTtData;cls.practiceDays=editClsTtPracticeDays;cls.practiceStart=sortedDays[0];cls.practiceEnd=sortedDays[sortedDays.length-1];cls.practicePeriods=editClsTtPracticePeriods;cls.trainStart=editClsTtTrainStart;cls.trainEnd=editClsTtTrainEnd;cls.lunchBreakMins=editClsTtLunchMins;cls.lunchStart=editClsTtLunchStart||null;cls.lunchEnd=editClsTtLunchEnd||null;}
-        showToast('시간표 저장됨 (Firestore 반영 완료)','success');
-        cancelEditClsTimetable(clsId);
-        renderRegisteredClasses();
-    }catch(e){showToast('저장 실패: '+e.message,'error');}
-    showLoader(false);
-}
-
-// ── 반 정보 편집 ──────────────────────────────────────────
-function startEditClsInfo(clsId){
-    // 다른 열린 info 편집 닫기
-    if(editingClsInfoId&&editingClsInfoId!==clsId)cancelEditClsInfo(editingClsInfoId);
+// ── 반 정보 수정 (모달: 이름·반코드·새 전자시간표·졸업) ────────────────
+function openClsEdit(clsId){
+    const cls=classesList.find(c=>c.id===clsId);
+    if(!cls)return;
     editingClsInfoId=clsId;
-    editInfoTtTrainStart=null;editInfoTtTrainEnd=null;editInfoTtLunchMins=30;editInfoTtLunchStart=null;editInfoTtLunchEnd=null;
-    const area=document.getElementById(`clsedit-info-${clsId}`);
-    if(area)area.classList.add('open');
+    editInfoTtData={};editInfoTtPracticeDays=[];editInfoTtFileName='';editInfoTtTrainStart=null;editInfoTtTrainEnd=null;editInfoTtLunchMins=30;editInfoTtLunchStart=null;editInfoTtLunchEnd=null;editInfoTtPracticePeriods=[];
+    document.getElementById('cls-edit-name').value=cls.name||'';
+    document.getElementById('cls-edit-code').value=cls.code||'';
+    document.getElementById('cls-edit-tt-result').textContent='';
+    const days=(cls.timetableData?Object.keys(cls.timetableData):(cls.practiceDays||[])).slice().sort();
+    document.getElementById('cls-edit-tt-cur').textContent=days.length
+        ?`현재: ${cls.timetableFileName?cls.timetableFileName+' · ':''}현장 ${days.length}일 (${days[0]}~${days[days.length-1]})`
+        :'등록된 전자시간표 없음';
+    document.getElementById('cls-edit-grad-btn').textContent=cls.graduated?'↩️ 졸업 해제':'🎓 졸업 처리';
+    document.getElementById('cls-edit-modal').classList.add('open');
 }
-function cancelEditClsInfo(clsId){
+function closeClsEdit(){
     editingClsInfoId=null;
     editInfoTtData={};editInfoTtPracticeDays=[];editInfoTtFileName='';editInfoTtTrainStart=null;editInfoTtTrainEnd=null;editInfoTtLunchMins=30;editInfoTtLunchStart=null;editInfoTtLunchEnd=null;editInfoTtPracticePeriods=[];
-    const area=document.getElementById(`clsedit-info-${clsId}`);
-    if(area)area.classList.remove('open');
-    const res=document.getElementById(`cls-info-tt-result-${clsId}`);
-    if(res)res.textContent='';
+    document.getElementById('cls-edit-modal').classList.remove('open');
     document.getElementById('cls-info-tt-file').value='';
 }
-function selectEditClsInfoTimetable(clsId){
-    editingClsInfoId=clsId;
+function selectEditClsInfoTimetable(){
     document.getElementById('cls-info-tt-file').value='';
     document.getElementById('cls-info-tt-file').click();
 }
@@ -5249,20 +5123,24 @@ function parseEditClsInfoTimetable(e){
             (()=>{if(!editInfoTtPracticeDays.length)return;const pDays=editInfoTtPracticeDays.slice().sort();const pStart=pDays[0],pEnd=pDays[pDays.length-1];const hIdx=rows.findIndex(r=>(r||[]).some(c=>(c||'').toString().trim()==='시간구분'));if(hIdx<0)return;const hdr=(rows[hIdx]||[]).map(c=>(c||'').toString().trim());const tgIdx=hdr.indexOf('시간구분');const stIdx=hdr.findIndex(h=>h==='시작시간'||h==='시작 시간');if(tgIdx>=0&&stIdx>=0){for(let ri=hIdx+1;ri<rows.length-1;ri++){const date=parseDate(rows[ri][0]);if(!date||date<pStart||date>pEnd)continue;const tg=(rows[ri][tgIdx]||'').toString().trim();if(tg==='2'){const ls=parseTime(rows[ri][stIdx]);const le=parseTime(rows[ri+1][stIdx]);if(ls&&le){const[sh,sm]=ls.split(':').map(Number);const[eh,em]=le.split(':').map(Number);const lm=(eh*60+em)-(sh*60+sm);if(lm>0&&lm<=120){lunch=lm;lunchSt=ls;lunchEd=le;}}break;}}}})();
             editInfoTtTrainStart=tStart;editInfoTtTrainEnd=tEnd;editInfoTtLunchMins=lunch;editInfoTtLunchStart=lunchSt;editInfoTtLunchEnd=lunchEd;
             const pDays=editInfoTtPracticeDays.slice().sort();
-            const res=document.getElementById(`cls-info-tt-result-${clsId}`);
-            if(res)res.textContent=`현장 ${pDays.length}일 (${pDays[0]||'?'}~${pDays[pDays.length-1]||'?'}) · 전체 ${tStart||'?'}~${tEnd||'?'} · 점심 ${lunch}분`;
+            const res=document.getElementById('cls-edit-tt-result');
+            if(res)res.textContent=pDays.length?`현장 ${pDays.length}일 (${pDays[0]}~${pDays[pDays.length-1]}) · 전체 ${tStart||'?'}~${tEnd||'?'} · 점심 ${lunch}분`:'현장실습 항목을 찾지 못했습니다. 다른 파일을 선택해주세요.';
         }catch(err){showToast('파일 읽기 실패: '+err.message,'error');}
     };
     reader.readAsBinaryString(f);
     e.target.value='';
 }
-async function saveEditClsInfo(clsId){
-    const code=normalizeClassCode((document.getElementById(`cls-info-code-${clsId}`)?.value||'').trim());
+async function saveEditClsInfo(){
+    const clsId=editingClsInfoId;
+    const cls=classesList.find(c=>c.id===clsId);
+    if(!cls)return;
+    const name=(document.getElementById('cls-edit-name').value||'').trim();
+    const code=normalizeClassCode((document.getElementById('cls-edit-code').value||'').trim());
+    if(!name){showToast('반 이름을 입력해주세요','info');return;}
     const hasTt=editInfoTtPracticeDays.length>0;
-    if(!code&&!hasTt){showToast('반코드를 입력하거나 전자시간표를 업로드해주세요','info');return;}
     showLoader(true);
     try{
-        const update={};
+        const update={name};
         if(code)update.code=code;
         if(hasTt){
             const sorted=editInfoTtPracticeDays.slice().sort();
@@ -5280,14 +5158,13 @@ async function saveEditClsInfo(clsId){
             update.timetableUpdatedAt=Date.now();
         }
         await window.fsUpdateDoc(window.fsDoc(window.db,'classes',clsId),update);
-        const cls=classesList.find(c=>c.id===clsId);
-        if(cls){
-            if(code)cls.code=code;
-            if(hasTt){const sorted=editInfoTtPracticeDays.slice().sort();cls.timetableData=editInfoTtData;cls.practiceDays=editInfoTtPracticeDays;cls.practiceStart=sorted[0];cls.practiceEnd=sorted[sorted.length-1];cls.practicePeriods=editInfoTtPracticePeriods;cls.trainStart=editInfoTtTrainStart;cls.trainEnd=editInfoTtTrainEnd;cls.lunchBreakMins=editInfoTtLunchMins;cls.lunchStart=editInfoTtLunchStart||null;cls.lunchEnd=editInfoTtLunchEnd||null;}
-        }
+        cls.name=name;
+        if(code)cls.code=code;
+        if(hasTt){const sorted=editInfoTtPracticeDays.slice().sort();cls.timetableData=editInfoTtData;cls.practiceDays=editInfoTtPracticeDays;cls.practiceStart=sorted[0];cls.practiceEnd=sorted[sorted.length-1];cls.practicePeriods=editInfoTtPracticePeriods;cls.trainStart=editInfoTtTrainStart;cls.trainEnd=editInfoTtTrainEnd;cls.lunchBreakMins=editInfoTtLunchMins;cls.lunchStart=editInfoTtLunchStart||null;cls.lunchEnd=editInfoTtLunchEnd||null;cls.timetableFileName=editInfoTtFileName;}
         showToast('반 정보 저장됨','success');
-        cancelEditClsInfo(clsId);
+        closeClsEdit();
         renderRegisteredClasses();
+        renderClassSidebar();
     }catch(e){showToast('저장 실패: '+e.message,'error');}
     showLoader(false);
 }
