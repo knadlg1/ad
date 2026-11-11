@@ -999,7 +999,7 @@ css inline edit/* 출결 인증 요청 */
                     <tr>
                       <th><select class="att-th-sel att-cls-filter-sel" onchange="onAttClsFilterChange(this)" title="반 선택(졸업반 제외)"><option value="">전체</option></select></th>
                       <th><input type="text" class="att-th-search att-name-search-inp" placeholder="이름" oninput="onAttNameSearch(this)" title="이름 검색 — 글자 또는 초성(예: 이, ㅇㅅ)"></th>
-                      <th>실습병원</th>
+                      <th><select class="att-th-sel att-hosp-filter-sel" onchange="onAttHospFilterChange(this)" title="실습병원 선택"><option value="">전체</option></select></th>
                       <th class="prog-cell">누적시간</th>
                       <th>출근</th>
                       <th>퇴근</th>
@@ -1014,7 +1014,7 @@ css inline edit/* 출결 인증 요청 */
                     <tr>
                       <th><select class="att-th-sel att-cls-filter-sel" onchange="onAttClsFilterChange(this)" title="반 선택(졸업반 제외)"><option value="">전체</option></select></th>
                       <th><input type="text" class="att-th-search att-name-search-inp" placeholder="이름" oninput="onAttNameSearch(this)" title="이름 검색 — 글자 또는 초성(예: 이, ㅇㅅ)"></th>
-                      <th>실습병원</th>
+                      <th><select class="att-th-sel att-hosp-filter-sel" onchange="onAttHospFilterChange(this)" title="실습병원 선택"><option value="">전체</option></select></th>
                       <th>출근일수</th>
                       <th style="color:#EF4444;">결석</th>
                       <th style="color:#F59E0B;">지각</th>
@@ -1528,6 +1528,7 @@ let classesList = [];
 let attendanceRecords = [];
 let sidebarClassFilter = '';
 let attNameQuery = '';
+let attHospFilter = '';
 let calYear = new Date().getFullYear();
 let calMonth = new Date().getMonth();
 let calStart = '';
@@ -2015,6 +2016,19 @@ function syncAttHeaderControls(){
         +(cur&&cur.graduated?`<option value="${cur.id}">${escHtml(cur.name)} (졸업)</option>`:'');
     document.querySelectorAll('.att-cls-filter-sel').forEach(sel=>{sel.innerHTML=opts;sel.value=sidebarClassFilter||'';});
     document.querySelectorAll('.att-name-search-inp').forEach(inp=>{if(inp.value.trim()!==attNameQuery)inp.value=attNameQuery;});
+    const hospNames=(academyHospitals||[]).map(h=>h.name).filter(Boolean);
+    if(attHospFilter&&attHospFilter!=='__none__'&&!hospNames.includes(attHospFilter))attHospFilter='';
+    const hopts='<option value="">전체</option>'+hospNames.map(n=>`<option value="${escHtml(n)}">${escHtml(n)}</option>`).join('')+'<option value="__none__">미지정</option>';
+    document.querySelectorAll('.att-hosp-filter-sel').forEach(sel=>{sel.innerHTML=hopts;sel.value=attHospFilter;});
+}
+function hospMatches(stu){
+    if(!attHospFilter)return true;
+    return attHospFilter==='__none__'?!stu.hospital:stu.hospital===attHospFilter;
+}
+function onAttHospFilterChange(el){
+    attHospFilter=el.value;
+    document.querySelectorAll('.att-hosp-filter-sel').forEach(sel=>{if(sel!==el)sel.value=el.value;});
+    renderAttendance();
 }
 function onAttNameSearch(el){
     attNameQuery=el.value.trim();
@@ -2043,7 +2057,7 @@ function renderAttendance(){
         studentsList.forEach(stu=>{
             if(stu.droppedOut)return;
             if(classFilter){if(stu.classId!==classFilter)return;}else if(gradClassIds.has(stu.classId))return;
-            if(!nameMatches(stu.name,nameQ))return;
+            if(!nameMatches(stu.name,nameQ)||!hospMatches(stu))return;
             const cls=classesList.find(c=>c.id===stu.classId);
             const tt=cls?.timetableData;
             const pracDays=cls?(cls.practiceDays||[]):[];
@@ -2087,7 +2101,7 @@ function renderAttendance(){
 
     // 테이블 학생 목록 필터
     const emptyEl=document.getElementById('att-empty');
-    let filtered=studentsList.filter(s=>!s.droppedOut&&(classFilter?s.classId===classFilter:!gradClassIds.has(s.classId))&&nameMatches(s.name,nameQ));
+    let filtered=studentsList.filter(s=>!s.droppedOut&&(classFilter?s.classId===classFilter:!gradClassIds.has(s.classId))&&nameMatches(s.name,nameQ)&&hospMatches(s));
     filtered.sort((a,b)=>{
         const ca=(classesList.find(c=>c.id===a.classId)||{name:'ㅎ'}).name;
         const cb=(classesList.find(c=>c.id===b.classId)||{name:'ㅎ'}).name;
