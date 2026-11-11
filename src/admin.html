@@ -693,11 +693,28 @@ css inline edit/* 출결 인증 요청 */
 .att-missing-head{display:flex;align-items:center;gap:8px;margin-bottom:6px;}
 .att-missing-title{font-size:12px;font-weight:700;color:#c2410c;}
 .att-missing-count{font-size:12px;font-weight:800;color:#c2410c;background:#ffedd5;border-radius:10px;padding:1px 7px;}
-.att-missing-body{display:flex;flex-wrap:wrap;gap:5px;}
-.att-missing-row{display:flex;align-items:center;gap:5px;font-size:11px;background:#fff;border:1px solid #fed7aa;border-radius:6px;padding:3px 8px;}
-.att-missing-name{font-weight:700;color:#1e293b;}
-.att-missing-date{color:#c2410c;}
-.att-missing-in{color:#64748b;}
+.att-missing-body{display:flex;flex-wrap:wrap;gap:8px;max-height:270px;overflow-y:auto;padding:2px;}
+.mo-card{position:relative;flex-shrink:0;width:244px;box-sizing:border-box;min-height:78px;display:flex;flex-direction:column;gap:6px;padding:10px 12px;background:#fff;border:1px solid #fed7aa;border-radius:10px;font-size:12px;color:#1e293b;overflow:hidden;transition:transform .45s ease,opacity .45s ease,box-shadow .2s ease,width .3s ease .35s,padding .3s ease .35s,min-height .3s ease .35s,border-width .3s ease .35s;}
+.mo-card:hover{box-shadow:0 4px 12px rgba(194,65,12,.18);}
+.mo-card.leaving{transform:translateY(30px);opacity:0;pointer-events:none;}
+.mo-line{display:flex;align-items:center;gap:6px;white-space:nowrap;}
+.mo-name{font-weight:800;}
+.mo-date{color:#c2410c;}
+.mo-tag{font-weight:700;color:#64748b;}
+.mo-time{font-weight:700;}
+.mo-badge{display:inline-flex;align-self:flex-start;padding:2px 11px;border-radius:10px;font-size:11px;font-weight:700;}
+.mo-badge.wait{background:#FFEDD5;color:#C2410C;}
+.mo-badge.done{background:#DCFCE7;color:#15803D;}
+.mo-sigs{display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
+.mo-sig-label{font-size:11px;font-weight:700;color:#64748b;}
+.mo-sig-img{height:26px;max-width:62px;object-fit:contain;background:#fff;border:1px solid #e2e8f0;border-radius:4px;}
+.mo-veil{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(255,247,237,.94);opacity:0;pointer-events:none;transition:opacity .18s ease;}
+.mo-card.can:hover .mo-veil{opacity:1;pointer-events:auto;}
+.mo-ok{padding:8px 30px;border:1.5px solid #86EFAC;border-radius:16px;background:#BBF7D0;color:#15803D;font-size:13px;font-weight:800;cursor:pointer;transition:background .15s ease,box-shadow .15s ease,transform .15s ease;}
+.mo-ok:hover{background:#86EFAC;box-shadow:0 3px 8px rgba(21,128,61,.25);transform:translateY(-1px);}
+.mo-ok:disabled{opacity:.7;cursor:default;transform:none;}
+@media (hover:none){.mo-veil{position:static;opacity:1;pointer-events:auto;background:none;justify-content:flex-end;}}
+@media (prefers-reduced-motion:reduce){.mo-card,.mo-ok,.mo-veil{transition:none;}}
 /* ── 반코드 빌더 ── */
 .cls-code-builder{display:flex;align-items:center;gap:4px;flex-wrap:wrap;}
 .cls-code-fixed{font-size:13px;font-weight:700;color:var(--brand);white-space:nowrap;}
@@ -2674,6 +2691,7 @@ async function loadMissingOutRequests(){
 
 function renderMissingOutRequests(){
     renderAttendanceApprovalMerged();
+    renderMissingSection();
 }
 
 document.addEventListener('click',e=>{
@@ -2719,19 +2737,24 @@ async function closeOverlappingRequests(kakaoId,date,exceptAuthId,exceptMissingI
     }catch(e){console.error('겹치는 요청 정리 실패(무시):',e);}
 }
 
+async function commitMissingOutApproval(docId,kakaoId,date,outTime){
+    if(!outTime)throw new Error('퇴근시간 정보가 없습니다.');
+    const missingSnap=await window.fsGetDoc(window.fsDoc(window.db,'missingOut',docId));
+    const md=missingSnap.exists()?missingSnap.data():{};
+    const attRef=window.fsDoc(window.db,'attendance',`${kakaoId}_${date}`);
+    const batch=window.fsWriteBatch(window.db);
+    batch.set(attRef,{date,outTime,missingOutApproved:true,studentSig:md.studentSig||'',managerSig:md.managerSig||'',managerPhone:md.managerPhone||''},{merge:true});
+    batch.update(window.fsDoc(window.db,'missingOut',docId),{
+        status:'approved',approvedAt:window.fsServerTimestamp()
+    });
+    await batch.commit();
+}
+
 async function approveMissingOut(docId,kakaoId,date,outTime){
     if(!outTime){showToast('퇴근시간 정보가 없습니다.','error');return;}
     if(!confirm(`${date} 퇴근 누락을 승인하시겠습니까?\n출퇴근 기록에 퇴근시간(${outTime})이 반영됩니다.`))return;
     await withSave(async()=>{
-        const missingSnap=await window.fsGetDoc(window.fsDoc(window.db,'missingOut',docId));
-        const md=missingSnap.exists()?missingSnap.data():{};
-        const attRef=window.fsDoc(window.db,'attendance',`${kakaoId}_${date}`);
-        const batch=window.fsWriteBatch(window.db);
-        batch.set(attRef,{date,outTime,missingOutApproved:true,studentSig:md.studentSig||'',managerSig:md.managerSig||'',managerPhone:md.managerPhone||''},{merge:true});
-        batch.update(window.fsDoc(window.db,'missingOut',docId),{
-            status:'approved',approvedAt:window.fsServerTimestamp()
-        });
-        await batch.commit();
+        await commitMissingOutApproval(docId,kakaoId,date,outTime);
     },{successMsg:'퇴근 누락 승인 완료 ✓',delay:1000,onSuccess:async()=>{
         await closeOverlappingRequests(kakaoId,date,null,docId);
         loadAttendanceAuthRequests();loadSidebarAuthReqs();
@@ -4334,7 +4357,46 @@ function renderMissingSection(){
     countEl.textContent=missing.length;
     if(!missing.length){section.style.display='none';return;}
     section.style.display='';
-    listEl.innerHTML=missing.map(m=>`<div class="att-missing-row"><span class="att-missing-name">${escHtml(m.stu.name||'-')}</span><span class="att-missing-date">${m.date}</span><span class="att-missing-in">${m.inTime.slice(0,5)}</span></div>`).join('');
+    // 학생이 앱에서 퇴근 누락 서명을 제출했다면(missingOut, pending) 퇴근 시각·서명을 함께 보여주고 호버 시 승인 버튼을 띄운다
+    const reqFor=m=>(missingOutRequests||[]).find(r=>String(r.kakaoId)===String(m.stu.kakaoId)&&normDate(r.date)===m.date&&r.outTime);
+    listEl.innerHTML=missing.map(m=>{
+        const name=escHtml(m.stu.name||'-');
+        const req=reqFor(m);
+        const line=(tag,time)=>`<div class="mo-line"><span class="mo-name">${name}</span><span class="mo-date">${m.date}</span><span class="mo-tag">(${tag})</span><span class="mo-time">${escHtml(time)}</span></div>`;
+        if(!req)return`<div class="mo-card" data-kid="${escHtml(String(m.stu.kakaoId))}" data-date="${m.date}">${line('출',m.inTime.slice(0,5))}<span class="mo-badge wait">대기중</span></div>`;
+        const out=trimToMinutes(req.outTime);
+        const sig=(label,v)=>v?`<span class="mo-sig-label">(${label})</span><img class="mo-sig-img" src="${sigSrc(v)}" alt="">`:`<span class="mo-sig-label">(${label}) -</span>`;
+        return`<div class="mo-card can" data-kid="${escHtml(String(m.stu.kakaoId))}" data-date="${m.date}">${line('출',m.inTime.slice(0,5))}${line('퇴',out)}<div class="mo-sigs">${sig('본',req.studentSig)}${sig('담',req.managerSig)}</div><div class="mo-veil"><button class="mo-ok" onclick="approveMissingCard('${req.id}','${escHtml(String(m.stu.kakaoId))}','${m.date}','${escHtml(out)}',this)">승인</button></div></div>`;
+    }).join('');
+}
+
+// 퇴근 누락 카드 승인: Firestore 저장(출퇴근 기록 반영 + 요청 승인 처리) 후 카드를 아래로 내려가며 사라지게 한다
+async function approveMissingCard(docId,kakaoId,date,outTime,btn){
+    const card=btn.closest('.mo-card');
+    if(!card||card.classList.contains('busy'))return;
+    card.classList.add('busy');btn.disabled=true;btn.textContent='처리 중…';
+    try{
+        await commitMissingOutApproval(docId,kakaoId,date,outTime);
+    }catch(e){
+        card.classList.remove('busy');btn.disabled=false;btn.textContent='승인';
+        showToast('승인 실패: '+e.message,'error');
+        return;
+    }
+    const rec=attendanceRecords.find(r=>String(r.kakaoId)===String(kakaoId)&&normDate(r.date)===date);
+    if(rec)rec.outTime=outTime;
+    missingOutRequests=(missingOutRequests||[]).filter(r=>r.id!==docId);
+    card.style.width=card.offsetWidth+'px';
+    void card.offsetWidth;
+    card.classList.add('leaving');
+    setTimeout(()=>{card.style.width='0px';card.style.padding='0';card.style.minHeight='0';card.style.borderWidth='0';},350);
+    showToast('퇴근 누락 승인 완료 ✓','success');
+    // 애니메이션이 끝난 뒤 목록을 다시 그리고 관련 요청을 정리한다(중간에 다시 그리면 카드가 갑자기 사라짐)
+    setTimeout(async()=>{
+        renderAttendance();
+        await closeOverlappingRequests(kakaoId,date,null,docId);
+        loadAttendanceAuthRequests();loadSidebarAuthReqs();
+        loadMissingOutRequests();loadMissingOutApproved();
+    },700);
 }
 
 // ── 중도탈락 페이지 ──────────────────────────────────────────
