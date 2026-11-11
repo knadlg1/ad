@@ -225,10 +225,10 @@ body{font-family:'Pretendard',system-ui,sans-serif;background:var(--canvas);colo
 .att-sb-quick-btn:hover{border-color:var(--brand);color:var(--brand);}
 .att-sb-quick-btn.active{background:var(--brand);border-color:var(--brand);color:#fff;}
 /* 학생 검색 카드 */
-.att-th-sel{width:100%;max-width:150px;box-sizing:border-box;appearance:none;-webkit-appearance:none;padding:5px 24px 5px 10px;border:1.5px solid #C7D2FE;border-radius:14px;background:#EEF2FF url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%234338CA' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E") no-repeat right 9px center;background-size:12px;color:#4338CA;font-size:12px;font-weight:800;text-align:left;cursor:pointer;outline:none;transition:background-color .15s ease,border-color .15s ease,box-shadow .15s ease,transform .15s ease;}
+.att-th-sel{width:100%;max-width:150px;box-sizing:border-box;appearance:none;-webkit-appearance:none;padding:5px 26px;border:1.5px solid #C7D2FE;border-radius:14px;background:#EEF2FF url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%234338CA' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E") no-repeat right 9px center;background-size:12px;color:#4338CA;font-size:12px;font-weight:800;text-align:center;text-align-last:center;cursor:pointer;outline:none;transition:background-color .15s ease,border-color .15s ease,box-shadow .15s ease,transform .15s ease;}
 .att-th-sel:hover{background-color:#E0E7FF;border-color:#818CF8;box-shadow:0 3px 8px rgba(99,102,241,.18);transform:translateY(-1px);}
 .att-th-sel:focus{border-color:#6366F1;box-shadow:0 0 0 3px rgba(99,102,241,.18);}
-.att-th-search{width:100%;max-width:130px;box-sizing:border-box;padding:5px 10px 5px 28px;border:1.5px solid var(--border);border-radius:14px;background:#fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236c63ff' stroke-width='2.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='10.5' cy='10.5' r='6.5'/%3E%3Cline x1='15.5' y1='15.5' x2='21' y2='21'/%3E%3C/svg%3E") no-repeat 9px center;background-size:13px;color:var(--text);font-size:12px;font-weight:700;outline:none;transition:border-color .15s ease,box-shadow .15s ease;}
+.att-th-search{width:100%;max-width:130px;box-sizing:border-box;padding:5px 28px;text-align:center;border:1.5px solid var(--border);border-radius:14px;background:#fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236c63ff' stroke-width='2.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='10.5' cy='10.5' r='6.5'/%3E%3Cline x1='15.5' y1='15.5' x2='21' y2='21'/%3E%3C/svg%3E") no-repeat 9px center;background-size:13px;color:var(--text);font-size:12px;font-weight:700;outline:none;transition:border-color .15s ease,box-shadow .15s ease;}
 .att-th-search::placeholder{color:#94a3b8;font-weight:600;}
 .att-th-search:focus{border-color:var(--brand);box-shadow:0 0 0 3px rgba(108,99,255,.14);}
 /* ── 인라인 달력 위젯 ── */
@@ -996,7 +996,7 @@ css inline edit/* 출결 인증 요청 */
                 <table class="att-table" id="att-table-single">
                   <thead>
                     <tr>
-                      <th><select class="att-th-sel att-cls-filter-sel" onchange="onAttClsFilterChange(this)" title="반 선택(졸업반 제외)"><option value="">반</option></select></th>
+                      <th><select class="att-th-sel att-cls-filter-sel" onchange="onAttClsFilterChange(this)" title="반 선택(졸업반 제외)"><option value="">전체</option></select></th>
                       <th><input type="text" class="att-th-search att-name-search-inp" placeholder="이름" oninput="onAttNameSearch(this)" title="이름 검색 — 글자 또는 초성(예: 이, ㅇㅅ)"></th>
                       <th>실습병원</th>
                       <th class="prog-cell">누적시간</th>
@@ -1011,7 +1011,7 @@ css inline edit/* 출결 인증 요청 */
                 <table class="att-table" id="att-table-range" style="display:none;">
                   <thead>
                     <tr>
-                      <th><select class="att-th-sel att-cls-filter-sel" onchange="onAttClsFilterChange(this)" title="반 선택(졸업반 제외)"><option value="">반</option></select></th>
+                      <th><select class="att-th-sel att-cls-filter-sel" onchange="onAttClsFilterChange(this)" title="반 선택(졸업반 제외)"><option value="">전체</option></select></th>
                       <th><input type="text" class="att-th-search att-name-search-inp" placeholder="이름" oninput="onAttNameSearch(this)" title="이름 검색 — 글자 또는 초성(예: 이, ㅇㅅ)"></th>
                       <th>실습병원</th>
                       <th>출근일수</th>
@@ -2010,7 +2010,7 @@ function nameMatches(name,q){
 function syncAttHeaderControls(){
     const active=classesList.filter(c=>!c.graduated);
     const cur=classesList.find(c=>c.id===sidebarClassFilter);
-    const opts='<option value="">반</option>'+active.map(c=>`<option value="${c.id}">${escHtml(c.name)}</option>`).join('')
+    const opts='<option value="">전체</option>'+active.map(c=>`<option value="${c.id}">${escHtml(c.name)}</option>`).join('')
         +(cur&&cur.graduated?`<option value="${cur.id}">${escHtml(cur.name)} (졸업)</option>`:'');
     document.querySelectorAll('.att-cls-filter-sel').forEach(sel=>{sel.innerHTML=opts;sel.value=sidebarClassFilter||'';});
     document.querySelectorAll('.att-name-search-inp').forEach(inp=>{if(inp.value.trim()!==attNameQuery)inp.value=attNameQuery;});
