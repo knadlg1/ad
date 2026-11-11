@@ -40,6 +40,16 @@ exports.requestOTP = functions.https.onRequest(async (req, res) => {
         const phone = body.phone;
         if (!phone) { res.json({ status: "error", success: false, message: "전화번호 필요" }); return; }
 
+        // 학생 앱이 studentKakaoId를 보내면, 학생 본인 휴대폰으로는 담당자 인증번호를 받을 수 없게 막는다
+        if (body.studentKakaoId) {
+            const stuSnap = await db.doc("students/" + String(body.studentKakaoId).replace(/\//g, "")).get();
+            const ownPhone = String((stuSnap.exists && stuSnap.data().phone) || "").replace(/\D/g, "");
+            if (ownPhone && ownPhone === String(phone).replace(/\D/g, "")) {
+                res.json({ status: "error", success: false, message: "본인 번호 인증 불가!\n담당자 인증 필요.\n(담당자 이외 인증\n적발 시 취소)" });
+                return;
+            }
+        }
+
         const otpCode = String(Math.floor(100000 + Math.random() * 900000));
         await db.doc("otps/" + phone).set({
             code: otpCode,

@@ -689,35 +689,35 @@ css inline edit/* 출결 인증 요청 */
 .prog-bar-track-s{height:8px;border-radius:4px;overflow:hidden;display:flex;background:#e2e8f0;}
 .prog-label-s{font-size:10px;color:var(--muted);font-weight:600;white-space:nowrap;font-variant-numeric:tabular-nums;}
 /* ── 퇴근 누락 섹션 ── */
-.att-missing-section{background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:10px 12px;margin-bottom:10px;}
-.att-missing-head{display:flex;align-items:center;gap:8px;margin-bottom:6px;}
-.att-missing-title{font-size:12px;font-weight:700;color:#c2410c;}
-.att-missing-count{font-size:12px;font-weight:800;color:#c2410c;background:#ffedd5;border-radius:10px;padding:1px 7px;}
-.att-missing-body{display:flex;flex-wrap:nowrap;gap:8px;overflow-x:auto;overflow-y:hidden;padding:2px 2px 8px;scroll-snap-type:x proximity;scrollbar-width:thin;scrollbar-color:#fdba74 transparent;-webkit-overflow-scrolling:touch;cursor:grab;}
+.att-missing-section{display:flex;align-items:stretch;gap:10px;background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:8px 10px;margin-bottom:10px;}
+.att-missing-head{flex:0 0 auto;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;min-width:50px;padding-right:10px;border-right:1px solid #fed7aa;}
+.att-missing-title{font-size:12px;font-weight:700;color:#c2410c;white-space:nowrap;}
+.att-missing-count{font-size:13px;font-weight:800;color:#c2410c;background:#ffedd5;border-radius:10px;padding:1px 9px;white-space:nowrap;}
+.att-missing-body{flex:1;min-width:0;display:flex;flex-wrap:nowrap;gap:7px;overflow-x:auto;overflow-y:hidden;padding:1px 1px 6px;scroll-snap-type:x proximity;scrollbar-width:thin;scrollbar-color:#fdba74 transparent;-webkit-overflow-scrolling:touch;cursor:grab;}
 .att-missing-body.dragging{cursor:grabbing;scroll-snap-type:none;user-select:none;}
-.att-missing-body::-webkit-scrollbar{height:6px;}
+.att-missing-body::-webkit-scrollbar{height:5px;}
 .att-missing-body::-webkit-scrollbar-thumb{background:#fdba74;border-radius:3px;}
-.mo-card{position:relative;flex-shrink:0;scroll-snap-align:start;width:256px;box-sizing:border-box;min-height:78px;display:flex;flex-direction:column;gap:6px;padding:10px 12px;background:#fff;border:1px solid #fed7aa;border-radius:10px;font-size:12px;color:#1e293b;overflow:hidden;transition:transform .45s ease,opacity .45s ease,box-shadow .2s ease,width .3s ease .35s,padding .3s ease .35s,min-height .3s ease .35s,border-width .3s ease .35s;}
+.mo-card{position:relative;flex-shrink:0;scroll-snap-align:start;width:218px;box-sizing:border-box;display:flex;flex-direction:column;justify-content:center;gap:3px;padding:6px 10px;background:#fff;border:1px solid #fed7aa;border-radius:8px;font-size:11.5px;color:#1e293b;overflow:hidden;transition:transform .45s ease,opacity .45s ease,box-shadow .2s ease,width .3s ease .35s,padding .3s ease .35s,min-height .3s ease .35s,border-width .3s ease .35s;}
 .mo-card:hover{box-shadow:0 4px 12px rgba(194,65,12,.18);}
 .mo-card.leaving{transform:translateY(30px);opacity:0;pointer-events:none;}
-.mo-line{display:flex;align-items:center;gap:6px;white-space:nowrap;}
+.mo-line{display:flex;align-items:center;gap:5px;white-space:nowrap;}
 .mo-name{font-weight:800;}
 .mo-date{color:#c2410c;}
-.mo-dot{display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;width:21px;height:21px;border-radius:50%;font-size:11px;font-weight:800;line-height:1;}
+.mo-dot{display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;width:18px;height:18px;border-radius:50%;font-size:10px;font-weight:800;line-height:1;}
 .mo-dot-in{background:#DBEAFE;color:#1D4ED8;}
 .mo-dot-out{background:#EDE9FE;color:#6D28D9;}
 .mo-dot-stu{background:#DCFCE7;color:#15803D;}
 .mo-dot-mgr{background:#FEF3C7;color:#B45309;}
 .mo-time{font-weight:700;}
-.mo-badge{display:inline-flex;align-self:flex-start;padding:2px 11px;border-radius:10px;font-size:11px;font-weight:700;}
+.mo-badge{display:inline-flex;align-self:flex-start;padding:1px 9px;border-radius:9px;font-size:10px;font-weight:700;}
 .mo-badge.wait{background:#FFEDD5;color:#C2410C;}
 .mo-badge.done{background:#DCFCE7;color:#15803D;}
-.mo-sigs{display:flex;align-items:center;gap:6px;}
+.mo-sigs{display:flex;align-items:center;gap:5px;}
 .mo-sig-none{font-size:11px;color:#94a3b8;}
-.mo-sig-img{height:24px;max-width:54px;object-fit:contain;background:#fff;border:1px solid #e2e8f0;border-radius:4px;}
+.mo-sig-img{height:20px;max-width:46px;object-fit:contain;background:#fff;border:1px solid #e2e8f0;border-radius:4px;}
 .mo-veil{margin-left:auto;opacity:0;pointer-events:none;transition:opacity .18s ease;}
 .mo-card.can:hover .mo-veil{opacity:1;pointer-events:auto;}
-.mo-ok{padding:4px 14px;border:1.5px solid #86EFAC;border-radius:12px;background:#BBF7D0;color:#15803D;font-size:12px;font-weight:800;cursor:pointer;transition:background .15s ease,box-shadow .15s ease,transform .15s ease;}
+.mo-ok{padding:3px 11px;border:1.5px solid #86EFAC;border-radius:10px;background:#BBF7D0;color:#15803D;font-size:11px;font-weight:800;cursor:pointer;transition:background .15s ease,box-shadow .15s ease,transform .15s ease;}
 .mo-ok:hover{background:#86EFAC;box-shadow:0 3px 8px rgba(21,128,61,.25);transform:translateY(-1px);}
 .mo-ok:disabled{opacity:.7;cursor:default;transform:none;}
 @media (hover:none){.mo-veil{opacity:1;pointer-events:auto;}}
@@ -999,8 +999,8 @@ css inline edit/* 출결 인증 요청 */
               <!-- 퇴근 누락 섹션 -->
               <div id="att-missing-section" class="att-missing-section" style="display:none;">
                 <div class="att-missing-head">
-                  <div class="att-missing-title">퇴근 누락</div>
-                  <div class="att-missing-count" id="att-missing-count">0</div>
+                  <div class="att-missing-title">퇴근누락</div>
+                  <div class="att-missing-count" id="att-missing-count">0명</div>
                 </div>
                 <div class="att-missing-body" id="att-missing-list"></div>
               </div>
@@ -4387,7 +4387,7 @@ function renderMissingSection(){
         });
     });
     missing.sort((a,b)=>b.date.localeCompare(a.date));
-    countEl.textContent=missing.length;
+    countEl.textContent=missing.length+'명';
     if(!missing.length){section.style.display='none';return;}
     section.style.display='';
     // 학생이 앱에서 퇴근 누락 서명을 제출했다면(missingOut, pending) 퇴근 시각·서명을 함께 보여주고 호버 시 승인 버튼을 띄운다
