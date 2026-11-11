@@ -452,7 +452,16 @@ css inline edit/* 출결 인증 요청 */
 .plan-opt{display:flex;justify-content:space-between;align-items:center;width:100%;padding:14px 16px;margin-bottom:8px;border:1.5px solid var(--border);border-radius:12px;background:var(--surface);cursor:pointer;font-size:15px;font-weight:600;color:var(--text);}
 .plan-opt:hover{border-color:var(--brand);}
 .plan-opt.selected{border-color:var(--brand);background:var(--brand-xlight);color:var(--brand);}
-.overdue-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:9500;align-items:center;justify-content:center;padding:24px;overflow-y:auto;}
+.overdue-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:9500;backdrop-filter:blur(3px);align-items:center;justify-content:center;padding:24px;overflow-y:auto;}
+.paywall-steps{display:flex;justify-content:center;gap:6px;flex-wrap:wrap;font-size:12px;font-weight:700;color:var(--brand);margin-bottom:16px;}
+.paywall-steps span{background:var(--brand-xlight);border-radius:20px;padding:5px 12px;}
+.notice-bar{display:none;align-items:center;gap:8px;padding:0 16px;height:38px;flex-shrink:0;background:#FFFBEB;border-bottom:1px solid #FDE68A;cursor:pointer;}
+.notice-viewport{flex:1;height:38px;overflow:hidden;position:relative;min-width:0;}
+.notice-track.slide{transition:transform .6s cubic-bezier(.4,0,.2,1);}
+.notice-item{height:38px;display:flex;align-items:center;gap:8px;font-size:13px;color:#78350F;min-width:0;}
+.notice-text{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;}
+.notice-new{flex-shrink:0;font-size:10px;font-weight:800;color:#fff;background:#EF4444;border-radius:4px;padding:1px 5px;line-height:1.4;}
+@media (prefers-reduced-motion:reduce){.notice-track.slide{transition:none;}}
 .overdue-box{background:var(--surface);border-radius:20px;padding:36px 32px;max-width:460px;width:100%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.4);}
 
 /* ── 버튼 ── */
@@ -736,6 +745,28 @@ css inline edit/* 출결 인증 요청 */
 </div>
 
 <!-- ── APP ── -->
+<!-- 공지 전체 보기 -->
+<div class="auth-modal-overlay" id="notice-modal" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="auth-modal-card">
+    <div class="auth-modal-title">📢 공지</div>
+    <div id="notice-modal-text" style="font-size:14px;line-height:1.7;color:var(--text);word-break:break-all;"></div>
+    <button class="btn btn-primary" onclick="document.getElementById('notice-modal').classList.remove('open')">확인</button>
+  </div>
+</div>
+
+<!-- 이용 시작하기: 신규 원장은 첫 결제 전에는 메인 화면 이용 불가(서버가 paywall:true를 내려줄 때만, #app은 inert) -->
+<div id="paywall-overlay" class="overdue-overlay">
+  <div class="overdue-box" style="max-width:480px;">
+    <div class="blocked-icon">🚀</div>
+    <div class="blocked-title" style="color:var(--brand);">이용 시작하기</div>
+    <div class="paywall-steps"><span>① 요금 확인</span><span>② 카드 등록</span><span>③ 결제하기</span></div>
+    <div id="paywall-plan" style="margin-bottom:14px;"></div>
+    <div class="pay-notice" style="max-width:none;text-align:left;margin-bottom:16px;">결제수단은 <b>카드 결제</b>만 지원합니다. 카드를 등록하면 그 자리에서 첫 달 요금이 바로 결제되고, 결제일이 청구 기준일이 되어 이후 매월 같은 날짜에 자동 결제됩니다. 결제가 완료되면 바로 이용하실 수 있습니다.</div>
+    <button class="btn btn-primary" id="btn-paywall-pay" style="width:100%;padding:14px;font-size:15px;" onclick="registerCard()">카드 등록하고 결제하기</button>
+    <button class="btn btn-ghost" style="width:100%;padding:10px;font-size:13px;margin-top:8px;" onclick="adminLogout()">로그아웃</button>
+  </div>
+</div>
+
 <!-- 연체 오버레이: 연체 중이면 메인 화면 전체를 덮고(#app은 inert) 이 박스 안의 버튼만 사용 가능 -->
 <div id="overdue-overlay" class="overdue-overlay">
   <div class="overdue-box">
@@ -939,6 +970,10 @@ css inline edit/* 출결 인증 요청 */
 
         <!-- 오른쪽 패널 (수평 탭) -->
         <div class="right-col">
+          <div id="notice-bar" class="notice-bar" onmouseenter="pauseNoticeRoll()" onmouseleave="resumeNoticeRoll()">
+            <span style="flex-shrink:0;">📢</span>
+            <div class="notice-viewport"><div id="notice-track" class="notice-track"></div></div>
+          </div>
           <div class="htab-bar">
             <button class="htab-btn active" data-tab="docs" onclick="showVtab('docs')">문서발급</button>
             <button class="htab-btn" data-tab="approve" onclick="showVtab('approve')">승인&ensp;<span id="approve-count" class="badge badge-yellow" style="display:none;"></span></button>
@@ -1210,7 +1245,7 @@ css inline edit/* 출결 인증 요청 */
             <div class="card">
               <div class="card-title">구독 현황</div>
               <div class="pay-status-row">
-                <span style="color:var(--muted);font-size:15px;">월 이용료</span>
+                <span style="color:var(--muted);font-size:15px;">월 정기결제 요금</span>
                 <span style="font-weight:700;font-size:17px;" id="monthly-amount">-</span>
               </div>
               <div class="pay-status-row">
@@ -1643,7 +1678,9 @@ async function hashPw(pw){
 function adminLogout(){
     sessionStorage.removeItem('directorSession');
     directorData=null; directorDocId=null; billingInfo=null;
-    applyOverdueOverlay(false);
+    document.getElementById('paywall-overlay').style.display='none';
+    applyOverdueOverlay(false,false);
+    clearInterval(noticeTimer);noticeTimer=null;noticeList=[];document.getElementById('notice-bar').style.display='none';
     document.getElementById('app').style.display='none';
     document.getElementById('auth-wrap').style.display='flex';
     showScreen('login');
@@ -1658,6 +1695,7 @@ function showApp(){
     }
     renderPaymentInfo();
     loadBillingInfo();
+    loadNotices();
     setDateRange('today');
     if(!_flatpickrInited&&typeof flatpickr!=='undefined'){
         _flatpickrInited=true;
@@ -3607,8 +3645,7 @@ function renderPaymentInfo(){
     }else{
         cardEl.innerHTML='<div style="color:var(--muted);text-align:center;padding:24px;font-size:15px;">등록된 카드 없음</div>';
     }
-    const proposal=!!(b&&b.customAmount&&!b.customAccepted);
-    document.getElementById('btn-register-card').textContent=proposal?`제안 금액 ${fmtWon(b.customAmount)} 정기결제 등록`:(card?'카드 변경':'카드 등록');
+    document.getElementById('btn-register-card').textContent=card?'카드 변경':'카드 등록';
     const cancelBtn=document.getElementById('btn-cancel-service');
     cancelBtn.disabled=!b||!hasCard||!!b.cancelAt;
     cancelBtn.style.opacity=cancelBtn.disabled?'.5':'1';
@@ -3631,7 +3668,11 @@ function renderPaymentInfo(){
     if(b&&b.unpaid.length){unpaidRow.style.display='';document.getElementById('unpaid-text').textContent=`${b.unpaid.length}개월 · ${fmtWon(b.unpaidTotal)}`;}
     else unpaidRow.style.display='none';
     renderPaymentHistory();
-    applyOverdueOverlay(ps==='overdue');
+    applyLockOverlays(ps);
+}
+
+function planOptionsHtml(b){
+    return [1,2,3,4].map(n=>`<button class="plan-opt${b.planClassCount===n?' selected':''}" onclick="selectPlan(${n})"><span>${n}개 반${n===4?' 이상':''}</span><span>${fmtWon(b.prices[n])} / 월</span></button>`).join('');
 }
 
 function renderPlanCard(){
@@ -3639,11 +3680,87 @@ function renderPlanCard(){
     const b=billingInfo;
     if(!b){el.innerHTML='<div style="color:var(--muted);font-size:14px;">불러오는 중...</div>';return;}
     if(b.customAmount){
-        el.innerHTML=`<div style="font-size:15px;">개별 제안 금액 <b>${fmtWon(b.customAmount)}</b> / 월</div><div style="font-size:13px;color:var(--muted);margin-top:8px;line-height:1.6;">${b.customAccepted?'이 금액으로 정기결제가 적용 중입니다.':'아래 "제안 금액 정기결제 등록" 버튼으로 카드를 등록하면 이 금액이 정기결제 금액이 됩니다.'}</div>`;
+        el.innerHTML=`<div style="font-size:15px;">월 정기결제 요금 <b>${fmtWon(b.customAmount)}</b></div><div style="font-size:13px;color:var(--muted);margin-top:8px;line-height:1.6;">이 학원에는 개별 요금이 적용되어 있어 플랜을 선택할 수 없습니다. 요금이 바뀌면 다음 결제부터 새 금액이 적용됩니다.</div>`;
         return;
     }
-    el.innerHTML=[1,2,3,4].map(n=>`<button class="plan-opt${b.planClassCount===n?' selected':''}" onclick="selectPlan(${n})"><span>${n}개 반${n===4?' 이상':''}</span><span>${fmtWon(b.prices[n])} / 월</span></button>`).join('')
+    el.innerHTML=planOptionsHtml(b)
+        +`<div style="font-size:15px;margin-top:6px;">${b.amount?`월 정기결제 요금 <b>${fmtWon(b.amount)}</b>`:'플랜을 선택하면 월 정기결제 요금이 표시됩니다.'}</div>`
         +'<div style="font-size:13px;color:var(--muted);line-height:1.6;margin-top:4px;">운영하는 반 개수에 맞는 플랜을 선택하세요. 변경한 플랜은 다음 결제부터 적용됩니다.</div>';
+}
+
+// 신규 원장 첫 결제 강제(paywall) 팝업 — 서버가 paywall:true를 내려준 원장에게만 뜬다
+function renderPaywall(){
+    const b=billingInfo;
+    if(!b)return;
+    const planEl=document.getElementById('paywall-plan'),btn=document.getElementById('btn-paywall-pay');
+    if(b.customAmount){
+        planEl.innerHTML=`<div style="font-size:14px;color:var(--muted);">이 학원의 월 정기결제 요금</div><div style="font-size:28px;font-weight:800;color:var(--brand);margin-top:2px;">${fmtWon(b.customAmount)}</div>`;
+    }else{
+        planEl.innerHTML=`<div style="font-size:13px;color:var(--muted);margin-bottom:8px;text-align:left;">운영하는 반 개수에 맞는 플랜을 선택하세요.</div>`+planOptionsHtml(b)
+            +(b.amount?`<div style="font-size:15px;margin-top:6px;">월 정기결제 요금 <b>${fmtWon(b.amount)}</b></div>`:'');
+    }
+    btn.disabled=!b.amount;
+    btn.style.opacity=btn.disabled?'.5':'1';
+    btn.textContent=b.amount?`카드 등록하고 ${fmtWon(b.amount)} 결제하기`:'요금 플랜을 선택해주세요';
+}
+
+// 잠금 오버레이: 연체(overdue)면 연체 오버레이, 신규 원장 미결제(paywall)면 이용 시작 팝업. 둘 다 #app을 inert로 막는다.
+function applyLockOverlays(ps){
+    const b=billingInfo;
+    const pw=!!(b&&b.paywall)&&ps!=='overdue';
+    document.getElementById('paywall-overlay').style.display=pw?'flex':'none';
+    if(pw)renderPaywall();
+    applyOverdueOverlay(ps==='overdue',pw);
+}
+
+// ── 공지 (표시 전용 — 작성·수정·삭제는 최종관리자 사이트) ─────────────────
+// notices 컬렉션 전체를 한 번 읽고 만료(expiresAt<=now)된 것은 클라이언트에서 거른다. 최신(publishedAt) 순.
+let noticeList=[],noticeTimer=null,noticeIdx=0;
+const NOTICE_ROW_H=38,NOTICE_NEW_MS=3*24*3600*1000;
+async function loadNotices(){
+    try{
+        const snap=await window.fsGetDocs(window.fsCollection(window.db,'notices'));
+        const now=Date.now(),list=[];
+        snap.forEach(d=>{const n=d.data();if(n&&n.text&&n.expiresAt>now)list.push({text:String(n.text),publishedAt:n.publishedAt||0});});
+        list.sort((a,b)=>b.publishedAt-a.publishedAt);
+        noticeList=list;
+    }catch(e){noticeList=[];}
+    renderNotices();
+}
+function renderNotices(){
+    const bar=document.getElementById('notice-bar'),track=document.getElementById('notice-track');
+    clearInterval(noticeTimer);noticeTimer=null;noticeIdx=0;
+    if(!noticeList.length){bar.style.display='none';return;}
+    bar.style.display='flex';
+    const now=Date.now();
+    const item=(n,i)=>`<div class="notice-item" onclick="showNotice(${i})">${now-n.publishedAt<=NOTICE_NEW_MS?'<span class="notice-new">NEW</span>':''}<span class="notice-text">${escHtml(n.text)}</span></div>`;
+    track.classList.remove('slide');
+    track.style.transform='translateY(0)';
+    // 여러 개면 첫 항목을 끝에 한 번 더 붙여, 마지막→첫 항목 전환도 같은 방향으로 이어지게 한다
+    track.innerHTML=noticeList.map(item).join('')+(noticeList.length>1?item(noticeList[0],0):'');
+    if(noticeList.length>1)startNoticeRoll();
+}
+function startNoticeRoll(){
+    const track=document.getElementById('notice-track'),n=noticeList.length;
+    const reduce=!!(window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+    clearInterval(noticeTimer);
+    noticeTimer=setInterval(()=>{
+        noticeIdx++;
+        track.classList.add('slide');
+        track.style.transform=`translateY(-${noticeIdx*NOTICE_ROW_H}px)`;
+        if(noticeIdx>=n){
+            const done=()=>{track.classList.remove('slide');track.style.transform='translateY(0)';noticeIdx=0;};
+            if(reduce)done();else setTimeout(done,650); // 전환(0.6s) 후 점프 — transitionend는 백그라운드 탭 등에서 안 올 수 있어 타이머 사용
+        }
+    },4500);
+}
+function pauseNoticeRoll(){clearInterval(noticeTimer);noticeTimer=null;}
+function resumeNoticeRoll(){if(noticeList.length>1&&!noticeTimer)startNoticeRoll();}
+function showNotice(i){
+    const n=noticeList[i];
+    if(!n)return;
+    document.getElementById('notice-modal-text').textContent=n.text;
+    document.getElementById('notice-modal').classList.add('open');
 }
 
 function renderPaymentHistory(){
@@ -3669,7 +3786,7 @@ async function registerCard(){
     if(!directorDocId){showToast('로그인 상태를 확인해주세요','error');return;}
     if(billingInfo&&!billingInfo.amount&&!billingInfo.customAmount){showToast('요금 플랜(반 개수)을 먼저 선택해주세요','error');return;}
     if(billingInfo&&!billingInfo.hasCard){
-        const first=billingInfo.customAmount&&!billingInfo.customAccepted?billingInfo.customAmount:billingInfo.amount;
+        const first=billingInfo.amount;
         if(!confirm(`카드를 등록하면 첫 달 요금 ${fmtWon(first)}이 바로 결제되며, 오늘 날짜가 청구 기준일이 되어 이후 매월 같은 날짜에 자동 결제됩니다.
 계속하시겠습니까?`))return;
     }
@@ -3727,10 +3844,10 @@ async function payOverdue(){
 }
 
 // 연체 오버레이 — 켜져 있는 동안 #app 전체를 inert로 만들어 클릭·키보드 접근을 모두 막는다
-function applyOverdueOverlay(on){
+function applyOverdueOverlay(on,locked){
     const ov=document.getElementById('overdue-overlay'),app=document.getElementById('app');
     ov.style.display=on?'flex':'none';
-    if(on)app.setAttribute('inert','');else app.removeAttribute('inert');
+    if(on||locked)app.setAttribute('inert','');else app.removeAttribute('inert');
     if(!on)return;
     const b=billingInfo,detail=document.getElementById('overdue-detail'),payBtn=document.getElementById('btn-overdue-pay');
     if(!b){detail.textContent='미납 내역을 확인하는 중입니다...';payBtn.disabled=false;return;}

@@ -642,6 +642,9 @@ const NICEPAY_WEBAPI_BASE = 'https://webapi.nicepay.co.kr/webapi';
 const PLAN_PRICES = { 1: 19000, 2: 38000, 3: 57000, 4: 90000 };
 const ALLOWED_RETURN_URL_RE = /^https:\/\/knadlg1\.github\.io\//;
 const AUTH_REQUEST_TTL_MS = 30 * 60 * 1000;
+// 첫 사용자 결제 강제(paywall) 적용 기준 — 이 시각(2026-11-12 00:00 KST) 이후에 만들어진 원장 문서(createdAt)만 대상.
+// 이전에 가입했거나 createdAt이 없는 기존 원장은 면제(서버가 판정할 뿐 데이터를 쓰지 않는다).
+const PAYWALL_START = Date.UTC(2026, 10, 11, 15, 0, 0);
 const CUSTOM_AMOUNT_MIN = 1000;
 const CUSTOM_AMOUNT_MAX = 10000000;
 
@@ -737,12 +740,19 @@ function customAmountOf(d) {
     const c = Number(d.customAmount);
     return Number.isInteger(c) && c > 0 ? c : null;
 }
-// 이번 청구에 적용되는 월 금액. 개별 제안 금액은 원장이 "제안 금액으로 정기결제 등록"(카드 등록)을 해서
-// 수락(customAmountAcceptedAt)한 뒤부터만 적용되고, 그 전에는 선택한 플랜(반 개수) 금액이 적용된다.
+// 이번 청구에 적용되는 월 금액 = 최종관리자가 설정한 개별 요금(customAmount)이 있으면 그 금액, 없으면 플랜(반 개수) 요금표.
+// 이미 결제 주기가 도는 학원의 요금이 바뀌면 다음 청구부터 새 금액이 적용된다.
 function directorMonthlyAmount(d) {
-    const c = customAmountOf(d);
-    if (c && d.customAmountAcceptedAt) return c;
-    return planAmount(d.planClassCount);
+    return customAmountOf(d) || planAmount(d.planClassCount);
+}
+// 첫 사용자 결제 강제: 승인된 원장이 아직 한 번도 결제하지 않았고(paymentStatus 'none'), 문서 createdAt이 PAYWALL_START 이후일 때만.
+// createdAt은 Firestore Timestamp(원장 가입)일 수도, 밀리초 숫자(최종관리자의 원장 추가)일 수도 있다.
+function isPaywalled(d) {
+    if (d.status !== 'approved') return false;
+    if ((d.paymentStatus || 'none') !== 'none') return false;
+    const c = d.createdAt;
+    const ms = c && typeof c.toMillis === 'function' ? c.toMillis() : (typeof c === 'number' ? c : null);
+    return ms !== null && ms >= PAYWALL_START;
 }
 
 // 원장 인증 — 클라이언트가 보낸 passwordHash를 directors 문서와 대조한다.
@@ -983,10 +993,8 @@ exports.issueBillingKey = functions.runWith({ secrets: ['NICEPAY_MID', 'NICEPAY_
         // (해지했지만 이용 기간이 남아 있는 상태에서 카드를 다시 등록하면 해지만 철회하고 기존 청구 주기를 그대로 잇는다.)
         const cancelled = !!(d.cancelAt && typeof d.cancelAt.toMillis === 'function' && d.cancelAt.toMillis() <= nowMs);
         const isFirst = !d.billingStartedAt || cancelled;
-        // 제안 금액으로 정기결제 등록 = 제안 수락. 금액은 수락 반영 후 서버가 다시 계산한다.
-        const merged = { ...d, ...(customAmountOf(d) ? { customAmountAcceptedAt: ts } : {}) };
-        const firstAmount = isFirst ? directorMonthlyAmount(merged) : null;
-        if (isFirst && !firstAmount) { await reqRef.delete().catch(() => {}); redirectBack(returnUrl, false); return; } // 플랜/제안 모두 없음 — prepareBillingAuth가 막지만 방어
+        const firstAmount = isFirst ? directorMonthlyAmount(d) : null;
+        if (isFirst && !firstAmount) { await reqRef.delete().catch(() => {}); redirectBack(returnUrl, false); return; } // 플랜/개별 요금 모두 없음 — prepareBillingAuth가 막지만 방어
 
         await db.doc('directorBilling/' + directorId).set({ billingKey: resultBody.BID, updatedAt: ts });
         const update = {
@@ -995,7 +1003,6 @@ exports.issueBillingKey = functions.runWith({ secrets: ['NICEPAY_MID', 'NICEPAY_
             cancelRequestedAt: admin.firestore.FieldValue.delete(),
             billingKey: admin.firestore.FieldValue.delete(), // 과거 방식(directors 문서에 저장)의 잔재 제거
         };
-        if (customAmountOf(d)) update.customAmountAcceptedAt = ts;
         if (isFirst) update.billingStartedAt = admin.firestore.Timestamp.fromDate(new Date(nowMs)); // 청구 기준일 = 첫 결제일
         else if (d.paymentStatus !== 'overdue') update.paymentStatus = 'active'; // 연체는 카드 재등록만으로 풀리지 않는다
         await dirRef.update(update);
@@ -1044,8 +1051,9 @@ exports.getDirectorBillingInfo = functions.https.onRequest(async (req, res) => {
             hasCard:        !!billingKey,
             planClassCount: planAmount(d.planClassCount) ? Number(d.planClassCount) : null,
             customAmount:   custom,
-            customAccepted: !!(custom && d.customAmountAcceptedAt),
             amount:         directorMonthlyAmount(d),
+            amountSource:   custom ? 'custom' : (planAmount(d.planClassCount) ? 'plan' : null),
+            paywall:        isPaywalled(d),
             prices:         PLAN_PRICES,
             billingDay:     billingStartMs(d) !== null ? kstParts(billingStartMs(d)).d : null,
             nextBillingDate: (d.cancelAt || !billingKey) ? null : kstDateStr(nextBillingInstant(d)),
@@ -1070,6 +1078,7 @@ exports.setDirectorPlan = functions.https.onRequest(async (req, res) => {
         if (!call) return;
         const n = Number(call.body.planClassCount);
         if (!planAmount(n)) { res.json({ status: 'error', message: '잘못된 플랜입니다.' }); return; }
+        if (customAmountOf(call.data)) { res.json({ status: 'error', message: '개별 요금이 적용된 학원은 플랜을 선택할 수 없습니다.' }); return; }
         await call.ref.update({ planClassCount: n });
         res.json({ status: 'success', planClassCount: n, amount: PLAN_PRICES[n] });
     } catch (e) {
@@ -1191,8 +1200,8 @@ exports.listDirectorPayments = functions.https.onRequest(async (req, res) => {
                 lastPaymentAt:  tsToKstDateStr(d.lastPaymentAt) || (typeof d.lastPaymentAt === 'string' ? d.lastPaymentAt.slice(0, 10) : null),
                 planClassCount: planAmount(d.planClassCount) ? Number(d.planClassCount) : null,
                 customAmount:   custom,
-                customAccepted: !!(custom && d.customAmountAcceptedAt),
                 amount:         directorMonthlyAmount(d),
+                amountSource:   custom ? 'custom' : (planAmount(d.planClassCount) ? 'plan' : null),
                 cancelAt:       tsToKstDateStr(d.cancelAt),
                 billingDay:     billingStartMs(d) !== null ? kstParts(billingStartMs(d)).d : null,
                 nextBillingDate: (d.cancelAt || billingStartMs(d) === null) ? null : kstDateStr(nextBillingInstant(d)),
@@ -1223,7 +1232,7 @@ exports.setDirectorPaymentStatus = functions.https.onRequest(async (req, res) =>
         const d = snap.data();
         if (d.paymentStatus === 'overdue') { res.json({ success: true }); return; }
         const amount = directorMonthlyAmount(d);
-        if (!amount) { res.json({ success: false, message: '요금 플랜(또는 수락된 제안 금액)이 없어 청구 금액을 알 수 없습니다.' }); return; }
+        if (!amount) { res.json({ success: false, message: '요금 플랜(또는 개별 요금)이 없어 청구 금액을 알 수 없습니다.' }); return; }
         await db.doc(`payments/${directorId}_manual_${Date.now()}`).set({
             directorId, month: kstMonthKey(), amount, status: 'unpaid',
             paidAt: null, error: '관리자 연체 처리', createdAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -1236,8 +1245,8 @@ exports.setDirectorPaymentStatus = functions.https.onRequest(async (req, res) =>
     }
 });
 
-// 개별 제안 금액 설정/삭제(amount가 null/0이면 삭제). 제안을 바꾸면 수락(customAmountAcceptedAt)이 초기화되어
-// 원장이 새 금액으로 정기결제를 다시 등록해야 그 금액이 청구된다.
+// 개별 요금 설정/해제(amount가 null/0이면 해제). 설정한 금액이 즉시 그 학원의 월 정기결제 요금이 된다
+// (이미 결제 주기가 도는 학원은 다음 청구부터 적용). 원장 수락 단계는 없다.
 exports.setDirectorCustomAmount = functions.https.onRequest(async (req, res) => {
     setCors(res);
     if (req.method === 'OPTIONS') { res.status(204).send(''); return; }
@@ -1249,17 +1258,181 @@ exports.setDirectorCustomAmount = functions.https.onRequest(async (req, res) => 
         if (!(await ref.get()).exists) { res.json({ success: false, message: '원장을 찾을 수 없습니다.' }); return; }
         const del = admin.firestore.FieldValue.delete();
         if (amount === null || amount === undefined || amount === '' || Number(amount) === 0) {
-            await ref.update({ customAmount: del, customAmountAcceptedAt: del, customAmountSetAt: del });
+            await ref.update({ customAmount: del, customAmountSetAt: del });
             res.json({ success: true, customAmount: null }); return;
         }
         const n = Number(amount);
         if (!Number.isInteger(n) || n < CUSTOM_AMOUNT_MIN || n > CUSTOM_AMOUNT_MAX) {
             res.json({ success: false, message: `금액은 ${CUSTOM_AMOUNT_MIN.toLocaleString()}~${CUSTOM_AMOUNT_MAX.toLocaleString()}원 사이의 정수여야 합니다.` }); return;
         }
-        await ref.update({ customAmount: n, customAmountAcceptedAt: del, customAmountSetAt: admin.firestore.FieldValue.serverTimestamp() });
+        await ref.update({ customAmount: n, customAmountSetAt: admin.firestore.FieldValue.serverTimestamp() });
         res.json({ success: true, customAmount: n });
     } catch (e) {
         console.error('setDirectorCustomAmount error:', e);
+        res.json({ success: false, message: e.message });
+    }
+});
+
+// ── 일괄 요금 조정(최종관리자) ──────────────────────────────────────────────
+// mode 'preview': 대상 원장별 변경 전→후 금액을 계산만 해서 돌려준다(쓰기 없음).
+// mode 'apply'  : 미리보기에서 받은 "변경 후 금액"(items[].after)을 그대로 개별 요금으로 set 한다. 증가분을 다시 더하는 방식이 아니라
+//                 절대값 set 이라, 부분 실패 후 같은 요청을 다시 보내도 인상이 중복 적용되지 않는다.
+// 방식: 'add' = 현재 금액 + N원, 'percent' = 현재 금액 × (1 + N/100) 을 계산한 뒤 100원 단위로 반올림(예: 19,000 +5% = 19,950 → 20,000).
+// 현재 금액 = 개별 요금이 있으면 그 금액, 없으면 플랜 요금(플랜 요금인 학원은 현재 플랜 금액 + 인상분이 개별 요금이 된다).
+// 변경 후 금액이 1,000~10,000,000원을 벗어나면 그 학원은 적용 대상에서 제외(ok:false)된다.
+function bulkAfterAmount(before, method, value) {
+    if (method === 'add') return before + value;
+    return Math.round(before * (1 + value / 100) / 100) * 100;
+}
+exports.bulkAdjustDirectorAmount = functions.https.onRequest(async (req, res) => {
+    setCors(res);
+    if (req.method === 'OPTIONS') { res.status(204).send(''); return; }
+    try {
+        const { passwordHash, mode, method, value, targetIds, items } = parseBody(req) || {};
+        if (!(await isSuperadmin(passwordHash))) { res.json({ success: false, message: '인증 실패' }); return; }
+        const inRange = n => Number.isInteger(n) && n >= CUSTOM_AMOUNT_MIN && n <= CUSTOM_AMOUNT_MAX;
+
+        if (mode === 'preview') {
+            const v = Number(value);
+            if (method !== 'add' && method !== 'percent') { res.json({ success: false, message: '조정 방식이 올바르지 않습니다.' }); return; }
+            if (method === 'add' && !(Number.isInteger(v) && v > 0 && v <= CUSTOM_AMOUNT_MAX)) { res.json({ success: false, message: '인상 금액은 1원 이상의 정수여야 합니다.' }); return; }
+            if (method === 'percent' && !(v > 0 && v <= 100)) { res.json({ success: false, message: '인상률은 0 초과 100 이하여야 합니다.' }); return; }
+            let docs;
+            if (Array.isArray(targetIds)) {
+                if (!targetIds.length || targetIds.length > 500 || targetIds.some(id => typeof id !== 'string' || !id || id.includes('/'))) { res.json({ success: false, message: '대상 학원이 올바르지 않습니다.' }); return; }
+                docs = (await Promise.all(targetIds.map(id => db.doc('directors/' + id).get()))).filter(x => x.exists && x.data().status === 'approved');
+            } else {
+                docs = (await db.collection('directors').where('status', '==', 'approved').get()).docs;
+            }
+            const out = docs.map(doc => {
+                const d = doc.data();
+                const custom = customAmountOf(d);
+                const before = directorMonthlyAmount(d);
+                const base = { directorId: doc.id, academyName: d.academyName || '', name: d.name || '', before, source: custom ? 'custom' : (before ? 'plan' : null) };
+                if (!before) return { ...base, after: null, ok: false, reason: '현재 요금 없음(플랜 미선택)' };
+                const after = bulkAfterAmount(before, method, v);
+                if (!inRange(after)) return { ...base, after, ok: false, reason: `변경 후 금액이 허용 범위(${CUSTOM_AMOUNT_MIN.toLocaleString()}~${CUSTOM_AMOUNT_MAX.toLocaleString()}원) 밖` };
+                return { ...base, after, ok: true };
+            }).sort((x, y) => x.academyName.localeCompare(y.academyName));
+            res.json({ success: true, items: out });
+            return;
+        }
+
+        if (mode === 'apply') {
+            if (!Array.isArray(items) || !items.length || items.length > 500) { res.json({ success: false, message: '적용할 항목이 없습니다.' }); return; }
+            const succeeded = [], failed = [];
+            for (const it of items) {
+                const id = it && it.directorId;
+                if (typeof id !== 'string' || !id || id.includes('/')) { failed.push({ directorId: String(id), reason: '잘못된 ID' }); continue; }
+                const after = Number(it.after);
+                if (!inRange(after)) { failed.push({ directorId: id, reason: '금액 범위 오류' }); continue; }
+                try {
+                    const ref = db.doc('directors/' + id);
+                    if (!(await ref.get()).exists) { failed.push({ directorId: id, reason: '원장을 찾을 수 없음' }); continue; }
+                    await ref.update({ customAmount: after, customAmountSetAt: admin.firestore.FieldValue.serverTimestamp() });
+                    succeeded.push(id);
+                } catch (e) { failed.push({ directorId: id, reason: e.message }); }
+            }
+            res.json({ success: failed.length === 0, succeeded, failed });
+            return;
+        }
+
+        res.json({ success: false, message: 'mode가 올바르지 않습니다.' });
+    } catch (e) {
+        console.error('bulkAdjustDirectorAmount error:', e);
+        res.json({ success: false, message: e.message });
+    }
+});
+
+// ── 공지(최종관리자 작성 → 원장 화면 표시 전용) ────────────────────────────────
+// notices/{id}: text(≤100자, 줄바꿈 없음), publishedAt/expiresAt(ms), createdAt/updatedAt.
+// 등록 시각부터 14일 노출. 수정하면 publishedAt이 지금으로 갱신되어 14일이 다시 시작된다(원장 화면에서는 새 공지 취급).
+// 쓰기는 이 함수들(최종관리자 인증)로만 하고, 원장 화면(admin.html)은 notices를 클라이언트에서 읽기만 한다.
+const NOTICE_MAX_LEN = 100;
+const NOTICE_DAYS_MS = 14 * 24 * 3600 * 1000;
+function cleanNoticeText(t) {
+    if (typeof t !== 'string') return null;
+    const v = t.trim();
+    if (!v || /[\r\n]/.test(v) || Array.from(v).length > NOTICE_MAX_LEN) return null;
+    return v;
+}
+const NOTICE_TEXT_ERR = `공지는 줄바꿈 없이 1~${NOTICE_MAX_LEN}자로 입력해주세요.`;
+const validDocId = id => typeof id === 'string' && !!id && !id.includes('/') && id.length <= 200;
+
+exports.createNotice = functions.https.onRequest(async (req, res) => {
+    setCors(res);
+    if (req.method === 'OPTIONS') { res.status(204).send(''); return; }
+    try {
+        const { passwordHash, text } = parseBody(req) || {};
+        if (!(await isSuperadmin(passwordHash))) { res.json({ success: false, message: '인증 실패' }); return; }
+        const clean = cleanNoticeText(text);
+        if (!clean) { res.json({ success: false, message: NOTICE_TEXT_ERR }); return; }
+        const now = Date.now();
+        const ref = db.collection('notices').doc();
+        await ref.set({
+            text: clean, publishedAt: now, expiresAt: now + NOTICE_DAYS_MS,
+            createdAt: admin.firestore.FieldValue.serverTimestamp(), updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+        res.json({ success: true, id: ref.id });
+    } catch (e) {
+        console.error('createNotice error:', e);
+        res.json({ success: false, message: e.message });
+    }
+});
+
+exports.updateNotice = functions.https.onRequest(async (req, res) => {
+    setCors(res);
+    if (req.method === 'OPTIONS') { res.status(204).send(''); return; }
+    try {
+        const { passwordHash, id, text } = parseBody(req) || {};
+        if (!(await isSuperadmin(passwordHash))) { res.json({ success: false, message: '인증 실패' }); return; }
+        if (!validDocId(id)) { res.json({ success: false, message: '공지 ID가 올바르지 않습니다.' }); return; }
+        const clean = cleanNoticeText(text);
+        if (!clean) { res.json({ success: false, message: NOTICE_TEXT_ERR }); return; }
+        const ref = db.doc('notices/' + id);
+        if (!(await ref.get()).exists) { res.json({ success: false, message: '공지를 찾을 수 없습니다.' }); return; }
+        const now = Date.now();
+        await ref.update({ text: clean, publishedAt: now, expiresAt: now + NOTICE_DAYS_MS, updatedAt: admin.firestore.FieldValue.serverTimestamp() });
+        res.json({ success: true });
+    } catch (e) {
+        console.error('updateNotice error:', e);
+        res.json({ success: false, message: e.message });
+    }
+});
+
+exports.deleteNotice = functions.https.onRequest(async (req, res) => {
+    setCors(res);
+    if (req.method === 'OPTIONS') { res.status(204).send(''); return; }
+    try {
+        const { passwordHash, id } = parseBody(req) || {};
+        if (!(await isSuperadmin(passwordHash))) { res.json({ success: false, message: '인증 실패' }); return; }
+        if (!validDocId(id)) { res.json({ success: false, message: '공지 ID가 올바르지 않습니다.' }); return; }
+        const ref = db.doc('notices/' + id);
+        if (!(await ref.get()).exists) { res.json({ success: false, message: '공지를 찾을 수 없습니다.' }); return; }
+        await ref.delete();
+        res.json({ success: true });
+    } catch (e) {
+        console.error('deleteNotice error:', e);
+        res.json({ success: false, message: e.message });
+    }
+});
+
+// 최종관리자 공지 목록 — 만료된 공지 포함, 최신(publishedAt) 순, 상태(active/expired) 표시용
+exports.listNotices = functions.https.onRequest(async (req, res) => {
+    setCors(res);
+    if (req.method === 'OPTIONS') { res.status(204).send(''); return; }
+    try {
+        const { passwordHash } = parseBody(req) || {};
+        if (!(await isSuperadmin(passwordHash))) { res.json({ success: false, message: '인증 실패' }); return; }
+        const now = Date.now();
+        const snap = await db.collection('notices').get();
+        const notices = snap.docs.map(doc => {
+            const n = doc.data();
+            return { id: doc.id, text: n.text || '', publishedAt: n.publishedAt || 0, expiresAt: n.expiresAt || 0, status: (n.expiresAt || 0) > now ? 'active' : 'expired' };
+        }).sort((a, b) => b.publishedAt - a.publishedAt);
+        res.json({ success: true, notices });
+    } catch (e) {
+        console.error('listNotices error:', e);
         res.json({ success: false, message: e.message });
     }
 });
