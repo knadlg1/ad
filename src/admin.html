@@ -547,6 +547,7 @@ css inline edit/* 출결 인증 요청 */
 .att-tr-none{background:#FAFAFA;}
 .att-table td{padding:8px 8px;vertical-align:middle;white-space:nowrap;text-align:center;}
 .att-td-cls{font-size:13px;color:var(--brand);font-weight:700;max-width:88px;overflow:hidden;text-overflow:ellipsis;}
+.att-jabi-tag{display:inline-block;margin-left:6px;padding:1px 8px;border-radius:10px;background:#E0E7FF;color:#4338CA;font-size:10px;font-weight:800;vertical-align:middle;line-height:1.5;}
 .att-td-name{font-weight:700;font-size:15px;}
 .att-td-hosp{font-size:13px;color:var(--muted);max-width:100px;overflow:hidden;text-overflow:ellipsis;}
 .att-td-period{font-size:12px;color:var(--muted);}
@@ -2201,7 +2202,7 @@ function renderAttendance(){
             const accBar=`<div class="prog-wrap-s"><div class="prog-bar-track-s"><div style="background:var(--brand);width:${actualPct}%;height:100%;"></div><div style="background:#c4b5fd;width:${gapPct}%;height:100%;"></div><div style="background:#e2e8f0;width:${remainPct}%;height:100%;"></div></div><div class="prog-label-s">${accH}h / ${stdH}h / 780h</div></div>`;
             return `<tr class="${rowClass}">
                 <td class="att-td-cls">${escHtml(clsName)}</td>
-                <td class="att-td-name">${escHtml(stu.name||'-')}</td>
+                <td class="att-td-name">${escHtml(stu.name||'-')}${stu.jabi?'<span class="att-jabi-tag">자비</span>':''}</td>
                 <td class="att-td-hosp">${escHtml(stu.hospital||'-')}</td>
                 <td class="prog-cell">${accBar}</td>
                 <td class="att-td-time">${inT||'-'}</td>
@@ -2251,7 +2252,7 @@ function renderAttendance(){
             const accH=Math.round(totalMins/6)/10;
             const summaryRow=`<tr class="att-range-summary">
                 <td class="att-td-cls">${escHtml(clsName)}</td>
-                <td class="att-td-name">${escHtml(stu.name||'-')}</td>
+                <td class="att-td-name">${escHtml(stu.name||'-')}${stu.jabi?'<span class="att-jabi-tag">자비</span>':''}</td>
                 <td class="att-td-hosp">${escHtml(stu.hospital||'-')}</td>
                 <td style="text-align:center;font-weight:600;">${attendedDays}/${pracDateList.length}일</td>
                 <td style="text-align:center;color:#EF4444;font-weight:700;">${absentDays}</td>
