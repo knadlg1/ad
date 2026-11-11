@@ -452,6 +452,12 @@ body{font-family:'Pretendard',system-ui,sans-serif;background:var(--canvas);colo
 .pay-card-brand{font-size:12px;color:rgba(255,255,255,0.7);margin-top:4px;}
 .pay-status-row{display:flex;justify-content:space-between;align-items:center;padding:13px 0;border-bottom:1px solid var(--border);font-size:14px;}
 .pay-status-row:last-child{border-bottom:none;}
+.pay-notice{background:#FFF7ED;border:1px solid #FED7AA;color:#9A3412;border-radius:12px;padding:12px 16px;font-size:13px;line-height:1.6;margin-bottom:16px;width:100%;max-width:520px;}
+.plan-opt{display:flex;justify-content:space-between;align-items:center;width:100%;padding:14px 16px;margin-bottom:8px;border:1.5px solid var(--border);border-radius:12px;background:var(--surface);cursor:pointer;font-size:15px;font-weight:600;color:var(--text);}
+.plan-opt:hover{border-color:var(--brand);}
+.plan-opt.selected{border-color:var(--brand);background:var(--brand-xlight);color:var(--brand);}
+.overdue-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:9500;align-items:center;justify-content:center;padding:24px;overflow-y:auto;}
+.overdue-box{background:var(--surface);border-radius:20px;padding:36px 32px;max-width:460px;width:100%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.4);}
 
 /* ── 버튼 ── */
 .btn{padding:9px 18px;border-radius:var(--pill);border:none;cursor:pointer;font-size:13px;font-weight:700;transition:all 0.15s;letter-spacing:-0.01em;}
@@ -731,18 +737,23 @@ body{font-family:'Pretendard',system-ui,sans-serif;background:var(--canvas);colo
     <button class="auth-btn auth-btn-outline" onclick="showScreen('login')">확인</button>
   </div>
 
-  <div id="screen-payment-blocked" class="auth-card" style="display:none;">
-    <div class="blocked-card">
-      <div class="blocked-icon">🔒</div>
-      <div class="blocked-title">이용이 제한되었습니다</div>
-      <div class="blocked-desc" style="margin-bottom:24px;">월 이용료 미납으로 관리자 화면이 잠겼습니다.</div>
-    </div>
-    <button class="auth-btn auth-btn-primary" onclick="doDirectorLogin_afterBlock()">카드 등록하러 가기</button>
-    <button class="auth-btn auth-btn-outline" style="margin-top:8px;" onclick="adminLogout()">로그아웃</button>
-  </div>
 </div>
 
 <!-- ── APP ── -->
+<!-- 연체 오버레이: 연체 중이면 메인 화면 전체를 덮고(#app은 inert) 이 박스 안의 버튼만 사용 가능 -->
+<div id="overdue-overlay" class="overdue-overlay">
+  <div class="overdue-box">
+    <div class="blocked-icon">🔒</div>
+    <div class="blocked-title">미납된 이용료가 있습니다</div>
+    <div class="blocked-desc" style="margin-bottom:14px;">월 이용료 결제가 완료되지 않아 관리자 화면이 잠겼습니다.<br>아래 <b>연체 결제</b>를 완료하면 바로 이용하실 수 있습니다.</div>
+    <div id="overdue-detail" style="background:var(--canvas);border-radius:12px;padding:14px 16px;font-size:14px;line-height:1.7;margin-bottom:14px;text-align:left;"></div>
+    <div class="pay-notice" style="max-width:none;text-align:left;margin-bottom:18px;">결제를 늦게 하셔도 청구 기준일은 <b>'처음 시작한 날(첫 청구 기준일)'</b>부터 계속 계산됩니다. 연체 기간에도 학생들은 앱으로 출퇴근을 계속할 수 있기 때문입니다.</div>
+    <button class="btn btn-primary" id="btn-overdue-pay" style="width:100%;padding:14px;font-size:15px;" onclick="payOverdue()">연체 결제</button>
+    <button class="btn btn-outline" style="width:100%;padding:12px;font-size:14px;margin-top:8px;" onclick="registerCard()">카드 등록 / 변경</button>
+    <button class="btn btn-ghost" style="width:100%;padding:10px;font-size:13px;margin-top:8px;" onclick="adminLogout()">로그아웃</button>
+  </div>
+</div>
+
 <div id="app" class="app" style="display:none;">
   <div class="body">
     <div class="sidebar">
@@ -1174,13 +1185,22 @@ body{font-family:'Pretendard',system-ui,sans-serif;background:var(--canvas);colo
             <button class="stab-btn" onclick="showSettingsTab('subs',this)">구독 현황</button>
           </div>
 
+          <div class="pay-notice">결제를 늦게 하셔도 청구 기준일은 <b>'처음 시작한 날(첫 청구 기준일)'</b>부터 계속 계산됩니다. 연체 기간에도 학생들은 앱으로 출퇴근을 계속할 수 있기 때문입니다.</div>
+
           <div id="stab-card" class="stab-panel active">
+            <div class="card" style="margin-bottom:16px;">
+              <div class="card-title">요금 플랜</div>
+              <div id="plan-card-body"><div style="color:var(--muted);font-size:14px;">불러오는 중...</div></div>
+            </div>
             <div class="card">
               <div class="card-title">등록된 카드</div>
               <div id="card-display">
                 <div style="color:var(--muted);text-align:center;padding:24px;font-size:15px;">등록된 카드 없음</div>
               </div>
-              <button class="btn btn-primary" style="width:100%;margin-top:16px;padding:14px;font-size:15px;" id="btn-register-card" onclick="registerCard()">카드 등록</button>
+              <div id="card-notice" style="font-size:13px;color:var(--muted);line-height:1.6;margin-bottom:12px;"></div>
+              <button class="btn btn-primary" style="width:100%;padding:14px;font-size:15px;" id="btn-register-card" onclick="registerCard()">카드 등록</button>
+              <button class="btn btn-outline" style="width:100%;padding:14px;font-size:15px;margin-top:8px;" id="btn-cancel-service" onclick="cancelService()">서비스 해지</button>
+              <button class="btn btn-ghost" style="width:100%;padding:14px;font-size:15px;margin-top:8px;" id="btn-refund-inquiry" onclick="openRefundInquiry()">환불 문의</button>
             </div>
           </div>
 
@@ -1189,7 +1209,7 @@ body{font-family:'Pretendard',system-ui,sans-serif;background:var(--canvas);colo
               <div class="card-title">구독 현황</div>
               <div class="pay-status-row">
                 <span style="color:var(--muted);font-size:15px;">월 이용료</span>
-                <span style="font-weight:700;font-size:17px;">30,000원</span>
+                <span style="font-weight:700;font-size:17px;" id="monthly-amount">-</span>
               </div>
               <div class="pay-status-row">
                 <span style="color:var(--muted);font-size:15px;">다음 결제일</span>
@@ -1198,6 +1218,10 @@ body{font-family:'Pretendard',system-ui,sans-serif;background:var(--canvas);colo
               <div class="pay-status-row">
                 <span style="color:var(--muted);font-size:15px;">결제 상태</span>
                 <span id="payment-status-badge"></span>
+              </div>
+              <div class="pay-status-row" id="unpaid-row" style="display:none;">
+                <span style="color:var(--muted);font-size:15px;">미납</span>
+                <span style="font-weight:700;font-size:15px;color:#B91C1C;" id="unpaid-text"></span>
               </div>
               <div class="pay-status-row" style="border-bottom:none;padding-bottom:0;">
                 <span style="color:var(--muted);font-size:15px;">결제 내역</span>
@@ -1498,10 +1522,6 @@ async function init(){
                 document.getElementById('auth-wrap').style.display='flex';
                 showScreen('pending'); return;
             }
-            if(directorData.paymentStatus==='overdue'){
-                document.getElementById('auth-wrap').style.display='flex';
-                showScreen('payment-blocked'); return;
-            }
             if(directorData.status==='approved'){
                 showApp(); await loadAll(); return;
             }
@@ -1528,7 +1548,6 @@ async function doLogin(){
         if(!found){errEl.textContent='비밀번호가 일치하지 않습니다.';errEl.style.display='block';showLoader(false);return;}
         directorData=found; directorDocId=foundId;
         if(found.status==='pending'){showLoader(false);showScreen('pending');return;}
-        if(found.paymentStatus==='overdue'){showLoader(false);showScreen('payment-blocked');return;}
         if(found.status!=='approved'){errEl.textContent='승인되지 않은 계정입니다.';errEl.style.display='block';showLoader(false);return;}
         sessionStorage.setItem('directorSession',JSON.stringify({data:found,docId:foundId}));
         showApp(); await loadAll();
@@ -1536,7 +1555,6 @@ async function doLogin(){
     showLoader(false);
 }
 
-function doDirectorLogin_afterBlock(){if(directorData){showApp();showPage('settings',document.getElementById('nav-settings'));}}
 
 // ── Registration ─────────────────────────────────────────
 async function sendOTP(){
@@ -1585,8 +1603,8 @@ async function doRegister(){
         const academyId='academy_'+Date.now();
         await window.fsAddDoc(window.fsCollection(window.db,'directors'),{
             phone:regPhone,passwordHash:hash,name,academyName:academy,
-            academyId,status:'pending',paymentStatus:'none',
-            billingKey:null,cardInfo:null,createdAt:window.fsServerTimestamp()
+            academyId,status:'pending',
+            createdAt:window.fsServerTimestamp()
         });
         showScreen('pending');
     }catch(e){errEl.textContent='가입 실패: '+e.message;errEl.style.display='block';}
@@ -1600,7 +1618,8 @@ async function hashPw(pw){
 
 function adminLogout(){
     sessionStorage.removeItem('directorSession');
-    directorData=null; directorDocId=null;
+    directorData=null; directorDocId=null; billingInfo=null;
+    applyOverdueOverlay(false);
     document.getElementById('app').style.display='none';
     document.getElementById('auth-wrap').style.display='flex';
     showScreen('login');
@@ -1614,6 +1633,7 @@ function showApp(){
         document.getElementById('topbar-director-name').textContent=directorData.name||'';
     }
     renderPaymentInfo();
+    loadBillingInfo();
     setDateRange('today');
     if(!_flatpickrInited&&typeof flatpickr!=='undefined'){
         _flatpickrInited=true;
@@ -3526,42 +3546,108 @@ async function saveTimetable(){
 }
 
 // ── Payment ───────────────────────────────────────────────
+// 결제 정보는 서버 함수(원장 인증 포함)로만 읽고 쓴다 — Firestore를 클라이언트에서 직접 읽거나 쓰지 않고,
+// 빌링키는 클라이언트로 내려오지 않는다.
+let billingInfo=null;
+const REFUND_CHAT_URL='https://pf.kakao.com/_xlAFsX/chat';
+const fmtWon=n=>'₩'+Number(n||0).toLocaleString();
+const fmtDot=s=>s?String(s).replace(/-/g,'.'):'-';
+
+async function billingCall(fn,extra){
+    const res=await fetch(CF_BASE_URL+'/'+fn,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({directorId:directorDocId,passwordHash:directorData&&directorData.passwordHash,...(extra||{})})});
+    return res.json();
+}
+
+async function loadBillingInfo(){
+    if(!directorDocId||!directorData)return;
+    try{
+        const data=await billingCall('getDirectorBillingInfo');
+        if(data.status!=='success')return;
+        billingInfo=data;
+        directorData.paymentStatus=data.paymentStatus;
+        directorData.cardInfo=data.cardInfo;
+        sessionStorage.setItem('directorSession',JSON.stringify({data:directorData,docId:directorDocId}));
+        renderPaymentInfo();
+    }catch(e){}
+}
+
 function renderPaymentInfo(){
     if(!directorData)return;
+    const b=billingInfo;
+    const ps=b?b.paymentStatus:(directorData.paymentStatus||'none');
+    const card=b?b.cardInfo:directorData.cardInfo;
+    const hasCard=b?b.hasCard:!!card;
     const cardEl=document.getElementById('card-display');
-    if(directorData.cardInfo){
-        cardEl.innerHTML=`<div class="pay-card-display"><div><div class="pay-card-num">**** **** **** ${directorData.cardInfo.last4||'****'}</div><div class="pay-card-brand">${directorData.cardInfo.brand||'카드'}</div></div><span style="font-size:24px;">💳</span></div>`;
-        document.getElementById('btn-register-card').textContent='카드 변경';
+    if(card){
+        cardEl.innerHTML=`<div class="pay-card-display"><div><div class="pay-card-num">**** **** **** ${escHtml(card.last4||'****')}</div><div class="pay-card-brand">${escHtml(card.brand||'카드')}</div></div><span style="font-size:24px;">💳</span></div>`;
+    }else{
+        cardEl.innerHTML='<div style="color:var(--muted);text-align:center;padding:24px;font-size:15px;">등록된 카드 없음</div>';
     }
-    const now=new Date(Date.now()+9*60*60*1000);
-    const next=new Date(now.getUTCFullYear(),now.getUTCMonth()+1,1);
-    document.getElementById('next-billing-date').textContent=`${next.getFullYear()}.${String(next.getMonth()+1).padStart(2,'0')}.01`;
-    const ps=directorData.paymentStatus;
+    const proposal=!!(b&&b.customAmount&&!b.customAccepted);
+    document.getElementById('btn-register-card').textContent=proposal?`제안 금액 ${fmtWon(b.customAmount)} 정기결제 등록`:(card?'카드 변경':'카드 등록');
+    const cancelBtn=document.getElementById('btn-cancel-service');
+    cancelBtn.disabled=!b||!hasCard||!!b.cancelAt;
+    cancelBtn.style.opacity=cancelBtn.disabled?'.5':'1';
+    cancelBtn.textContent=b&&b.cancelAt?'해지 신청됨':'서비스 해지';
+    const noticeEl=document.getElementById('card-notice');
+    if(!b)noticeEl.textContent='';
+    else if(b.cancelAt)noticeEl.textContent=`서비스 해지가 신청되었습니다. 다음 결제일(${fmtDot(b.cancelAt)}) 전까지 계속 이용하실 수 있으며, 이후 자동 결제는 진행되지 않습니다. 계속 이용하시려면 카드를 다시 등록해주세요.`;
+    else if(hasCard)noticeEl.textContent=`해지하시면 다음 자동 결제가 중단됩니다. 이미 결제하신 기간은 다음 결제일(${fmtDot(b.nextBillingDate)}) 전까지 계속 이용하실 수 있습니다.`;
+    else noticeEl.textContent='카드를 등록하면 매월 1일 자동으로 결제됩니다. 청구에 실패하면 재시도 없이 미납 처리되며 이용이 잠깁니다.';
+
+    renderPlanCard();
+
+    document.getElementById('monthly-amount').textContent=b&&b.amount?fmtWon(b.amount):'플랜 미선택';
+    document.getElementById('next-billing-date').textContent=!b?'-':(b.cancelAt?'해지 예정(자동 결제 없음)':(b.hasCard?fmtDot(b.nextBillingDate):'카드 등록 후 시작'));
     const badgeEl=document.getElementById('payment-status-badge');
     if(ps==='active')badgeEl.innerHTML='<span class="badge badge-green">정상 이용 중</span>';
     else if(ps==='overdue')badgeEl.innerHTML='<span class="badge badge-red">미납</span>';
     else badgeEl.innerHTML='<span class="badge badge-gray">카드 미등록</span>';
-    loadPaymentHistory();
+    const unpaidRow=document.getElementById('unpaid-row');
+    if(b&&b.unpaid.length){unpaidRow.style.display='';document.getElementById('unpaid-text').textContent=`${b.unpaid.length}개월 · ${fmtWon(b.unpaidTotal)}`;}
+    else unpaidRow.style.display='none';
+    renderPaymentHistory();
+    applyOverdueOverlay(ps==='overdue');
 }
 
-async function loadPaymentHistory(){
+function renderPlanCard(){
+    const el=document.getElementById('plan-card-body');
+    const b=billingInfo;
+    if(!b){el.innerHTML='<div style="color:var(--muted);font-size:14px;">불러오는 중...</div>';return;}
+    if(b.customAmount){
+        el.innerHTML=`<div style="font-size:15px;">개별 제안 금액 <b>${fmtWon(b.customAmount)}</b> / 월</div><div style="font-size:13px;color:var(--muted);margin-top:8px;line-height:1.6;">${b.customAccepted?'이 금액으로 정기결제가 적용 중입니다.':'아래 "제안 금액 정기결제 등록" 버튼으로 카드를 등록하면 이 금액이 정기결제 금액이 됩니다.'}</div>`;
+        return;
+    }
+    el.innerHTML=[1,2,3,4].map(n=>`<button class="plan-opt${b.planClassCount===n?' selected':''}" onclick="selectPlan(${n})"><span>${n}개 반${n===4?' 이상':''}</span><span>${fmtWon(b.prices[n])} / 월</span></button>`).join('')
+        +'<div style="font-size:13px;color:var(--muted);line-height:1.6;margin-top:4px;">운영하는 반 개수에 맞는 플랜을 선택하세요. 변경한 플랜은 다음 결제부터 적용됩니다.</div>';
+}
+
+function renderPaymentHistory(){
+    const el=document.getElementById('payment-history');
+    const rows=billingInfo?billingInfo.history:[];
+    if(!rows.length){el.innerHTML='<div style="font-size:13px;color:var(--muted);padding:8px 0;">내역 없음</div>';return;}
+    const badge=st=>st==='paid'?'<span class="badge badge-green">완료</span>':st==='waived'?'<span class="badge badge-gray">면제</span>':st==='processing'?'<span class="badge badge-yellow">처리 중</span>':'<span class="badge badge-red">미납</span>';
+    el.innerHTML=rows.map(r=>`<div class="pay-status-row" style="font-size:14px;"><span>${escHtml(r.month)}</span><div style="display:flex;align-items:center;gap:8px;"><span style="font-weight:600;">${fmtWon(r.amount)}</span>${badge(r.status)}</div></div>`).join('');
+}
+
+async function selectPlan(n){
+    if(!billingInfo||billingInfo.planClassCount===n)return;
+    showLoader(true);
     try{
-        const q=window.fsQuery(window.fsCollection(window.db,'payments'),window.fsWhere('directorId','==',directorDocId),window.fsOrderBy('month','desc'));
-        const snap=await window.fsGetDocs(q);
-        const records=[];snap.forEach(d=>records.push(d.data()));
-        const el=document.getElementById('payment-history');
-        if(!records.length){el.innerHTML='<div style="font-size:13px;color:var(--muted);padding:8px 0;">내역 없음</div>';return;}
-        el.innerHTML=records.map(r=>`<div class="pay-status-row" style="font-size:14px;"><span>${r.month}</span><div style="display:flex;align-items:center;gap:8px;"><span style="font-weight:600;">${(r.amount||0).toLocaleString()}원</span>${r.status==='paid'?'<span class="badge badge-green">완료</span>':'<span class="badge badge-red">미납</span>'}</div></div>`).join('');
-    }catch(e){}
+        const data=await billingCall('setDirectorPlan',{planClassCount:n});
+        if(data.status!=='success'){showToast('플랜 변경 실패: '+(data.message||''),'error');}
+        else{showToast('플랜이 변경되었습니다. 다음 결제부터 적용됩니다.','success');await loadBillingInfo();}
+    }catch(e){showToast('처리 실패: '+e.message,'error');}
+    showLoader(false);
 }
 
 async function registerCard(){
     if(!directorDocId){showToast('로그인 상태를 확인해주세요','error');return;}
+    if(billingInfo&&!billingInfo.amount&&!billingInfo.customAmount){showToast('요금 플랜(반 개수)을 먼저 선택해주세요','error');return;}
     showLoader(true);
     try{
         const returnUrl=window.location.href.split('?')[0];
-        const res=await fetch(CF_BASE_URL+'/prepareBillingAuth',{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({customerKey:directorDocId,returnUrl})});
-        const data=await res.json();
+        const data=await billingCall('prepareBillingAuth',{returnUrl});
         if(data.status!=='success'){showToast('카드 등록 준비 실패: '+(data.message||''),'error');showLoader(false);return;}
         const f=document.createElement('form');
         f.method='post';f.action=CF_BASE_URL+'/issueBillingKey';f.style.display='none';
@@ -3582,19 +3668,57 @@ async function registerCard(){
     showLoader(false);
 }
 
+async function cancelService(){
+    const b=billingInfo;
+    if(!b||!b.hasCard||b.cancelAt)return;
+    if(!confirm(`서비스를 해지하시겠습니까?\n\n다음 자동 결제가 중단됩니다. 이미 결제하신 기간은 다음 결제일(${fmtDot(b.nextBillingDate)}) 전까지 계속 이용하실 수 있습니다.`))return;
+    showLoader(true);
+    try{
+        const data=await billingCall('cancelDirectorService');
+        if(data.status!=='success')showToast('해지 실패: '+(data.message||''),'error');
+        else{showToast('해지가 신청되었습니다','success');await loadBillingInfo();}
+    }catch(e){showToast('처리 실패: '+e.message,'error');}
+    showLoader(false);
+}
+
+function openRefundInquiry(){window.open(REFUND_CHAT_URL,'_blank','noopener');}
+
+// 연체 결제 — 미납 월을 실제로 청구해 성공해야만 서버가 active로 되돌린다
+async function payOverdue(){
+    const b=billingInfo;
+    if(b&&b.unpaidTotal&&!confirm(`미납 ${b.unpaid.length}개월, 합계 ${fmtWon(b.unpaidTotal)}을 등록된 카드로 결제합니다.`))return;
+    showLoader(true,'결제 중...');
+    try{
+        const data=await billingCall('payOverdueBilling');
+        if(data.status==='success')showToast('연체 결제가 완료되었습니다','success');
+        else showToast('결제 실패: '+(data.message||''),'error');
+        await loadBillingInfo();
+    }catch(e){showToast('처리 실패: '+e.message,'error');}
+    showLoader(false);
+}
+
+// 연체 오버레이 — 켜져 있는 동안 #app 전체를 inert로 만들어 클릭·키보드 접근을 모두 막는다
+function applyOverdueOverlay(on){
+    const ov=document.getElementById('overdue-overlay'),app=document.getElementById('app');
+    ov.style.display=on?'flex':'none';
+    if(on)app.setAttribute('inert','');else app.removeAttribute('inert');
+    if(!on)return;
+    const b=billingInfo,detail=document.getElementById('overdue-detail'),payBtn=document.getElementById('btn-overdue-pay');
+    if(!b){detail.textContent='미납 내역을 확인하는 중입니다...';payBtn.disabled=false;return;}
+    const lines=[];
+    if(b.unpaid.length)lines.push(`미납 <b>${b.unpaid.length}개월</b> · 합계 <b>${fmtWon(b.unpaidTotal)}</b> (${b.unpaid.map(u=>escHtml(u.month)).join(', ')})`);
+    else lines.push('청구할 미납 내역이 없습니다. 관리자에게 문의해주세요.');
+    lines.push(b.hasCard&&b.cardInfo?`등록 카드: ${escHtml(b.cardInfo.brand||'카드')} ****${escHtml(b.cardInfo.last4||'')}`:'등록된 카드가 없습니다. 카드를 먼저 등록해주세요.');
+    detail.innerHTML=lines.join('<br>');
+    payBtn.disabled=!b.hasCard||!b.unpaid.length;
+    payBtn.style.opacity=payBtn.disabled?'.5':'1';
+}
+
 // ── 카드등록 팝업(goPay) 완료 후 리다이렉트 처리 ──────────
 // issueBillingKey Cloud Function이 나이스페이 인증→빌키 발급까지 서버에서 모두 처리한 뒤
 // ?billing=success|fail 쿼리스트링으로 이 페이지에 302 리다이렉트한다.
 async function refreshDirectorAfterBilling(){
-    if(!directorDocId)return;
-    try{
-        const snap=await window.fsGetDoc(window.fsDoc(window.db,'directors',directorDocId));
-        if(snap.exists()){
-            directorData=snap.data();
-            sessionStorage.setItem('directorSession',JSON.stringify({data:directorData,docId:directorDocId}));
-            renderPaymentInfo();
-        }
-    }catch(e){}
+    await loadBillingInfo();
 }
 
 // ── 탭 전환 ──────────────────────────────────────────────
