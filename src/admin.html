@@ -693,11 +693,11 @@ css inline edit/* 출결 인증 요청 */
 .att-missing-head{flex:0 0 auto;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;min-width:50px;padding-right:10px;border-right:1px solid #fed7aa;}
 .att-missing-title{font-size:12px;font-weight:700;color:#c2410c;white-space:nowrap;}
 .att-missing-count{font-size:13px;font-weight:800;color:#c2410c;background:#ffedd5;border-radius:10px;padding:1px 9px;white-space:nowrap;}
-.att-missing-body{flex:1;min-width:0;display:flex;flex-wrap:nowrap;gap:7px;overflow-x:auto;overflow-y:hidden;padding:1px 1px 6px;scroll-snap-type:x proximity;scrollbar-width:thin;scrollbar-color:#fdba74 transparent;-webkit-overflow-scrolling:touch;cursor:grab;}
-.att-missing-body.dragging{cursor:grabbing;scroll-snap-type:none;user-select:none;}
+.att-missing-body{flex:1;min-width:0;display:flex;flex-wrap:nowrap;gap:7px;overflow-x:auto;overflow-y:hidden;padding:1px 1px 6px;scrollbar-width:thin;scrollbar-color:#fdba74 transparent;-webkit-overflow-scrolling:touch;cursor:grab;}
+.att-missing-body.dragging{cursor:grabbing;user-select:none;}
 .att-missing-body::-webkit-scrollbar{height:5px;}
 .att-missing-body::-webkit-scrollbar-thumb{background:#fdba74;border-radius:3px;}
-.mo-card{position:relative;flex-shrink:0;scroll-snap-align:start;width:218px;box-sizing:border-box;display:flex;flex-direction:column;justify-content:center;gap:3px;padding:6px 10px;background:#fff;border:1px solid #fed7aa;border-radius:8px;font-size:11.5px;color:#1e293b;overflow:hidden;transition:transform .45s ease,opacity .45s ease,box-shadow .2s ease,width .3s ease .35s,padding .3s ease .35s,min-height .3s ease .35s,border-width .3s ease .35s;}
+.mo-card{position:relative;flex-shrink:0;width:218px;box-sizing:border-box;display:flex;flex-direction:column;justify-content:center;gap:3px;padding:6px 10px;background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;font-size:11.5px;color:#1e293b;overflow:hidden;transition:transform .45s ease,opacity .45s ease,background-color .18s ease,border-color .18s ease,box-shadow .2s ease,width .3s ease .35s,padding .3s ease .35s,min-height .3s ease .35s,border-width .3s ease .35s;}
 .mo-card:hover{box-shadow:0 4px 12px rgba(194,65,12,.18);}
 .mo-card.leaving{transform:translateY(30px);opacity:0;pointer-events:none;}
 .mo-line{display:flex;align-items:center;gap:5px;white-space:nowrap;}
@@ -712,15 +712,19 @@ css inline edit/* 출결 인증 요청 */
 .mo-badge{display:inline-flex;align-self:flex-start;padding:1px 9px;border-radius:9px;font-size:10px;font-weight:700;}
 .mo-badge.wait{background:#FFEDD5;color:#C2410C;}
 .mo-badge.done{background:#DCFCE7;color:#15803D;}
-.mo-sigs{display:flex;align-items:center;gap:5px;}
+.mo-sigs{display:flex;align-items:center;gap:6px;}
+.mo-sigpair{display:flex;align-items:center;gap:4px;flex:1;min-width:0;}
 .mo-sig-none{font-size:11px;color:#94a3b8;}
-.mo-sig-img{height:20px;max-width:46px;object-fit:contain;background:#fff;border:1px solid #e2e8f0;border-radius:4px;}
-.mo-veil{margin-left:auto;opacity:0;pointer-events:none;transition:opacity .18s ease;}
+.mo-sig-img{flex:1;min-width:0;height:30px;object-fit:contain;background:#fff;border:1px solid #e2e8f0;border-radius:4px;}
+.mo-card>.mo-line,.mo-card>.mo-sigs{transition:opacity .18s ease;}
+.mo-veil{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .18s ease;}
+.mo-card.can:hover{background:#BBF7D0;border-color:#86EFAC;}
+.mo-card.can:hover>.mo-line,.mo-card.can:hover>.mo-sigs{opacity:.3;}
 .mo-card.can:hover .mo-veil{opacity:1;pointer-events:auto;}
-.mo-ok{padding:3px 11px;border:1.5px solid #86EFAC;border-radius:10px;background:#BBF7D0;color:#15803D;font-size:11px;font-weight:800;cursor:pointer;transition:background .15s ease,box-shadow .15s ease,transform .15s ease;}
-.mo-ok:hover{background:#86EFAC;box-shadow:0 3px 8px rgba(21,128,61,.25);transform:translateY(-1px);}
+.mo-ok{padding:6px 24px;border:1.5px solid #4ADE80;border-radius:14px;background:#fff;color:#15803D;font-size:13px;font-weight:800;cursor:pointer;box-shadow:0 2px 8px rgba(21,128,61,.2);transition:background .15s ease,box-shadow .15s ease,transform .15s ease;}
+.mo-ok:hover{background:#DCFCE7;box-shadow:0 4px 12px rgba(21,128,61,.3);transform:translateY(-1px);}
 .mo-ok:disabled{opacity:.7;cursor:default;transform:none;}
-@media (hover:none){.mo-veil{opacity:1;pointer-events:auto;}}
+@media (hover:none){.mo-veil{position:static;opacity:1;pointer-events:auto;justify-content:flex-end;}.mo-card.can:hover>.mo-line,.mo-card.can:hover>.mo-sigs{opacity:1;}}
 @media (prefers-reduced-motion:reduce){.mo-card,.mo-ok,.mo-veil{transition:none;}}
 /* ── 반코드 빌더 ── */
 .cls-code-builder{display:flex;align-items:center;gap:4px;flex-wrap:wrap;}
@@ -4348,9 +4352,12 @@ async function toggleJabi(kakaoId){
 function initMissingSwipe(el){
     if(el._swipe)return;
     el._swipe=true;
-    el.addEventListener('wheel',e=>{
+    (el.closest('.att-missing-section')||el).addEventListener('wheel',e=>{
         if(el.scrollWidth<=el.clientWidth||Math.abs(e.deltaX)>Math.abs(e.deltaY))return;
-        el.scrollLeft+=e.deltaY;e.preventDefault();
+        const d=e.deltaY*(e.deltaMode===1?16:e.deltaMode===2?el.clientWidth:1);
+        const atStart=el.scrollLeft<=0&&d<0,atEnd=el.scrollLeft+el.clientWidth>=el.scrollWidth-1&&d>0;
+        if(atStart||atEnd)return; // 끝에 닿으면 페이지 스크롤로 넘김
+        el.scrollLeft+=d;e.preventDefault();
     },{passive:false});
     let down=false,moved=false,sx=0,sl=0;
     el.addEventListener('pointerdown',e=>{
@@ -4399,8 +4406,8 @@ function renderMissingSection(){
         const line=(tag,time)=>`<div class="mo-line"><span class="mo-name">${name}</span><span class="mo-date">${m.date}</span>${dot(tag)}<span class="mo-time">${escHtml(time)}</span></div>`;
         if(!req)return`<div class="mo-card" data-kid="${escHtml(String(m.stu.kakaoId))}" data-date="${m.date}">${line('출',m.inTime.slice(0,5))}<span class="mo-badge wait">대기중</span></div>`;
         const out=trimToMinutes(req.outTime);
-        const sig=(label,v)=>v?`${dot(label)}<img class="mo-sig-img" src="${sigSrc(v)}" alt="">`:`${dot(label)}<span class="mo-sig-none">-</span>`;
-        return`<div class="mo-card can" data-kid="${escHtml(String(m.stu.kakaoId))}" data-date="${m.date}">${line('출',m.inTime.slice(0,5))}${line('퇴',out)}<div class="mo-sigs">${sig('본',req.studentSig)}${sig('담',req.managerSig)}<div class="mo-veil"><button class="mo-ok" onclick="approveMissingCard('${req.id}','${escHtml(String(m.stu.kakaoId))}','${m.date}','${escHtml(out)}',this)">승인</button></div></div></div>`;
+        const sig=(label,v)=>`<span class="mo-sigpair">${dot(label)}${v?`<img class="mo-sig-img" src="${sigSrc(v)}" alt="">`:'<span class="mo-sig-none">-</span>'}</span>`;
+        return`<div class="mo-card can" data-kid="${escHtml(String(m.stu.kakaoId))}" data-date="${m.date}">${line('출',m.inTime.slice(0,5))}${line('퇴',out)}<div class="mo-sigs">${sig('본',req.studentSig)}${sig('담',req.managerSig)}</div><div class="mo-veil"><button class="mo-ok" onclick="approveMissingCard('${req.id}','${escHtml(String(m.stu.kakaoId))}','${m.date}','${escHtml(out)}',this)">승인</button></div></div>`;
     }).join('');
 }
 
