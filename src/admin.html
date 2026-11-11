@@ -314,17 +314,27 @@ body{font-family:'Pretendard',system-ui,sans-serif;background:var(--canvas);colo
 .approve-section-head{font-size:12px;font-weight:800;color:var(--brand);padding:7px 10px;background:var(--brand-xlight);border-radius:8px;margin-bottom:10px;margin-top:4px;letter-spacing:0.03em;}
 /* 반정보 - 등록된 반 목록 */
 .cls-card{background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:10px 12px;margin-bottom:8px;}
-.cls-card-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:4px;}
+.cls-card-head{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:4px;}
 .cls-card-actions{display:flex;gap:6px;flex-shrink:0;}
-.cls-card-actions .btn-sm{padding:6px 11px;white-space:nowrap;}
-.cls-card-name{min-width:0;flex:1;font-size:14px;font-weight:700;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.cls-btn{display:inline-flex;align-items:center;gap:4px;padding:6px 13px;border-radius:20px;font-size:12px;font-weight:700;border:1.5px solid transparent;cursor:pointer;white-space:nowrap;transition:transform .15s ease,box-shadow .15s ease,background .15s ease;}
+.cls-btn:hover{transform:translateY(-2px);box-shadow:0 4px 10px rgba(0,0,0,.12);}
+.cls-btn:active{transform:scale(.96);box-shadow:none;}
+.cls-btn-edit{background:#EEF2FF;color:#4F46E5;border-color:#C7D2FE;}
+.cls-btn-edit:hover{background:#E0E7FF;}
+.cls-btn-grad{background:#FEF3C7;color:#B45309;border-color:#FDE68A;}
+.cls-btn-grad:hover{background:#FDE68A;}
+.cls-btn-up{background:#DCFCE7;color:#15803D;border-color:#BBF7D0;}
+.cls-btn-up:hover{background:#BBF7D0;}
+.cls-arr{display:inline-block;font-weight:800;}
+.cls-btn-grad:hover .cls-arr{animation:clsArrDown .6s ease-in-out infinite;}
+.cls-btn-up:hover .cls-arr{animation:clsArrUp .6s ease-in-out infinite;}
+@keyframes clsArrDown{0%,100%{transform:translateY(-1px);}50%{transform:translateY(3px);}}
+@keyframes clsArrUp{0%,100%{transform:translateY(1px);}50%{transform:translateY(-3px);}}
+.cls-card-name{min-width:0;flex:1;font-size:14px;font-weight:700;color:var(--text);word-break:keep-all;overflow-wrap:anywhere;line-height:1.3;}
 .cls-card-meta{font-size:11px;color:var(--muted);line-height:1.4;word-break:keep-all;}
 .cls-grad-badge{display:inline-block;margin-left:6px;padding:1px 7px;border-radius:10px;font-size:10px;font-weight:700;color:#6b7280;background:#e5e7eb;vertical-align:middle;}
 .cls-card.grad{background:#f1f2f5;border-color:#dcdfe5;}
 .cls-card.grad .cls-card-name{color:#6b7280;}
-.cls-card.grad .btn-outline{color:#6b7280;border-color:#b6bbc5;}
-.cls-card .cls-grad-btn{color:#6b7280;border-color:#b6bbc5;}
-.cls-card.grad .cls-up-btn{color:var(--brand);border-color:var(--brand);}
 .cls-section-title.grad{color:#6b7280;background:#eceef2;}
 /* 신규가입 - 체크박스 bulk */
 .pending-row-check{display:flex;align-items:flex-start;gap:8px;}
@@ -589,17 +599,20 @@ css inline edit/* 출결 인증 요청 */
 .stuedit-bottom{flex:3;overflow-y:auto;padding:12px 14px;min-height:0;display:flex;flex-direction:column;gap:8px;}
 .stuedit-section-head{font-size:13px;font-weight:700;color:var(--brand);background:var(--brand-xlight);padding:7px 12px;border-radius:8px;letter-spacing:-0.01em;flex-shrink:0;}
 .stuedit-filter-row{display:flex;gap:6px;flex-shrink:0;}
-.stuedit-search{flex:1;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;outline:none;background:#fff;transition:.15s;}
+.stuedit-search{flex:1;min-width:0;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;outline:none;background:#fff;transition:.15s;}
 .stuedit-search:focus{border-color:var(--brand);}
-.stuedit-cls-filter{flex:1;padding:8px 8px;border:1.5px solid var(--border);border-radius:8px;font-size:12px;outline:none;background:#fff;transition:.15s;}
+.stuedit-cls-filter{flex:1;min-width:0;padding:8px 8px;border:1.5px solid var(--border);border-radius:8px;font-size:12px;outline:none;background:#fff;transition:.15s;}
 .stuedit-cls-filter:focus{border-color:var(--brand);}
 .stuedit-stu-list{flex:1;overflow-y:auto;min-height:0;}
 /* ── 학생정보변경 인라인 테이블 ── */
-.stu-edit-table{width:100%;border-collapse:collapse;font-size:13px;}
-.stu-edit-table th{font-size:11px;font-weight:700;color:var(--muted);padding:6px 8px;text-align:left;border-bottom:2px solid var(--border);position:sticky;top:0;background:#fff;z-index:1;}
-.stu-edit-table td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:middle;transition:background .5s;}
-.stu-edit-table tr:last-child td{border-bottom:none;}
-.stu-edit-table tr.row-flash td{background:var(--brand-xlight);}
+.sedit-row{padding:9px 6px;border-bottom:1px solid var(--border);transition:background .5s;}
+.sedit-row:last-child{border-bottom:none;}
+.sedit-row.row-flash{background:var(--brand-xlight);}
+.sedit-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px;}
+.sedit-name{font-size:13px;font-weight:800;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.sedit-btns{display:flex;gap:5px;flex-shrink:0;}
+.sedit-sels{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:5px;}
+.sedit-sels .stu-edit-inline-sel{min-width:0;}
 .stu-edit-inline-sel{width:100%;padding:5px 6px;border:1.5px solid var(--border);border-radius:6px;font-size:12px;outline:none;background:#fff;cursor:pointer;transition:.15s;}
 .stu-edit-inline-sel:focus{border-color:var(--brand);}
 /* ── 실습병원 관리 탭 (legacy) ── */
@@ -611,6 +624,24 @@ css inline edit/* 출결 인증 요청 */
 .hospmgmt-change-row{display:flex;gap:6px;align-items:center;}
 .hospmgmt-hosp-sel{flex:1;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;outline:none;background:#fff;transition:.15s;}
 .hospmgmt-hosp-sel:focus{border-color:var(--brand);}
+
+/* ── 실습병원 탭: 한 줄 컴팩트 행 ── */
+.hosp-row{display:flex;align-items:center;justify-content:space-between;gap:8px;background:var(--canvas);border-radius:8px;margin-bottom:6px;padding:8px 12px;}
+.hosp-main{flex:1;min-width:0;display:flex;align-items:baseline;gap:8px;}
+.hosp-name{font-size:14px;font-weight:700;white-space:nowrap;}
+.hosp-name-input{width:110px;padding:4px 8px;border:1.5px solid var(--brand);border-radius:6px;font-size:13px;font-weight:700;outline:none;background:#fff;}
+.hosp-coord{font-size:11px;color:var(--muted);white-space:nowrap;}
+.hosp-row.editing .hosp-coord{display:none;}
+.hosp-actions{display:flex;gap:5px;flex-shrink:0;}
+.hbtn{padding:4px 12px;border-radius:14px;font-size:12px;font-weight:700;border:1.5px solid transparent;cursor:pointer;white-space:nowrap;transition:transform .15s ease,box-shadow .15s ease,background .15s ease;}
+.hbtn:hover{transform:translateY(-2px);box-shadow:0 4px 10px rgba(0,0,0,.12);}
+.hbtn:active{transform:scale(.95);box-shadow:none;}
+.hbtn-edit{background:#EEF2FF;color:#4F46E5;border-color:#C7D2FE;}
+.hbtn-edit:hover{background:#E0E7FF;}
+.hbtn-save{background:#DCFCE7;color:#15803D;border-color:#BBF7D0;}
+.hbtn-save:hover{background:#BBF7D0;}
+.hbtn-cancel{background:#F1F5F9;color:#64748B;border-color:#E2E8F0;}
+.hbtn-cancel:hover{background:#E2E8F0;}
 
 /* ── 반정보 vtab ── */
 .cls-section{margin-bottom:16px;}
@@ -631,10 +662,16 @@ css inline edit/* 출결 인증 요청 */
 .unassigned-phone{font-size:12px;color:var(--muted);flex:1;}
 /* ── 중도탈락 ── */
 .stu-dropout-badge{display:inline-block;font-size:10px;font-weight:700;color:#ef4444;background:#fef2f2;border:1px solid #fecaca;border-radius:4px;padding:1px 6px;margin-left:4px;vertical-align:middle;}
-.stu-dropout-btn{font-size:11px;padding:3px 8px;border:1px solid #fecaca;background:#fff;color:#ef4444;border-radius:4px;cursor:pointer;font-weight:700;white-space:nowrap;}
-.stu-dropout-btn.active{background:#ef4444;color:#fff;border-color:#ef4444;}
-.stu-jabi-btn{font-size:11px;padding:3px 8px;border:1px solid #c4b5fd;background:#fff;color:#6c63ff;border-radius:4px;cursor:pointer;font-weight:700;white-space:nowrap;}
-.stu-jabi-btn.active{background:#6c63ff;color:#fff;border-color:#6c63ff;}
+.stu-dropout-btn,.stu-jabi-btn{font-size:11px;padding:4px 11px;border:1.5px solid transparent;border-radius:14px;cursor:pointer;font-weight:700;white-space:nowrap;transition:transform .15s ease,box-shadow .15s ease,background .15s ease,color .15s ease;}
+.stu-dropout-btn:hover,.stu-jabi-btn:hover{transform:translateY(-2px);box-shadow:0 4px 10px rgba(0,0,0,.12);}
+.stu-dropout-btn:active,.stu-jabi-btn:active{transform:scale(.95);box-shadow:none;}
+.stu-dropout-btn{background:#FFE4E6;color:#BE123C;border-color:#FECDD3;}
+.stu-dropout-btn:hover{background:#FECDD3;}
+.stu-dropout-btn.active{background:#FB7185;color:#fff;border-color:#FB7185;}
+.stu-jabi-btn{background:#E0E7FF;color:#4338CA;border-color:#C7D2FE;}
+.stu-jabi-btn:hover{background:#C7D2FE;}
+.stu-jabi-btn.active{background:#818CF8;color:#fff;border-color:#818CF8;}
+@media (prefers-reduced-motion:reduce){.stu-dropout-btn:hover,.stu-jabi-btn:hover,.cls-btn:hover,.hbtn:hover{transform:none;}.cls-btn:hover .cls-arr{animation:none;}}
 .doc-stu-row.dropped{opacity:0.45;}
 .doc-stu-row.dropped span{text-decoration:line-through;}
 /* ── 3-세그먼트 진행 바 ── */
@@ -2369,16 +2406,19 @@ function filterStudentsPanel(){
         const hospOpts='<option value=""'+(s.hospital?'':' selected')+'>병원 미지정</option>'+
             academyHospitals.map(h=>`<option value="${escHtml(h.name)}"${h.name===s.hospital?' selected':''}>${escHtml(h.name)}</option>`).join('');
         const dropoutBadge=s.droppedOut?'<span class="stu-dropout-badge">중도탈락</span>':'';
-        const dropoutBtn=`<button class="stu-dropout-btn${s.droppedOut?' active':''}" onclick="toggleDropout('${s.kakaoId}')">${s.droppedOut?'탈락해제':'중도탈락'}</button>`;
-        const jabiBtn=`<button class="stu-jabi-btn${s.jabi?' active':''}" onclick="toggleJabi('${s.kakaoId}')" title="실습 시작일 이전 출퇴근 기록도 실습시간에 포함">${s.jabi?'자비해제':'자비학생'}</button>`;
-        return `<tr data-id="${s.kakaoId}"${s.droppedOut?' style="opacity:0.55;"':''}>
-            <td><select class="stu-edit-inline-sel" onchange="onInlineClsChange('${s.kakaoId}',this)">${clsOpts}</select></td>
-            <td style="font-weight:700;white-space:nowrap;">${escHtml(s.name||'-')}</td>
-            <td><select class="stu-edit-inline-sel" onchange="onInlineHospChange('${s.kakaoId}',this)">${hospOpts}</select></td>
-            <td style="display:flex;gap:4px;flex-wrap:wrap;">${dropoutBtn}${jabiBtn}</td>
-        </tr>`;
+        const dropoutBtn=`<button class="stu-dropout-btn${s.droppedOut?' active':''}" onclick="toggleDropout('${s.kakaoId}')" title="${s.droppedOut?'중도탈락 해제':'중도탈락 처리'}">탈락</button>`;
+        const jabiBtn=`<button class="stu-jabi-btn${s.jabi?' active':''}" onclick="toggleJabi('${s.kakaoId}')" title="${s.jabi?'자비 학생 해제':'자비 학생 지정'} (실습 시작일 이전 출퇴근 기록도 실습시간에 포함)">자비</button>`;
+        const clsTitle=escHtml((classesList.find(c=>c.id===s.classId)||{}).name||'미배정');
+        const hospTitle=escHtml(s.hospital||'병원 미지정');
+        return `<div class="sedit-row" data-id="${s.kakaoId}"${s.droppedOut?' style="opacity:0.55;"':''}>
+            <div class="sedit-head"><span class="sedit-name">${escHtml(s.name||'-')}</span><span class="sedit-btns">${dropoutBtn}${jabiBtn}</span></div>
+            <div class="sedit-sels">
+                <select class="stu-edit-inline-sel" title="${clsTitle}" onchange="onInlineClsChange('${s.kakaoId}',this)">${clsOpts}</select>
+                <select class="stu-edit-inline-sel" title="${hospTitle}" onchange="onInlineHospChange('${s.kakaoId}',this)">${hospOpts}</select>
+            </div>
+        </div>`;
     }).join('');
-    listEl.innerHTML=`<table class="stu-edit-table"><colgroup><col style="width:40%"><col style="width:12%"><col style="width:38%"><col style="width:10%"></colgroup><thead><tr><th>반</th><th>이름</th><th>실습병원</th><th>탈락</th></tr></thead><tbody>${rows}</tbody></table>`;
+    listEl.innerHTML=rows;
 }
 
 async function onInlineClsChange(kakaoId,sel){
@@ -2442,7 +2482,7 @@ async function onInlineHospChange(kakaoId,sel){
 }
 
 function flashRow(kakaoId){
-    const tr=document.querySelector(`.stu-edit-table tr[data-id="${kakaoId}"]`);
+    const tr=document.querySelector(`.sedit-row[data-id="${kakaoId}"]`);
     if(!tr)return;
     tr.classList.add('row-flash');
     setTimeout(()=>tr.classList.remove('row-flash'),700);
@@ -3209,28 +3249,27 @@ function renderHospMgmtList(){
         el.innerHTML='<div class="empty-state" style="padding:8px;">등록된 병원 없음</div>';
         return;
     }
+    const fmt=v=>typeof v==='number'?v.toFixed(1):'-';
     el.innerHTML=academyHospitals.map((h,i)=>`
-      <div style="background:var(--canvas);border-radius:8px;margin-bottom:8px;padding:10px 12px;display:flex;align-items:center;justify-content:space-between;gap:10px;">
-        <div style="flex:1;min-width:0;">
-          <div id="hospmgmt-name-display-${i}" style="font-size:14px;font-weight:700;">${escHtml(h.name)}</div>
-          <div id="hospmgmt-name-edit-${i}" style="display:none;margin-top:4px;">
-            <input type="text" id="hospmgmt-name-input-${i}" value="${escHtml(h.name)}" maxlength="8"
-              style="padding:5px 8px;border:1.5px solid var(--brand);border-radius:6px;font-size:13px;font-weight:700;outline:none;width:140px;"
-              onkeydown="if(event.key==='Enter')saveHospMgmtRename(${i});if(event.key==='Escape')cancelHospMgmtRename(${i})">
-          </div>
-          <div style="font-size:11px;color:var(--muted);margin-top:2px;">위도 ${h.lat?.toFixed(6)} / 경도 ${h.lon?.toFixed(6)}</div>
+      <div class="hosp-row">
+        <div class="hosp-main">
+          <span id="hospmgmt-name-display-${i}" class="hosp-name">${escHtml(h.name)}</span>
+          <input type="text" id="hospmgmt-name-input-${i}" class="hosp-name-input" value="${escHtml(h.name)}" maxlength="8" style="display:none;"
+            onkeydown="if(event.key==='Enter')saveHospMgmtRename(${i});if(event.key==='Escape')cancelHospMgmtRename(${i})">
+          <span class="hosp-coord" title="위도 / 경도">${fmt(h.lat)}, ${fmt(h.lon)}</span>
         </div>
-        <div style="display:flex;gap:6px;flex-shrink:0;">
-          <button id="hospmgmt-rename-btn-${i}" class="btn btn-outline btn-sm" onclick="startHospMgmtRename(${i})">이름 변경</button>
-          <button id="hospmgmt-rename-save-${i}" class="btn btn-primary btn-sm" style="display:none;" onclick="saveHospMgmtRename(${i})">저장</button>
-          <button id="hospmgmt-rename-cancel-${i}" class="btn btn-sm" style="display:none;background:rgba(0,0,0,0.08);color:var(--text);" onclick="cancelHospMgmtRename(${i})">취소</button>
+        <div class="hosp-actions">
+          <button id="hospmgmt-rename-btn-${i}" class="hbtn hbtn-edit" onclick="startHospMgmtRename(${i})">수정</button>
+          <button id="hospmgmt-rename-save-${i}" class="hbtn hbtn-save" style="display:none;" onclick="saveHospMgmtRename(${i})">저장</button>
+          <button id="hospmgmt-rename-cancel-${i}" class="hbtn hbtn-cancel" style="display:none;" onclick="cancelHospMgmtRename(${i})">취소</button>
         </div>
       </div>`).join('');
 }
 
 function startHospMgmtRename(i){
+    document.getElementById('hospmgmt-name-display-'+i).closest('.hosp-row').classList.add('editing');
     document.getElementById('hospmgmt-name-display-'+i).style.display='none';
-    document.getElementById('hospmgmt-name-edit-'+i).style.display='block';
+    document.getElementById('hospmgmt-name-input-'+i).style.display='';
     document.getElementById('hospmgmt-rename-btn-'+i).style.display='none';
     document.getElementById('hospmgmt-rename-save-'+i).style.display='';
     document.getElementById('hospmgmt-rename-cancel-'+i).style.display='';
@@ -3239,8 +3278,9 @@ function startHospMgmtRename(i){
 }
 
 function cancelHospMgmtRename(i){
+    document.getElementById('hospmgmt-name-display-'+i).closest('.hosp-row').classList.remove('editing');
     document.getElementById('hospmgmt-name-display-'+i).style.display='';
-    document.getElementById('hospmgmt-name-edit-'+i).style.display='none';
+    document.getElementById('hospmgmt-name-input-'+i).style.display='none';
     document.getElementById('hospmgmt-rename-btn-'+i).style.display='';
     document.getElementById('hospmgmt-rename-save-'+i).style.display='none';
     document.getElementById('hospmgmt-rename-cancel-'+i).style.display='none';
@@ -5159,10 +5199,10 @@ function clsCardHtml(cls){
         <div class="cls-card-head">
             <div class="cls-card-name">${escHtml(cls.name||'(이름없음)')}${grad?'<span class="cls-grad-badge">졸업</span>':''}</div>
             <div class="cls-card-actions">
-                <button class="btn btn-outline btn-sm" onclick="openClsEdit('${cls.id}')">수정</button>
+                <button class="cls-btn cls-btn-edit" onclick="openClsEdit('${cls.id}')">수정</button>
                 ${grad
-                    ?`<button class="btn btn-outline btn-sm cls-up-btn" onclick="toggleClassGraduated('${cls.id}')">↑ 진행</button>`
-                    :`<button class="btn btn-outline btn-sm cls-grad-btn" onclick="toggleClassGraduated('${cls.id}')">↓ 졸업</button>`}
+                    ?`<button class="cls-btn cls-btn-up" title="진행 중인 반으로 되돌리기" onclick="toggleClassGraduated('${cls.id}')"><span class="cls-arr">↑</span>진행</button>`
+                    :`<button class="cls-btn cls-btn-grad" title="졸업 처리(메인 화면에서 숨김)" onclick="toggleClassGraduated('${cls.id}')"><span class="cls-arr">↓</span>졸업</button>`}
             </div>
         </div>
         <div class="cls-card-meta"><span style="white-space:nowrap;">${escHtml(cls.code||'반코드 없음')}</span> · <span style="white-space:nowrap;">${period}</span></div>
