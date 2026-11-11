@@ -613,6 +613,7 @@ css inline edit/* 출결 인증 요청 */
 .sedit-row{padding:9px 6px;border-bottom:1px solid var(--border);transition:background .5s;}
 .sedit-row:last-child{border-bottom:none;}
 .sedit-row.row-flash{background:var(--brand-xlight);}
+.sedit-row.jabi{background:#E8ECFF;border-radius:10px;border-bottom-color:transparent;box-shadow:inset 0 0 0 1.5px #C7D2FE;}
 .sedit-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px;}
 .sedit-name{font-size:13px;font-weight:800;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .sedit-btns{display:flex;gap:5px;flex-shrink:0;}
@@ -2424,7 +2425,7 @@ function filterStudentsPanel(){
         const jabiBtn=`<button class="stu-jabi-btn${s.jabi?' active':''}" onclick="toggleJabi('${s.kakaoId}')" title="${s.jabi?'자비 학생 해제':'자비 학생 지정'} (실습 시작일 이전 출퇴근 기록도 실습시간에 포함)">자비</button>`;
         const clsTitle=escHtml((classesList.find(c=>c.id===s.classId)||{}).name||'미배정');
         const hospTitle=escHtml(s.hospital||'병원 미지정');
-        return `<div class="sedit-row" data-id="${s.kakaoId}"${s.droppedOut?' style="opacity:0.55;"':''}>
+        return `<div class="sedit-row${s.jabi?' jabi':''}" data-id="${s.kakaoId}"${s.droppedOut?' style="opacity:0.55;"':''}>
             <div class="sedit-head"><span class="sedit-name">${escHtml(s.name||'-')}</span><span class="sedit-btns">${dropoutBtn}${jabiBtn}</span></div>
             <div class="sedit-sels">
                 <select class="stu-edit-inline-sel" title="${clsTitle}" onchange="onInlineClsChange('${s.kakaoId}',this)">${clsOpts}</select>
