@@ -212,29 +212,6 @@ body{font-family:'Pretendard',system-ui,sans-serif;background:var(--canvas);colo
 .att-cls-btn.active{background:var(--brand);color:#fff;box-shadow:0 3px 8px rgba(108,99,255,.3);}
 /* ── 사이드바 2: 날짜 + 학생 검색 ── */
 .att-date-stu-sidebar{width:220px;padding:18px 14px;gap:8px;justify-content:center;}
-.att-authreq-section{background:#fff;border:2px solid var(--brand);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:7px;}
-.att-authreq-type-row{display:flex;gap:4px;}
-.att-authreq-type-btn{flex:1;padding:6px 3px;border:1.5px solid var(--border);border-radius:7px;font-size:11px;font-weight:700;color:var(--muted);background:#fff;cursor:pointer;text-align:center;transition:.15s;white-space:nowrap;}
-.att-authreq-type-btn:hover{border-color:var(--brand);color:var(--brand);}
-.att-authreq-type-btn.active{background:var(--brand);border-color:var(--brand);color:#fff;}
-.att-authreq-main-btn{padding:10px 14px;background:var(--brand);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:800;cursor:pointer;letter-spacing:-0.01em;transition:.15s;text-align:center;}
-.att-authreq-main-btn:hover:not(:disabled){opacity:.88;}
-.att-authreq-main-btn:disabled{background:var(--muted);opacity:.45;cursor:not-allowed;}
-.att-authreq-tabs{display:flex;border-radius:8px;overflow:hidden;border:1.5px solid var(--border);flex-shrink:0;}
-.att-authreq-tab{flex:1;padding:6px 4px;border:none;background:#fff;font-size:11px;font-weight:700;color:var(--muted);cursor:pointer;transition:.15s;display:flex;align-items:center;justify-content:center;gap:4px;white-space:nowrap;}
-.att-authreq-tab+.att-authreq-tab{border-left:1.5px solid var(--border);}
-.att-authreq-tab:hover:not(.active){background:var(--brand-xlight);color:var(--brand);}
-.att-authreq-tab.active{background:var(--brand);color:#fff;}
-.att-authreq-badge{background:rgba(255,255,255,0.35);color:#fff;border-radius:10px;padding:0 6px;font-size:10px;font-weight:800;line-height:1.6;}
-.att-authreq-badge-done{background:rgba(255,255,255,0.35);}
-.att-authreq-tab:not(.active) .att-authreq-badge{background:var(--brand);color:#fff;}
-.att-authreq-tab:not(.active) .att-authreq-badge-done{background:#10b981;}
-.att-authreq-tab-panel{height:80px;overflow-y:auto;-webkit-overflow-scrolling:touch;}
-.att-authreq-list-body{display:flex;flex-direction:column;gap:3px;padding:2px 0;}
-.att-authreq-list-item{padding:5px 7px;background:var(--canvas);border-radius:7px;font-size:11px;display:flex;flex-direction:column;gap:1px;}
-.att-authreq-list-item-name{font-weight:700;color:var(--text);}
-.att-authreq-list-item-meta{color:var(--muted);font-size:10px;}
-.att-authreq-list-empty{font-size:11px;color:var(--muted);text-align:center;padding:10px 0;}
 /* 날짜 카드 */
 .att-cal-card{background:#fff;border:2px solid var(--border);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:8px;transition:border-color .15s;}
 .att-cal-card:focus-within{border-color:var(--brand);}
@@ -691,6 +668,17 @@ css inline edit/* 출결 인증 요청 */
 /* ── 퇴근 누락 섹션 ── */
 .att-missing-section{display:flex;align-items:stretch;gap:10px;background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:8px 10px;margin-bottom:10px;}
 .att-missing-head{flex:0 0 auto;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;min-width:50px;padding-right:10px;border-right:1px solid #fed7aa;}
+.att-mreq{flex:0 0 auto;width:128px;display:flex;flex-direction:column;justify-content:center;gap:5px;padding-right:10px;border-right:1px solid #fed7aa;}
+.att-mreq-title{font-size:12px;font-weight:700;color:#c2410c;text-align:center;white-space:nowrap;}
+.att-mreq-sel{width:100%;box-sizing:border-box;padding:4px 6px;border:1.5px solid #fdba74;border-radius:6px;font-size:11px;background:#fff;color:#1e293b;outline:none;cursor:pointer;}
+.att-mreq-sel:focus{border-color:#f97316;}
+.att-mreq-btn{width:100%;padding:5px 0;border:none;border-radius:8px;background:#F97316;color:#fff;font-size:12px;font-weight:800;cursor:pointer;transition:background .15s ease,transform .15s ease,box-shadow .15s ease;}
+.att-mreq-btn:hover:not(:disabled){background:#EA580C;transform:translateY(-1px);box-shadow:0 3px 8px rgba(234,88,12,.3);}
+.att-mreq-btn:active:not(:disabled){transform:scale(.97);}
+.att-mreq-btn:disabled{background:#FDBA74;opacity:.75;cursor:not-allowed;}
+.att-mreq-date{font-size:10px;color:#9a3412;text-align:center;line-height:1.25;min-height:12px;}
+.att-mreq-date.warn{color:#dc2626;font-weight:700;}
+.mo-empty{align-self:center;margin:0 auto;font-size:12px;color:#9a3412;opacity:.7;}
 .att-missing-title{font-size:12px;font-weight:700;color:#c2410c;white-space:nowrap;}
 .att-missing-count{font-size:13px;font-weight:800;color:#c2410c;background:#ffedd5;border-radius:10px;padding:1px 9px;white-space:nowrap;}
 .att-missing-body{flex:1;min-width:0;display:flex;flex-wrap:nowrap;gap:7px;overflow-x:auto;overflow-y:hidden;padding:1px 1px 6px;scrollbar-width:thin;scrollbar-color:#fdba74 transparent;-webkit-overflow-scrolling:touch;cursor:grab;}
@@ -717,13 +705,20 @@ css inline edit/* 출결 인증 요청 */
 .mo-sig-none{font-size:11px;color:#94a3b8;}
 .mo-sig-img{flex:1;min-width:0;height:30px;object-fit:contain;background:#fff;border:1px solid #e2e8f0;border-radius:4px;}
 .mo-card>.mo-line,.mo-card>.mo-sigs{transition:opacity .18s ease;}
-.mo-veil{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .18s ease;}
+.mo-veil{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;gap:6px;padding:0 12px;opacity:0;pointer-events:none;transition:opacity .18s ease;}
 .mo-card.can:hover{background:#BBF7D0;border-color:#86EFAC;}
 .mo-card.can:hover>.mo-line,.mo-card.can:hover>.mo-sigs{opacity:.3;}
 .mo-card.can:hover .mo-veil{opacity:1;pointer-events:auto;}
-.mo-ok{padding:6px 24px;border:1.5px solid #4ADE80;border-radius:14px;background:#fff;color:#15803D;font-size:13px;font-weight:800;cursor:pointer;box-shadow:0 2px 8px rgba(21,128,61,.2);transition:background .15s ease,box-shadow .15s ease,transform .15s ease;}
+.mo-ok{flex:8;min-width:0;padding:8px 0;border:1.5px solid #4ADE80;border-radius:14px;background:#fff;color:#15803D;font-size:13px;font-weight:800;cursor:pointer;box-shadow:0 2px 8px rgba(21,128,61,.2);transition:background .15s ease,box-shadow .15s ease,transform .15s ease;}
 .mo-ok:hover{background:#DCFCE7;box-shadow:0 4px 12px rgba(21,128,61,.3);transform:translateY(-1px);}
 .mo-ok:disabled{opacity:.7;cursor:default;transform:none;}
+.mo-no{flex:2;min-width:0;padding:8px 0;border:1.5px solid #FECACA;border-radius:14px;background:#fff;color:#B91C1C;font-size:12px;font-weight:800;cursor:pointer;box-shadow:0 2px 8px rgba(185,28,28,.12);transition:background .15s ease,box-shadow .15s ease,transform .15s ease;white-space:nowrap;}
+.mo-no:hover{background:#FEE2E2;box-shadow:0 4px 12px rgba(185,28,28,.22);transform:translateY(-1px);}
+.mo-no:disabled{opacity:.7;cursor:default;transform:none;}
+.mo-no.mo-cancel{flex:1;}
+.mo-card.cancelable:hover{background:#FFE4E6;border-color:#FECACA;}
+.mo-card.cancelable:hover>.mo-line,.mo-card.cancelable:hover>.mo-badge{opacity:.3;}
+.mo-card.cancelable:hover .mo-veil{opacity:1;pointer-events:auto;}
 @media (hover:none){.mo-veil{position:static;opacity:1;pointer-events:auto;justify-content:flex-end;}.mo-card.can:hover>.mo-line,.mo-card.can:hover>.mo-sigs{opacity:1;}}
 @media (prefers-reduced-motion:reduce){.mo-card,.mo-ok,.mo-veil{transition:none;}}
 /* ── 반코드 빌더 ── */
@@ -941,29 +936,6 @@ css inline edit/* 출결 인증 요청 */
                   <option value="">전체 학생</option>
                 </select>
               </div>
-              <div class="att-authreq-section">
-                <div class="att-stu-card-header">🔐 출결 인증 요청</div>
-                <input type="text" id="authreq-stu-search" class="att-stu-search" placeholder="이름 검색..." oninput="onAuthReqStuInput()">
-                <select id="authreq-stu-select" class="att-stu-select" onchange="onAuthReqStuChange()">
-                  <option value="">학생 선택</option>
-                </select>
-                <input type="date" id="authreq-date" class="att-sb-date-input" onchange="updateAuthReqBtn()">
-                <div class="att-authreq-type-row">
-                  <button class="att-authreq-type-btn" data-type="in" onclick="setAuthReqType('in',this)">출근</button>
-                  <button class="att-authreq-type-btn" data-type="out" onclick="setAuthReqType('out',this)">퇴근</button>
-                  <button class="att-authreq-type-btn active" data-type="both" onclick="setAuthReqType('both',this)">출+퇴근</button>
-                </div>
-                <button class="att-authreq-main-btn" id="att-authreq-main-btn" disabled onclick="sendAuthReqFromSidebar()">요청하기</button>
-                <div class="att-sb-divider"></div>
-                <div class="att-authreq-tabs">
-                  <button class="att-authreq-tab active" id="authreq-tab-btn-pending" onclick="switchAuthReqTab('pending',this)">
-                    요청중 <span id="authreq-pending-count" class="att-authreq-badge" style="display:none;"></span>
-                  </button>
-                </div>
-                <div class="att-authreq-tab-panel" id="authreq-panel-pending">
-                  <div id="authreq-pending-list" class="att-authreq-list-body"><div class="att-authreq-list-empty">없음</div></div>
-                </div>
-              </div>
             </div>
             <!-- 우측: 4구역 + 테이블 -->
             <div class="att-col-body-main">
@@ -1001,9 +973,16 @@ css inline edit/* 출결 인증 요청 */
                 </div>
               </div>
               <!-- 퇴근 누락 섹션 -->
-              <div id="att-missing-section" class="att-missing-section" style="display:none;">
+              <div id="att-missing-section" class="att-missing-section">
+                <div class="att-mreq">
+                  <div class="att-mreq-title">누락요청</div>
+                  <select id="mreq-cls" class="att-mreq-sel" onchange="onMreqClsChange()"><option value="">반 선택</option></select>
+                  <select id="mreq-stu" class="att-mreq-sel" onchange="updateMreqBtn()"><option value="">이름</option></select>
+                  <button id="mreq-btn" class="att-mreq-btn" disabled onclick="sendMissingRequest()">요청</button>
+                  <div id="mreq-date" class="att-mreq-date"></div>
+                </div>
                 <div class="att-missing-head">
-                  <div class="att-missing-title">퇴근누락</div>
+                  <div class="att-missing-title">누락</div>
                   <div class="att-missing-count" id="att-missing-count">0명</div>
                 </div>
                 <div class="att-missing-body" id="att-missing-list"></div>
@@ -1138,17 +1117,15 @@ css inline edit/* 출결 인증 요청 */
               </div>
               <div id="pending-list" style="max-height:260px;overflow-y:auto;"><div class="empty-state" style="padding:8px;">대기 중인 신청 없음</div></div>
 
-              <div class="approve-section-head" style="margin-top:18px;">출결 승인 및 내역</div>
-              <div style="font-size:12px;color:var(--muted);margin-bottom:10px;">출결 인증 요청과 퇴근 누락 신청을 한 곳에서 확인하고 승인/거절할 수 있습니다. 승인 시 해당 날짜 출퇴근 기록에 자동 반영됩니다.</div>
-              <div id="attendance-approve-pending-list" style="max-height:260px;overflow-y:auto;"><div class="empty-state" style="padding:8px;">대기 중인 요청 없음</div></div>
-              <div style="font-size:11px;font-weight:700;color:var(--muted);margin:12px 0 6px;">승인/거절 내역</div>
-              <div id="attendance-approve-history-list" style="max-height:140px;overflow-y:auto;"><div class="empty-state" style="padding:8px;">내역 없음</div></div>
-
               <div class="approve-section-head" style="margin-top:18px;">수강증명서 발급 신청 및 내역</div>
               <div style="font-size:12px;color:var(--muted);margin-bottom:10px;">승인 시 PDF가 자동 생성됩니다. 학생은 앱에서 다운로드할 수 있습니다. (이메일 발송은 준비 중)</div>
               <div id="certreq-list" style="max-height:260px;overflow-y:auto;"><div class="empty-state" style="padding:8px;">대기 중인 발급 신청 없음</div></div>
               <div style="font-size:11px;font-weight:700;color:var(--muted);margin:12px 0 6px;">발급 내역</div>
               <div id="certreq-approved-list" style="max-height:140px;overflow-y:auto;"><div class="empty-state" style="padding:8px;">발급된 내역 없음</div></div>
+
+              <div class="approve-section-head" style="margin-top:18px;">출결 처리 내역</div>
+              <div style="font-size:12px;color:var(--muted);margin-bottom:10px;">출결 화면의 누락 칸에서 승인·거절한 기록입니다.</div>
+              <div id="attendance-approve-history-list" style="max-height:260px;overflow-y:auto;"><div class="empty-state" style="padding:8px;">내역 없음</div></div>
             </div>
 
             <!-- 학생정보변경 탭 (7:3 split) -->
@@ -1557,8 +1534,6 @@ let pendingStudents = [];
 let missingOutRequests = [];
 let authRequests = [];
 let authReqBarData = null;
-let authreqStuFilter = '';
-let authreqType = 'both';
 let _authReqKakaoId = '', _authReqName = '';
 let academyHospitals = [];
 let academyHospitalIds = new Map(); // name -> academies/{acId}/hospitals/{docId} (2026-07-21: hospitalId 동시 기록용)
@@ -1904,8 +1879,6 @@ async function loadAll(){
         await Promise.all([loadAttendance(),loadPendingStudents(),loadMissingOutRequests(),loadAttendanceAuthRequests(),loadSealImage(),loadMissingOutApproved(),loadCertRequests(),loadCertRequestsApproved()]);
         renderStudents();
         initDocTab();
-        renderAuthReqStuDropdown();
-        loadSidebarAuthReqs();
         lastUpdatedAt=new Date();
         updateLastUpdatedDisplay();
     }catch(e){console.error('loadAll 실패:',e);}
@@ -2314,95 +2287,6 @@ function renderAttendance(){
     renderMissingSection();
 }
 
-function renderAuthReqStuDropdown(){
-    const search=document.getElementById('authreq-stu-search')?.value.trim()||'';
-    const sel=document.getElementById('authreq-stu-select');
-    if(!sel)return;
-    let list=studentsList.slice().sort((a,b)=>(a.name||'').localeCompare(b.name||'','ko'));
-    if(search)list=list.filter(s=>(s.name||'').includes(search));
-    sel.innerHTML='<option value="">학생 선택</option>'+list.map(s=>`<option value="${String(s.kakaoId)}">${escHtml(s.name||'-')}</option>`).join('');
-    if(authreqStuFilter&&list.some(s=>String(s.kakaoId)===authreqStuFilter))sel.value=authreqStuFilter;
-    else{authreqStuFilter='';sel.value='';}
-    updateAuthReqBtn();
-}
-function switchAuthReqTab(tab,btn){
-    document.querySelectorAll('.att-authreq-tab').forEach(b=>b.classList.remove('active'));
-    btn.classList.add('active');
-    document.getElementById('authreq-panel-pending').style.display=tab==='pending'?'':'none';
-}
-function onAuthReqStuInput(){renderAuthReqStuDropdown();}
-function onAuthReqStuChange(){
-    authreqStuFilter=document.getElementById('authreq-stu-select').value;
-    updateAuthReqBtn();
-}
-function setAuthReqType(type,btn){
-    authreqType=type;
-    document.querySelectorAll('.att-authreq-type-btn').forEach(b=>b.classList.toggle('active',b.dataset.type===type));
-}
-function updateAuthReqBtn(){
-    const btn=document.getElementById('att-authreq-main-btn');
-    if(!btn)return;
-    const date=document.getElementById('authreq-date')?.value;
-    btn.disabled=!authreqStuFilter||!date;
-}
-async function sendAuthReqFromSidebar(){
-    const kakaoId=authreqStuFilter;
-    const date=document.getElementById('authreq-date')?.value;
-    const type=authreqType;
-    const acId=directorData?.academyId;
-    if(!kakaoId||!date){showToast('학생과 날짜를 선택해주세요','info');return;}
-    await withSave(async()=>{
-        const ref=await window.fsAddDoc(window.fsCollection(window.db,'attendanceAuthRequests'),{
-            kakaoId:String(kakaoId),academyId:acId,date,type,note:'',status:'pending',
-            requestedAt:window.fsServerTimestamp()
-        });
-        await window.fsUpdateDoc(window.fsDoc(window.db,'students',String(kakaoId)),{pendingAuthRequestId:ref.id});
-    },{successMsg:'인증 요청 전송 완료 ✓',onSuccess:()=>{
-        document.getElementById('authreq-date').value='';
-        authreqStuFilter='';
-        document.getElementById('authreq-stu-select').value='';
-        document.getElementById('authreq-stu-search').value='';
-        updateAuthReqBtn();
-        loadSidebarAuthReqs();
-    }});
-}
-async function loadSidebarAuthReqs(){
-    const acId=directorData?.academyId;
-    if(!acId){renderSidebarAuthReqs([]);return;}
-    try{
-        const q=window.fsQuery(
-            window.fsCollection(window.db,'attendanceAuthRequests'),
-            window.fsWhere('academyId','==',acId),
-            window.fsOrderBy('requestedAt','desc'),
-            window.fsLimit(30)
-        );
-        const snap=await window.fsGetDocs(q);
-        const all=[];
-        snap.forEach(d=>all.push({id:d.id,...d.data()}));
-        renderSidebarAuthReqs(all.filter(r=>r.status==='pending'));
-    }catch(e){console.error('loadSidebarAuthReqs:',e);}
-}
-function renderSidebarAuthReqs(pending){
-    const typeLabel={in:'출근',out:'퇴근',both:'출+퇴근'};
-    const pendingEl=document.getElementById('authreq-pending-list');
-    const pendingBadge=document.getElementById('authreq-pending-count');
-    if(pendingEl){
-        pendingEl.innerHTML=pending.length
-            ?pending.map(r=>{
-                const name=studentsList.find(s=>String(s.kakaoId)===String(r.kakaoId))?.name||r.kakaoId;
-                return `<div class="att-authreq-list-item" style="display:flex;align-items:center;justify-content:space-between;gap:6px;">
-    <div>
-        <div class="att-authreq-list-item-name">${escHtml(name)}</div>
-        <div class="att-authreq-list-item-meta">${r.date} · ${typeLabel[r.type]||r.type}</div>
-    </div>
-    <button class="btn btn-danger btn-sm" style="font-size:10px;padding:2px 8px;flex-shrink:0;" onclick="cancelAuthRequest('${r.id}','${r.kakaoId}')">취소</button>
-</div>`;
-            }).join('')
-            :'<div class="att-authreq-list-empty">없음</div>';
-    }
-    if(pendingBadge){pendingBadge.textContent=pending.length;pendingBadge.style.display=pending.length?'':'none';}
-}
-
 function getDatesInRange(start,end){
     const dates=[];
     let cur=new Date(start+'T00:00:00');
@@ -2705,13 +2589,6 @@ function renderMissingOutRequests(){
     renderMissingSection();
 }
 
-document.addEventListener('click',e=>{
-    const ap=e.target.closest('.mo-approve-btn');
-    if(ap){approveMissingOut(ap.dataset.id,ap.dataset.kid,ap.dataset.date,ap.dataset.out);return;}
-    const rj=e.target.closest('.mo-reject-btn');
-    if(rj){rejectMissingOut(rj.dataset.id);}
-});
-
 // 같은 학생·같은 날짜에 겹치는 요청(원장 발송 출결 인증 / 학생 퇴근 누락)이 남아 있으면 자동으로 닫는다.
 // 승인된 출결 기록에 이미 해당 시각이 있으면 그 요청은 더 필요 없으므로 'superseded'로 바꿔 목록에서 숨긴다.
 async function closeOverlappingRequests(kakaoId,date,exceptAuthId,exceptMissingId){
@@ -2759,31 +2636,6 @@ async function commitMissingOutApproval(docId,kakaoId,date,outTime){
         status:'approved',approvedAt:window.fsServerTimestamp()
     });
     await batch.commit();
-}
-
-async function approveMissingOut(docId,kakaoId,date,outTime){
-    if(!outTime){showToast('퇴근시간 정보가 없습니다.','error');return;}
-    if(!confirm(`${date} 퇴근 누락을 승인하시겠습니까?\n출퇴근 기록에 퇴근시간(${outTime})이 반영됩니다.`))return;
-    await withSave(async()=>{
-        await commitMissingOutApproval(docId,kakaoId,date,outTime);
-    },{successMsg:'퇴근 누락 승인 완료 ✓',delay:1000,onSuccess:async()=>{
-        await closeOverlappingRequests(kakaoId,date,null,docId);
-        loadAttendanceAuthRequests();loadSidebarAuthReqs();
-        await loadMissingOutRequests();
-        await loadMissingOutApproved();
-    }});
-}
-
-async function rejectMissingOut(docId){
-    if(!confirm('퇴근 누락 신청을 거절하시겠습니까?'))return;
-    await withSave(async()=>{
-        await window.fsUpdateDoc(window.fsDoc(window.db,'missingOut',docId),{
-            status:'rejected',rejectedAt:window.fsServerTimestamp()
-        });
-    },{successMsg:'거절 완료 ✓',delay:800,onSuccess:async()=>{
-        await loadMissingOutRequests();
-        await loadMissingOutApproved();
-    }});
 }
 
 // ── 수강증명서(실습근무카드) 발급 신청 ── missingOut과 동일한 신청→승인 패턴.
@@ -2993,51 +2845,29 @@ async function cancelAuthRequest(docId,kakaoId){
         await window.fsUpdateDoc(window.fsDoc(window.db,'students',String(kakaoId)),{pendingAuthRequestId:null});
         showToast('요청이 취소됐습니다','info');
         await loadAttendanceAuthRequests();
-        loadSidebarAuthReqs();
     }catch(e){showToast('취소 실패: '+e.message,'error');}
     showLoader(false);
 }
 
-async function approveAuthRequest(docId,kakaoId,date){
-    if(!confirm('출결 인증을 승인하시겠습니까? 해당 날짜 출퇴근 기록에 반영됩니다.'))return;
-    showLoader(true);
-    try{
-        const reqSnap=await window.fsGetDoc(window.fsDoc(window.db,'attendanceAuthRequests',docId));
-        if(!reqSnap.exists()){showToast('요청을 찾을 수 없습니다','error');return;}
-        const req=reqSnap.data();
-        const docKey=String(kakaoId)+'_'+date;
-        const attUpdate={kakaoId:String(kakaoId),date};
-        if(req.inTime)attUpdate.inTime=req.inTime;
-        if(req.outTime)attUpdate.outTime=req.outTime;
-        if(req.studentSig)attUpdate.studentSig=req.studentSig;
-        if(req.managerSig)attUpdate.managerSig=req.managerSig;
-        if(req.managerName)attUpdate.managerName=req.managerName;
-        if(req.managerPosition)attUpdate.managerPosition=req.managerPosition;
-        if(req.managerPhone)attUpdate.managerPhone=req.managerPhone;
-        const batch=window.fsWriteBatch(window.db);
-        batch.set(window.fsDoc(window.db,'attendance',docKey),attUpdate,{merge:true});
-        batch.update(window.fsDoc(window.db,'attendanceAuthRequests',docId),{status:'approved'});
-        batch.update(window.fsDoc(window.db,'students',String(kakaoId)),{pendingAuthRequestId:null});
-        await batch.commit();
-        await closeOverlappingRequests(kakaoId,date,docId,null);
-        showToast('승인 완료 ✓','success');
-        await loadAttendanceAuthRequests();
-        loadMissingOutRequests();loadSidebarAuthReqs();
-        loadAttendance();
-    }catch(e){showToast('승인 실패: '+e.message,'error');}
-    showLoader(false);
-}
-
-async function rejectAuthRequest(docId,kakaoId){
-    if(!confirm('출결 인증 요청을 거절하시겠습니까?'))return;
-    showLoader(true);
-    try{
-        await window.fsUpdateDoc(window.fsDoc(window.db,'attendanceAuthRequests',docId),{status:'rejected',rejectedAt:window.fsServerTimestamp()});
-        await window.fsUpdateDoc(window.fsDoc(window.db,'students',String(kakaoId)),{pendingAuthRequestId:null});
-        showToast('거절 완료','info');
-        await loadAttendanceAuthRequests();
-    }catch(e){showToast('거절 실패: '+e.message,'error');}
-    showLoader(false);
+// 출결 인증 요청 승인: 요청에 담긴 출퇴근 시각·서명을 출퇴근 기록에 반영하고 요청을 승인 처리한다(요청 문서 내용을 반환)
+async function commitAuthRequestApproval(docId,kakaoId,date){
+    const reqSnap=await window.fsGetDoc(window.fsDoc(window.db,'attendanceAuthRequests',docId));
+    if(!reqSnap.exists())throw new Error('요청을 찾을 수 없습니다');
+    const req=reqSnap.data();
+    const attUpdate={kakaoId:String(kakaoId),date};
+    if(req.inTime)attUpdate.inTime=req.inTime;
+    if(req.outTime)attUpdate.outTime=req.outTime;
+    if(req.studentSig)attUpdate.studentSig=req.studentSig;
+    if(req.managerSig)attUpdate.managerSig=req.managerSig;
+    if(req.managerName)attUpdate.managerName=req.managerName;
+    if(req.managerPosition)attUpdate.managerPosition=req.managerPosition;
+    if(req.managerPhone)attUpdate.managerPhone=req.managerPhone;
+    const batch=window.fsWriteBatch(window.db);
+    batch.set(window.fsDoc(window.db,'attendance',String(kakaoId)+'_'+date),attUpdate,{merge:true});
+    batch.update(window.fsDoc(window.db,'attendanceAuthRequests',docId),{status:'approved',approvedAt:window.fsServerTimestamp()});
+    batch.update(window.fsDoc(window.db,'students',String(kakaoId)),{pendingAuthRequestId:null});
+    await batch.commit();
+    return req;
 }
 
 // ── Render: 신규가입관리 ──────────────────────────────────
@@ -4005,8 +3835,7 @@ async function loadHospitalManagers(){
 }
 
 function updateApproveCount(){
-    const authPendingCount=(authRequests||[]).filter(r=>r.status==='submitted').length;
-    const cnt=(pendingStudents?.length||0)+(missingOutRequests?.length||0)+(certRequests?.length||0)+authPendingCount;
+    const cnt=(pendingStudents?.length||0)+(certRequests?.length||0);
     const el=document.getElementById('approve-count');
     if(!el)return;
     if(cnt>0){el.textContent=cnt;el.style.display='inline-flex';}
@@ -4347,7 +4176,7 @@ async function toggleJabi(kakaoId){
     }
 }
 
-// ── 퇴근 누락 섹션 ──────────────────────────────────────────
+// ── 누락 섹션 (누락요청 패널 + 누락 카드) ──────────────────────────────────────────
 // 카드가 많아져도 한 줄을 유지하고 좌우로 넘겨 본다: 터치는 기본 스와이프, 마우스는 휠(세로→가로)과 드래그를 지원
 function initMissingSwipe(el){
     if(el._swipe)return;
@@ -4376,68 +4205,226 @@ function initMissingSwipe(el){
     });
 }
 
+function localTodayStr(){
+    const d=new Date();
+    return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+
+// ── 누락요청 패널: 반 → 이름 선택 후 [요청] — 달력에서 고른 "과거 날짜 하나"에 출근+퇴근 인증을 함께 요청 ──
+function renderMreqPanel(){
+    const clsSel=document.getElementById('mreq-cls');
+    if(!clsSel)return;
+    const cur=clsSel.value;
+    clsSel.innerHTML='<option value="">반 선택</option>'+classesList.filter(c=>!c.graduated).map(c=>`<option value="${c.id}">${escHtml(c.name)}</option>`).join('');
+    if(cur&&classesList.some(c=>c.id===cur&&!c.graduated))clsSel.value=cur;
+    fillMreqStudents();
+    updateMreqDate();
+}
+function fillMreqStudents(){
+    const clsSel=document.getElementById('mreq-cls'),stuSel=document.getElementById('mreq-stu');
+    if(!clsSel||!stuSel)return;
+    const keep=stuSel.value,clsId=clsSel.value;
+    const list=studentsList.filter(s=>!s.droppedOut&&clsId&&s.classId===clsId).sort((a,b)=>(a.name||'').localeCompare(b.name||'','ko'));
+    stuSel.innerHTML='<option value="">이름</option>'+list.map(s=>`<option value="${escHtml(String(s.kakaoId))}">${escHtml(s.name||'-')}</option>`).join('');
+    if(keep&&list.some(s=>String(s.kakaoId)===keep))stuSel.value=keep;
+    updateMreqBtn();
+}
+function onMreqClsChange(){
+    const stuSel=document.getElementById('mreq-stu');
+    if(stuSel)stuSel.value='';
+    fillMreqStudents();
+}
+function mreqTargetDate(){
+    const s=document.getElementById('att-start-date')?.value||'',e=document.getElementById('att-end-date')?.value||'';
+    return s&&s===e?s:'';
+}
+function mreqDateState(){
+    const d=mreqTargetDate();
+    if(!d)return{ok:false,text:'달력에서 날짜 하나 선택'};
+    if(d>=localTodayStr())return{ok:false,text:'과거 날짜만 요청 가능'};
+    return{ok:true,text:d.slice(5).replace('-','/')+' 출·퇴 요청'};
+}
+function updateMreqDate(){
+    const el=document.getElementById('mreq-date');
+    if(el){const st=mreqDateState();el.textContent=st.text;el.classList.toggle('warn',!st.ok);}
+    updateMreqBtn();
+}
+function updateMreqBtn(){
+    const btn=document.getElementById('mreq-btn'),stuSel=document.getElementById('mreq-stu');
+    if(!btn||!stuSel)return;
+    btn.disabled=!stuSel.value||!mreqDateState().ok;
+}
+async function sendMissingRequest(){
+    const kakaoId=document.getElementById('mreq-stu')?.value;
+    const acId=directorData?.academyId;
+    const date=mreqTargetDate();
+    if(!kakaoId){showToast('반과 이름을 선택해주세요','info');return;}
+    if(!date){showToast('달력에서 날짜 하나를 선택해주세요','info');return;}
+    if(date>=localTodayStr()){showToast('오늘·미래 날짜는 요청할 수 없습니다 (과거 날짜만 가능)','info');return;}
+    if(attendanceRecords.some(r=>String(r.kakaoId)===String(kakaoId)&&normDate(r.date)===date&&r.inTime)){
+        showToast('이 날짜는 출근 기록이 이미 있습니다. 퇴근 누락은 목록에 자동으로 표시됩니다','info');return;
+    }
+    const dup=(authRequests||[]).some(r=>String(r.kakaoId)===String(kakaoId)&&normDate(r.date)===date&&(r.status==='pending'||r.status==='submitted'))
+        ||(missingOutRequests||[]).some(r=>String(r.kakaoId)===String(kakaoId)&&normDate(r.date)===date);
+    if(dup){showToast('이미 진행 중인 요청이 있습니다','info');return;}
+    await withSave(async()=>{
+        const ref=await window.fsAddDoc(window.fsCollection(window.db,'attendanceAuthRequests'),{
+            kakaoId:String(kakaoId),academyId:acId,date,type:'both',note:'',status:'pending',
+            requestedAt:window.fsServerTimestamp()
+        });
+        await window.fsUpdateDoc(window.fsDoc(window.db,'students',String(kakaoId)),{pendingAuthRequestId:ref.id});
+    },{successMsg:'누락 요청 전송 완료 ✓',onSuccess:()=>{
+        document.getElementById('mreq-stu').value='';
+        updateMreqBtn();
+        loadAttendanceAuthRequests();
+    }});
+}
+
+// 누락 카드 목록: ① 출근만 있고 퇴근이 없는 날(자동) ② 학생이 앱에서 제출한 퇴근 누락(missingOut) ③ 원장이 보낸 출결 인증 요청(대기/학생 제출)
+function buildMissingItems(){
+    const today=localTodayStr();
+    const map=new Map();
+    const keyOf=(kid,d)=>String(kid)+'|'+d;
+    studentsList.forEach(stu=>{
+        if(stu.droppedOut)return;
+        const cls=classesList.find(c=>c.id===stu.classId);
+        const{start:clsStart}=getClsPracticePeriod(cls);
+        const effStart=stu.jabi?null:(stu.practiceStart||clsStart||null);
+        attendanceRecords.filter(r=>String(r.kakaoId)===String(stu.kakaoId)&&r.inTime&&(!r.outTime||!/^\d/.test(r.outTime))&&r.hospital!=='사하제일간호학원'&&normDate(r.date)<today&&(!effStart||normDate(r.date)>=effStart)).forEach(rec=>{
+            const d=normDate(rec.date);
+            map.set(keyOf(stu.kakaoId,d),{stu,date:d,inTime:rec.inTime||''});
+        });
+    });
+    const stuOf=kid=>studentsList.find(s=>String(s.kakaoId)===String(kid));
+    (missingOutRequests||[]).forEach(r=>{
+        const stu=stuOf(r.kakaoId);if(!stu)return;
+        const d=normDate(r.date),k=keyOf(r.kakaoId,d);
+        const it=map.get(k)||{stu,date:d,inTime:r.inTime||''};
+        if(r.outTime&&!it.mo)it.mo=r;
+        map.set(k,it);
+    });
+    (authRequests||[]).forEach(r=>{
+        if(r.status!=='pending'&&r.status!=='submitted')return;
+        const stu=stuOf(r.kakaoId);if(!stu)return;
+        const d=normDate(r.date),k=keyOf(r.kakaoId,d);
+        const it=map.get(k)||{stu,date:d,inTime:''};
+        if(r.status==='submitted')it.ar=r;else it.arWait=r;
+        map.set(k,it);
+    });
+    return [...map.values()].sort((a,b)=>b.date.localeCompare(a.date));
+}
+
 function renderMissingSection(){
     const section=document.getElementById('att-missing-section');
     const countEl=document.getElementById('att-missing-count');
     const listEl=document.getElementById('att-missing-list');
     if(!section||!countEl||!listEl)return;
     initMissingSwipe(listEl);
-    const todayStr=new Date().toISOString().slice(0,10);
-    const missing=[];
-    studentsList.forEach(stu=>{
-        if(stu.droppedOut)return;
-        const cls=classesList.find(c=>c.id===stu.classId);
-        const{start:clsStart}=getClsPracticePeriod(cls);
-        const effStart=stu.jabi?null:(stu.practiceStart||clsStart||null);
-        attendanceRecords.filter(r=>String(r.kakaoId)===String(stu.kakaoId)&&r.inTime&&(!r.outTime||!/^\d/.test(r.outTime))&&r.hospital!=='사하제일간호학원'&&normDate(r.date)!==todayStr&&(!effStart||normDate(r.date)>=effStart)).forEach(rec=>{
-            missing.push({stu,date:normDate(rec.date),inTime:rec.inTime});
-        });
-    });
-    missing.sort((a,b)=>b.date.localeCompare(a.date));
-    countEl.textContent=missing.length+'명';
-    if(!missing.length){section.style.display='none';return;}
+    renderMreqPanel();
+    const items=buildMissingItems();
+    countEl.textContent=items.length+'명';
     section.style.display='';
-    // 학생이 앱에서 퇴근 누락 서명을 제출했다면(missingOut, pending) 퇴근 시각·서명을 함께 보여주고 호버 시 승인 버튼을 띄운다
-    const reqFor=m=>(missingOutRequests||[]).find(r=>String(r.kakaoId)===String(m.stu.kakaoId)&&normDate(r.date)===m.date&&r.outTime);
-    listEl.innerHTML=missing.map(m=>{
-        const name=escHtml(m.stu.name||'-');
-        const req=reqFor(m);
-        const dot=(ch)=>`<span class="mo-dot mo-dot-${{출:'in',퇴:'out',본:'stu',담:'mgr'}[ch]}">${ch}</span>`;
-        const line=(tag,time)=>`<div class="mo-line"><span class="mo-name">${name}</span><span class="mo-date">${m.date}</span>${dot(tag)}<span class="mo-time">${escHtml(time)}</span></div>`;
-        if(!req)return`<div class="mo-card" data-kid="${escHtml(String(m.stu.kakaoId))}" data-date="${m.date}">${line('출',m.inTime.slice(0,5))}<span class="mo-badge wait">대기중</span></div>`;
-        const out=trimToMinutes(req.outTime);
+    if(!items.length){listEl.innerHTML='<div class="mo-empty">누락 없음</div>';return;}
+    const dot=ch=>`<span class="mo-dot mo-dot-${{출:'in',퇴:'out',본:'stu',담:'mgr'}[ch]}">${ch}</span>`;
+    listEl.innerHTML=items.map(it=>{
+        const kid=escHtml(String(it.stu.kakaoId)),name=escHtml(it.stu.name||'-');
+        const line=(tag,time)=>`<div class="mo-line"><span class="mo-name">${name}</span><span class="mo-date">${it.date}</span>${dot(tag)}<span class="mo-time">${escHtml(time)}</span></div>`;
         const sig=(label,v)=>`<span class="mo-sigpair">${dot(label)}${v?`<img class="mo-sig-img" src="${sigSrc(v)}" alt="">`:'<span class="mo-sig-none">-</span>'}</span>`;
-        return`<div class="mo-card can" data-kid="${escHtml(String(m.stu.kakaoId))}" data-date="${m.date}">${line('출',m.inTime.slice(0,5))}${line('퇴',out)}<div class="mo-sigs">${sig('본',req.studentSig)}${sig('담',req.managerSig)}</div><div class="mo-veil"><button class="mo-ok" onclick="approveMissingCard('${req.id}','${escHtml(String(m.stu.kakaoId))}','${m.date}','${escHtml(out)}',this)">승인</button></div></div>`;
+        const ready=it.mo?{kind:'mo',r:it.mo,inT:it.inTime||it.mo.inTime,outT:it.mo.outTime}:(it.ar?{kind:'ar',r:it.ar,inT:it.ar.inTime||it.inTime,outT:it.ar.outTime}:null);
+        if(ready){
+            const inT=trimToMinutes(ready.inT)||'-',outT=trimToMinutes(ready.outT);
+            return`<div class="mo-card can" data-kid="${kid}" data-date="${it.date}">${line('출',inT)}${outT?line('퇴',outT):''}<div class="mo-sigs">${sig('본',ready.r.studentSig)}${sig('담',ready.r.managerSig)}</div><div class="mo-veil"><button class="mo-ok" onclick="approveNureok('${ready.kind}','${ready.r.id}','${kid}','${it.date}',this)">승인</button><button class="mo-no" onclick="rejectNureok('${ready.kind}','${ready.r.id}','${kid}',this)">거절</button></div></div>`;
+        }
+        const inT=trimToMinutes(it.inTime)||'-';
+        if(it.arWait){
+            return`<div class="mo-card cancelable" data-kid="${kid}" data-date="${it.date}">${line('출',inT)}<span class="mo-badge wait">대기중</span><div class="mo-veil"><button class="mo-no mo-cancel" onclick="cancelAuthRequest('${it.arWait.id}','${kid}')">요청 취소</button></div></div>`;
+        }
+        return`<div class="mo-card" data-kid="${kid}" data-date="${it.date}">${line('출',inT)}<span class="mo-badge wait">대기중</span></div>`;
     }).join('');
 }
 
-// 퇴근 누락 카드 승인: Firestore 저장(출퇴근 기록 반영 + 요청 승인 처리) 후 카드를 아래로 내려가며 사라지게 한다
-async function approveMissingCard(docId,kakaoId,date,outTime,btn){
+// 누락 카드 승인: Firestore 저장(출퇴근 기록 반영 + 요청 승인 처리) 후 카드를 아래로 내려가며 사라지게 한다
+async function approveNureok(kind,docId,kakaoId,date,btn){
     const card=btn.closest('.mo-card');
     if(!card||card.classList.contains('busy'))return;
-    card.classList.add('busy');btn.disabled=true;btn.textContent='처리 중…';
+    card.classList.add('busy');
+    card.querySelectorAll('.mo-veil button').forEach(b=>b.disabled=true);
+    btn.textContent='처리 중…';
+    let applied={};
     try{
-        await commitMissingOutApproval(docId,kakaoId,date,outTime);
+        if(kind==='mo'){
+            const req=(missingOutRequests||[]).find(r=>r.id===docId)||{};
+            const outTime=trimToMinutes(req.outTime);
+            await commitMissingOutApproval(docId,kakaoId,date,outTime);
+            applied={outTime};
+        }else{
+            const req=await commitAuthRequestApproval(docId,kakaoId,date);
+            applied={inTime:req.inTime||'',outTime:req.outTime||''};
+        }
     }catch(e){
-        card.classList.remove('busy');btn.disabled=false;btn.textContent='승인';
+        card.classList.remove('busy');
+        card.querySelectorAll('.mo-veil button').forEach(b=>b.disabled=false);
+        btn.textContent='승인';
         showToast('승인 실패: '+e.message,'error');
         return;
     }
-    const rec=attendanceRecords.find(r=>String(r.kakaoId)===String(kakaoId)&&normDate(r.date)===date);
-    if(rec)rec.outTime=outTime;
-    missingOutRequests=(missingOutRequests||[]).filter(r=>r.id!==docId);
+    let rec=attendanceRecords.find(r=>String(r.kakaoId)===String(kakaoId)&&normDate(r.date)===date);
+    if(!rec){
+        const stu=studentsList.find(s=>String(s.kakaoId)===String(kakaoId));
+        rec={kakaoId:String(kakaoId),date,inTime:'',outTime:'',hospital:stu?.hospital||''};
+        attendanceRecords.push(rec);
+    }
+    if(applied.inTime)rec.inTime=applied.inTime;
+    if(applied.outTime)rec.outTime=applied.outTime;
+    if(kind==='mo')missingOutRequests=(missingOutRequests||[]).filter(r=>r.id!==docId);
+    else authRequests=(authRequests||[]).filter(r=>r.id!==docId);
+    leaveNureokCard(card);
+    showToast('승인 완료 ✓','success');
+    // 애니메이션이 끝난 뒤 목록을 다시 그리고 관련 요청을 정리한다(중간에 다시 그리면 카드가 갑자기 사라짐)
+    setTimeout(async()=>{
+        renderAttendance();
+        await closeOverlappingRequests(kakaoId,date,kind==='ar'?docId:null,kind==='mo'?docId:null);
+        loadAttendanceAuthRequests();
+        loadMissingOutRequests();loadMissingOutApproved();
+    },700);
+}
+
+async function rejectNureok(kind,docId,kakaoId,btn){
+    const card=btn.closest('.mo-card');
+    if(!card||card.classList.contains('busy'))return;
+    if(!confirm('이 요청을 거절하시겠습니까?'))return;
+    card.classList.add('busy');
+    card.querySelectorAll('.mo-veil button').forEach(b=>b.disabled=true);
+    try{
+        const stamp={status:'rejected',rejectedAt:window.fsServerTimestamp()};
+        if(kind==='mo'){
+            await window.fsUpdateDoc(window.fsDoc(window.db,'missingOut',docId),stamp);
+        }else{
+            await window.fsUpdateDoc(window.fsDoc(window.db,'attendanceAuthRequests',docId),stamp);
+            await window.fsUpdateDoc(window.fsDoc(window.db,'students',String(kakaoId)),{pendingAuthRequestId:null});
+        }
+    }catch(e){
+        card.classList.remove('busy');
+        card.querySelectorAll('.mo-veil button').forEach(b=>b.disabled=false);
+        showToast('거절 실패: '+e.message,'error');
+        return;
+    }
+    if(kind==='mo')missingOutRequests=(missingOutRequests||[]).filter(r=>r.id!==docId);
+    else authRequests=(authRequests||[]).filter(r=>r.id!==docId);
+    leaveNureokCard(card);
+    showToast('거절 처리됨','info');
+    setTimeout(()=>{
+        renderMissingSection();
+        loadAttendanceAuthRequests();
+        loadMissingOutRequests();loadMissingOutApproved();
+    },700);
+}
+
+function leaveNureokCard(card){
     card.style.width=card.offsetWidth+'px';
     void card.offsetWidth;
     card.classList.add('leaving');
     setTimeout(()=>{card.style.width='0px';card.style.padding='0';card.style.minHeight='0';card.style.borderWidth='0';},350);
-    showToast('퇴근 누락 승인 완료 ✓','success');
-    // 애니메이션이 끝난 뒤 목록을 다시 그리고 관련 요청을 정리한다(중간에 다시 그리면 카드가 갑자기 사라짐)
-    setTimeout(async()=>{
-        renderAttendance();
-        await closeOverlappingRequests(kakaoId,date,null,docId);
-        loadAttendanceAuthRequests();loadSidebarAuthReqs();
-        loadMissingOutRequests();loadMissingOutApproved();
-    },700);
 }
 
 // ── 중도탈락 페이지 ──────────────────────────────────────────
@@ -4601,72 +4588,6 @@ function missingOutTypeBadge(){
     return '<span style="font-size:10px;font-weight:700;color:#0891b2;background:#ecfeff;border:1px solid #a5f3fc;border-radius:4px;padding:1px 6px;">퇴근 누락</span>';
 }
 
-function renderAuthReqPendingCard(r,typeLabel){
-    const stu=studentsList.find(s=>String(s.kakaoId)===String(r.kakaoId));
-    const name=stu?.name||r.kakaoId;
-    const phone=maskPhone(r.managerPhone||'');
-    const statusBadge=r.status==='pending'
-        ?'<span style="font-size:10px;font-weight:700;color:#f59e0b;background:#fffbeb;border:1px solid #fde68a;border-radius:4px;padding:1px 6px;">대기중</span>'
-        :'<span style="font-size:10px;font-weight:700;color:#10b981;background:#f0fdf4;border:1px solid #a7f3d0;border-radius:4px;padding:1px 6px;">학생 제출</span>';
-    return `<div class="auth-req-card">
-        <div class="auth-req-card-head">
-            <div>
-                <div class="auth-req-card-name">${authReqTypeBadge()} ${escHtml(name)} ${statusBadge}</div>
-                <div class="auth-req-card-meta">${r.date} · ${typeLabel[r.type]||r.type}</div>
-            </div>
-            <div style="display:flex;align-items:center;gap:6px;">
-                <div class="auth-req-card-meta">출근 ${trimToMinutes(r.inTime)||'-'} 퇴근 ${trimToMinutes(r.outTime)||'-'}</div>
-                ${r.status==='pending'
-                ?`<button class="btn btn-danger btn-sm" style="font-size:10px;padding:2px 8px;" onclick="cancelAuthRequest('${r.id}','${r.kakaoId}')">취소</button>`
-                :`<button class="btn btn-primary btn-sm" style="font-size:10px;padding:2px 8px;background:#4f46e5;border-color:#4f46e5;" onclick="approveAuthRequest('${r.id}','${r.kakaoId}','${r.date}')">승인</button>
-                <button class="btn btn-danger btn-sm" style="font-size:10px;padding:2px 8px;" onclick="rejectAuthRequest('${r.id}','${r.kakaoId}')">거절</button>`}
-            </div>
-        </div>
-        ${(r.studentSig||r.managerSig)?`<div class="auth-req-card-sigs">
-            <div class="auth-req-card-sig">
-                <div class="auth-req-card-sig-label">학생 서명</div>
-                ${r.studentSig?`<img src="${sigSrc(r.studentSig)}">`:'<span style="font-size:11px;color:var(--muted);">없음</span>'}
-            </div>
-            <div class="auth-req-card-sig">
-                <div class="auth-req-card-sig-label">담당자 서명</div>
-                ${r.managerSig?`<img src="${sigSrc(r.managerSig)}">`:'<span style="font-size:11px;color:var(--muted);">없음</span>'}
-                ${(r.managerName||r.managerPosition||phone)?`<div style="font-size:10px;color:var(--muted);margin-top:3px;line-height:1.5;">${[r.managerName,r.managerPosition,phone].filter(Boolean).join(' · ')}</div>`:''}
-            </div>
-        </div>`:''}
-    </div>`;
-}
-
-function renderMissingOutPendingCard(r){
-    const stu=studentsList.find(s=>String(s.kakaoId)===String(r.kakaoId));
-    const name=stu?.name||r.kakaoId;
-    const hasSigs=r.studentSig&&r.managerSig;
-    return `
-    <div class="pending-row" style="flex-direction:column;align-items:stretch;gap:8px;">
-        <div style="display:flex;align-items:center;justify-content:space-between;">
-            <div class="pending-info">
-                <div class="pending-name">${missingOutTypeBadge()} ${name}</div>
-                <div class="pending-phone">${r.date} · 출근 ${trimToMinutes(r.inTime)} → 퇴근 ${trimToMinutes(r.outTime)||'?'}</div>
-            </div>
-            <div class="pending-actions">
-                <button class="btn btn-primary btn-sm mo-approve-btn" data-id="${r.id}" data-kid="${r.kakaoId}" data-date="${r.date}" data-out="${r.outTime&&/^\d/.test(r.outTime)?r.outTime:''}" ${!r.outTime||!/^\d/.test(r.outTime)?'disabled title="퇴근시간 없음"':''}>승인</button>
-                <button class="btn btn-danger btn-sm mo-reject-btn" data-id="${r.id}">거절</button>
-            </div>
-        </div>
-        ${hasSigs?`
-        <div style="display:flex;gap:8px;padding-top:4px;border-top:1px solid var(--border);">
-            <div style="flex:1;text-align:center;">
-                <div style="font-size:10px;color:var(--muted);margin-bottom:3px;font-weight:700;">학생 서명</div>
-                <img src="${sigSrc(r.studentSig)}" style="width:100%;max-height:50px;object-fit:contain;border:1px solid var(--border);border-radius:6px;background:#fff;">
-            </div>
-            <div style="flex:1;text-align:center;">
-                <div style="font-size:10px;color:var(--muted);margin-bottom:3px;font-weight:700;">담당자 서명</div>
-                <img src="${sigSrc(r.managerSig)}" style="width:100%;max-height:50px;object-fit:contain;border:1px solid var(--border);border-radius:6px;background:#fff;">
-                ${(r.managerName||r.managerPosition||r.managerPhone)?`<div style="font-size:10px;color:var(--muted);margin-top:3px;">${[r.managerName,r.managerPosition,r.managerPhone].filter(Boolean).join(' · ')}</div>`:''}
-            </div>
-        </div>`:'<div style="font-size:11px;color:#ef4444;padding-top:4px;">⚠ 서명 없음 (불완전한 제출)</div>'}
-    </div>`;
-}
-
 function renderAuthReqHistoryCard(r,typeLabel){
     const stu=studentsList.find(s=>String(s.kakaoId)===String(r.kakaoId));
     const name=stu?.name||r.kakaoId;
@@ -4716,21 +4637,6 @@ function renderAttendanceApprovalMerged(){
     updateApproveCount();
     const typeLabel={in:'출근',out:'퇴근',both:'출+퇴근'};
 
-    // ── 대기 중(조치 필요) 목록: 출결 인증(submitted만, 학생 서명 제출 완료건) + 퇴근 누락(전부 pending) ──
-    const pendingItems=[];
-    (authRequests||[]).filter(r=>r.status==='submitted').forEach(r=>{
-        const ts=r.status==='submitted'?(r.submittedAt?.seconds||r.requestedAt?.seconds||0):(r.requestedAt?.seconds||0);
-        pendingItems.push({ts,html:renderAuthReqPendingCard(r,typeLabel)});
-    });
-    (missingOutRequests||[]).forEach(r=>{
-        pendingItems.push({ts:r.timestamp?.seconds||0,html:renderMissingOutPendingCard(r)});
-    });
-    pendingItems.sort((a,b)=>b.ts-a.ts);
-    const pendingEl=document.getElementById('attendance-approve-pending-list');
-    if(pendingEl){
-        pendingEl.innerHTML=pendingItems.length?pendingItems.map(i=>i.html).join(''):'<div class="empty-state" style="padding:8px;">대기 중인 요청 없음</div>';
-    }
-
     // ── 승인/거절 내역: 출결 인증(approved/rejected) + 퇴근 누락(missingOutApproved) ──
     const historyItems=[];
     (authRequests||[]).filter(r=>r.status==='approved'||r.status==='rejected').forEach(r=>{
@@ -4745,6 +4651,7 @@ function renderAttendanceApprovalMerged(){
     if(historyEl){
         historyEl.innerHTML=historyItems.length?historyItems.map(i=>i.html).join(''):'<div class="empty-state" style="padding:8px;">내역 없음</div>';
     }
+    renderMissingSection();
 }
 
 // ── 반코드 빌더 ──────────────────────────────────────────────
@@ -5357,6 +5264,7 @@ async function toggleClassGraduated(clsId){
         renderRegisteredClasses();
         renderClassSidebar();
         renderStudents();
+        renderMreqPanel();
     }catch(e){showToast('처리 실패: '+e.message,'error');}
     showLoader(false);
 }
@@ -5462,6 +5370,7 @@ async function saveEditClsInfo(){
         closeClsEdit();
         renderRegisteredClasses();
         renderClassSidebar();
+        renderMreqPanel();
     }catch(e){showToast('저장 실패: '+e.message,'error');}
     showLoader(false);
 }
