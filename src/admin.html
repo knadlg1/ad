@@ -547,7 +547,8 @@ css inline edit/* 출결 인증 요청 */
 .att-tr-none{background:#FAFAFA;}
 .att-table td{padding:8px 8px;vertical-align:middle;white-space:nowrap;text-align:center;}
 .att-td-cls{font-size:13px;color:var(--brand);font-weight:700;max-width:88px;overflow:hidden;text-overflow:ellipsis;}
-.att-jabi-tag{display:inline-block;margin-left:6px;padding:1px 8px;border-radius:10px;background:#E0E7FF;color:#4338CA;font-size:10px;font-weight:800;vertical-align:middle;line-height:1.5;}
+.att-th-jabi,.att-td-jabi{width:48px;padding-left:2px!important;padding-right:2px!important;text-align:center;}
+.att-jabi-tag{display:inline-block;padding:1px 8px;border-radius:10px;background:#E0E7FF;color:#4338CA;font-size:10px;font-weight:800;vertical-align:middle;line-height:1.5;}
 .att-td-name{font-weight:700;font-size:15px;}
 .att-td-hosp{font-size:13px;color:var(--muted);max-width:100px;overflow:hidden;text-overflow:ellipsis;}
 .att-td-period{font-size:12px;color:var(--muted);}
@@ -999,6 +1000,7 @@ css inline edit/* 출결 인증 요청 */
                   <thead>
                     <tr>
                       <th><select class="att-th-sel att-cls-filter-sel" onchange="onAttClsFilterChange(this)" title="반 선택(졸업반 제외)"><option value="">전체</option></select></th>
+                      <th class="att-th-jabi"></th>
                       <th><input type="text" class="att-th-search att-name-search-inp" placeholder="이름" oninput="onAttNameSearch(this)" title="이름 검색 — 글자 또는 초성(예: 이, ㅇㅅ)"></th>
                       <th><select class="att-th-sel att-hosp-filter-sel" onchange="onAttHospFilterChange(this)" title="실습병원 선택"><option value="">전체</option></select></th>
                       <th class="prog-cell">누적시간</th>
@@ -1014,6 +1016,7 @@ css inline edit/* 출결 인증 요청 */
                   <thead>
                     <tr>
                       <th><select class="att-th-sel att-cls-filter-sel" onchange="onAttClsFilterChange(this)" title="반 선택(졸업반 제외)"><option value="">전체</option></select></th>
+                      <th class="att-th-jabi"></th>
                       <th><input type="text" class="att-th-search att-name-search-inp" placeholder="이름" oninput="onAttNameSearch(this)" title="이름 검색 — 글자 또는 초성(예: 이, ㅇㅅ)"></th>
                       <th><select class="att-th-sel att-hosp-filter-sel" onchange="onAttHospFilterChange(this)" title="실습병원 선택"><option value="">전체</option></select></th>
                       <th>출근일수</th>
@@ -2202,7 +2205,8 @@ function renderAttendance(){
             const accBar=`<div class="prog-wrap-s"><div class="prog-bar-track-s"><div style="background:var(--brand);width:${actualPct}%;height:100%;"></div><div style="background:#c4b5fd;width:${gapPct}%;height:100%;"></div><div style="background:#e2e8f0;width:${remainPct}%;height:100%;"></div></div><div class="prog-label-s">${accH}h / ${stdH}h / 780h</div></div>`;
             return `<tr class="${rowClass}">
                 <td class="att-td-cls">${escHtml(clsName)}</td>
-                <td class="att-td-name">${escHtml(stu.name||'-')}${stu.jabi?'<span class="att-jabi-tag">자비</span>':''}</td>
+                <td class="att-td-jabi">${stu.jabi?'<span class="att-jabi-tag">자비</span>':''}</td>
+                <td class="att-td-name">${escHtml(stu.name||'-')}</td>
                 <td class="att-td-hosp">${escHtml(stu.hospital||'-')}</td>
                 <td class="prog-cell">${accBar}</td>
                 <td class="att-td-time">${inT||'-'}</td>
@@ -2252,7 +2256,8 @@ function renderAttendance(){
             const accH=Math.round(totalMins/6)/10;
             const summaryRow=`<tr class="att-range-summary">
                 <td class="att-td-cls">${escHtml(clsName)}</td>
-                <td class="att-td-name">${escHtml(stu.name||'-')}${stu.jabi?'<span class="att-jabi-tag">자비</span>':''}</td>
+                <td class="att-td-jabi">${stu.jabi?'<span class="att-jabi-tag">자비</span>':''}</td>
+                <td class="att-td-name">${escHtml(stu.name||'-')}</td>
                 <td class="att-td-hosp">${escHtml(stu.hospital||'-')}</td>
                 <td style="text-align:center;font-weight:600;">${attendedDays}/${pracDateList.length}일</td>
                 <td style="text-align:center;color:#EF4444;font-weight:700;">${absentDays}</td>
@@ -2263,7 +2268,7 @@ function renderAttendance(){
             </tr>`;
             if(!stuFilter) return summaryRow;
             // 특정 학생 선택 시: 날짜별 상세 행
-            const sectionHeader=`<tr class="att-detail-section-row"><td colspan="9"><span class="att-detail-section-label">날짜별 상세</span></td></tr>`;
+            const sectionHeader=`<tr class="att-detail-section-row"><td colspan="10"><span class="att-detail-section-label">날짜별 상세</span></td></tr>`;
             const detailRows=pracDateList.map(d=>{
                 const rec=stuRecs.find(r=>normDate(r.date)===d);
                 const sched=clsTt?clsTt[d]:null;
@@ -2292,7 +2297,7 @@ function renderAttendance(){
                     }
                 }
                 return `<tr class="att-detail-row${absentCls}">
-                    <td class="att-detail-date" colspan="3">${dateLabel}</td>
+                    <td class="att-detail-date" colspan="4">${dateLabel}</td>
                     <td class="att-detail-time">${inT||'—'}</td>
                     <td class="att-detail-time">${outT||'—'}</td>
                     <td class="att-detail-status-cell" colspan="4">${statusHtml}</td>
