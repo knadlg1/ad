@@ -3616,8 +3616,8 @@ function renderPaymentInfo(){
     const noticeEl=document.getElementById('card-notice');
     if(!b)noticeEl.textContent='';
     else if(b.cancelAt)noticeEl.textContent=`서비스 해지가 신청되었습니다. 다음 결제일(${fmtDot(b.cancelAt)}) 전까지 계속 이용하실 수 있으며, 이후 자동 결제는 진행되지 않습니다. 계속 이용하시려면 카드를 다시 등록해주세요.`;
-    else if(hasCard)noticeEl.textContent=`해지하시면 다음 자동 결제가 중단됩니다. 이미 결제하신 기간은 다음 결제일(${fmtDot(b.nextBillingDate)}) 전까지 계속 이용하실 수 있습니다.`;
-    else noticeEl.textContent='카드를 등록하면 매월 1일 자동으로 결제됩니다. 청구에 실패하면 재시도 없이 미납 처리되며 이용이 잠깁니다.';
+    else if(hasCard)noticeEl.textContent=`${b.billingDay?`매월 ${b.billingDay}일에 자동 결제됩니다. `:''}해지하시면 다음 자동 결제가 중단됩니다. 이미 결제하신 기간은 다음 결제일(${fmtDot(b.nextBillingDate)}) 전까지 계속 이용하실 수 있습니다.`;
+    else noticeEl.textContent='카드를 등록하면 그 자리에서 첫 달 요금이 바로 결제되고, 이후 첫 결제일과 같은 날짜에 매월 자동 결제됩니다. 청구에 실패하면 재시도 없이 미납 처리되며 이용이 잠깁니다.';
 
     renderPlanCard();
 
@@ -3668,6 +3668,11 @@ async function selectPlan(n){
 async function registerCard(){
     if(!directorDocId){showToast('로그인 상태를 확인해주세요','error');return;}
     if(billingInfo&&!billingInfo.amount&&!billingInfo.customAmount){showToast('요금 플랜(반 개수)을 먼저 선택해주세요','error');return;}
+    if(billingInfo&&!billingInfo.hasCard){
+        const first=billingInfo.customAmount&&!billingInfo.customAccepted?billingInfo.customAmount:billingInfo.amount;
+        if(!confirm(`카드를 등록하면 첫 달 요금 ${fmtWon(first)}이 바로 결제되며, 오늘 날짜가 청구 기준일이 되어 이후 매월 같은 날짜에 자동 결제됩니다.
+계속하시겠습니까?`))return;
+    }
     showLoader(true);
     try{
         const returnUrl=window.location.href.split('?')[0];
@@ -5219,6 +5224,11 @@ function exportPDF(){showToast('PDF 내보내기 기능은 준비 중입니다.'
 const billingParams=new URLSearchParams(window.location.search);
 if(billingParams.get('billing')==='success'){
     showToast('카드 등록 완료','success');
+    window.addEventListener('fsReady',()=>refreshDirectorAfterBilling(),{once:true});
+    if(window.fsReady)refreshDirectorAfterBilling();
+    history.replaceState(null,'',window.location.pathname);
+}else if(billingParams.get('billing')==='paymentfail'){
+    showToast('카드는 등록되었지만 첫 결제에 실패했습니다. 연체 결제로 다시 결제해주세요','error');
     window.addEventListener('fsReady',()=>refreshDirectorAfterBilling(),{once:true});
     if(window.fsReady)refreshDirectorAfterBilling();
     history.replaceState(null,'',window.location.pathname);

@@ -690,10 +690,43 @@ const kstNow = () => new Date(Date.now() + 9 * 3600000);
 function kstMonthKey() { return kstNow().toISOString().slice(0, 7); }
 function kstDateStr(date) { return new Date(date.getTime() + 9 * 3600000).toISOString().slice(0, 10); }
 function tsToKstDateStr(ts) { return ts && typeof ts.toDate === 'function' ? kstDateStr(ts.toDate()) : null; }
-// 다음 결제일 = 다음 달 1일 00:00 KST (월 자동결제는 매월 1일 09:00 KST에 실행)
-function nextBillingInstant() {
-    const k = kstNow();
-    return new Date(Date.UTC(k.getUTCFullYear(), k.getUTCMonth() + 1, 1) - 9 * 3600000);
+
+// ── 학원별 청구 주기 ──────────────────────────────────────────────────────
+// 첫 결제(카드 등록 직후 즉시 청구)가 일어난 날 = billingStartedAt(청구 기준일). 이후 청구일은 매월 그 날짜의 "일(day)"
+// 이고, 29~31일은 해당 월 말일로 보정한다. 청구 시각은 매일 도는 스케줄러(09:00 KST)에 맞춰 청구일 09:00 KST(= 00:00 UTC).
+// 결제를 늦게 해도 기준일은 움직이지 않는다 — 놓친 달은 미납으로 쌓이고, 다음 청구일은 원래 기준일 그대로다.
+function kstParts(ms) {
+    const k = new Date(ms + 9 * 3600000);
+    return { y: k.getUTCFullYear(), m: k.getUTCMonth() + 1, d: k.getUTCDate() };
+}
+const monthKeyOf = (y, m) => `${y}-${String(m).padStart(2, '0')}`;
+function daysInMonth(y, m) { return new Date(Date.UTC(y, m, 0)).getUTCDate(); }
+// (y, m)월의 청구 시각(ms): 기준일의 day(말일 보정) 09:00 KST
+function dueInstantMs(day, y, m) { return Date.UTC(y, m - 1, Math.min(day, daysInMonth(y, m))); }
+function billingStartMs(d) { return d.billingStartedAt && typeof d.billingStartedAt.toMillis === 'function' ? d.billingStartedAt.toMillis() : null; }
+// 다음 결제일(시작 월 다음 달부터, now보다 뒤인 첫 청구 시각). 기준일이 없으면(카드 미등록) 지금 날짜를 기준일로 가정.
+function nextBillingInstant(d, now = Date.now()) {
+    const s = kstParts(billingStartMs(d) ?? now);
+    let y = s.y, m = s.m;
+    for (let i = 0; i < 1200; i++) {
+        m++; if (m > 12) { m = 1; y++; }
+        const t = dueInstantMs(s.d, y, m);
+        if (t > now) return new Date(t);
+    }
+    return new Date(now);
+}
+// 스케줄러가 처리할 청구 월 키들(시작 월 이후 ~ 이번 달, 청구 시각이 지난 달만, 최근 3개월 창, 오래된 순)
+function dueBillingMonths(d, now = Date.now()) {
+    const startMs = billingStartMs(d);
+    if (startMs === null) return [];
+    const s = kstParts(startMs), c = kstParts(now), out = [];
+    for (let i = 2; i >= 0; i--) {
+        let y = c.y, m = c.m - i;
+        while (m < 1) { m += 12; y--; }
+        if (y * 12 + m <= s.y * 12 + s.m) continue;
+        if (dueInstantMs(s.d, y, m) <= now) out.push(monthKeyOf(y, m));
+    }
+    return out;
 }
 
 function planAmount(classCount) {
@@ -749,7 +782,7 @@ async function getBillingKey(directorId) {
 }
 
 // payments/{directorId}_{YYYY-MM} 결정론적 문서 = 그 달 청구의 "슬롯". 트랜잭션으로 선점해 중복청구를 막는다.
-//  status: processing → paid | failed,  연체 중 누적분은 unpaid,  슈퍼어드민 수동 정상화로 면제된 건은 waived
+//  status: processing → paid | failed,  연체 중 누적분은 unpaid
 //  ('processing'은 크래시 시 이중청구를 피하려고 자동으로 되살리지 않는다 — 수동 확인 대상)
 const paymentDocRef = (directorId, month) => db.doc(`payments/${directorId}_${month}`);
 async function acquirePaymentSlot(ref, base, { create, retryStatuses }) {
@@ -771,7 +804,7 @@ async function acquirePaymentSlot(ref, base, { create, retryStatuses }) {
 
 // 선점한 슬롯 1건 청구 + 결과 기록
 async function chargePaymentSlot(ref, { directorId, month, amount, billingKey, attempts }) {
-    const orderId = `monthly_${directorId}_${month}${attempts > 1 ? '_r' + attempts : ''}`.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 64);
+    const orderId = `monthly_${ref.id}${attempts > 1 ? '_r' + attempts : ''}`.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 64);
     const result = await chargeWithBillingKey(billingKey, { orderId, amount, goodsName: `까마귀 월 이용료 (${month})` });
     const ts = admin.firestore.FieldValue.serverTimestamp();
     try {
@@ -783,12 +816,12 @@ async function chargePaymentSlot(ref, { directorId, month, amount, billingKey, a
     return result;
 }
 
-// 월 자동결제 실행 — directorIds 지정 시 해당 원장만, 없으면(null) 전체 원장 대상.
+// 월 자동결제 실행(스케줄러가 매일 호출) — directorIds 지정 시 해당 원장만, 없으면(null) 전체 원장 대상.
+// 원장별로 "청구일(기준일의 day, 말일 보정)이 지났는데 그 달 청구 문서가 아직 없는 달"만 처리한다.
 // 청구 실패 시 재시도 없이 즉시 overdue. 연체 중인 원장은 청구하지 않고 미납 월(unpaid)만 누적한다
-// (후불 — 결제를 늦게 해도 청구 기준 월은 그대로 흐른다). 해지(cancelAt)한 원장은 청구·누적 모두 하지 않는다.
+// (후불 — 결제를 늦게 해도 청구 기준일은 그대로 흐른다). 해지(cancelAt)한 원장은 청구·누적 모두 하지 않는다.
+// 첫 결제(시작 월)는 카드 등록 직후 issueBillingKey가 즉시 청구하므로 여기서는 시작 월 다음 달부터 본다.
 async function runMonthlyCharge(directorIds) {
-    const monthKey = kstMonthKey();
-
     let directorDocs;
     if (Array.isArray(directorIds) && directorIds.length) {
         const snaps = await Promise.all(directorIds.map(id => db.doc('directors/' + id).get()));
@@ -803,38 +836,60 @@ async function runMonthlyCharge(directorIds) {
         const d = doc.data();
         if (d.status !== 'approved') continue;
         if (d.cancelAt) continue;
+        const months = dueBillingMonths(d);
+        if (!months.length) continue;
         const amount = directorMonthlyAmount(d);
-        const ref = paymentDocRef(docId, monthKey);
+        let status = d.paymentStatus;
+        let billingKey; // 필요할 때만 조회
 
-        if (d.paymentStatus === 'overdue') {
-            if (!amount) { console.log(`[SKIP] ${d.academyName || docId} — 연체 중이나 요금 플랜 없음`); continue; }
-            await ref.create({
-                directorId: docId, month: monthKey, amount, status: 'unpaid',
-                paidAt: null, error: '연체 중 — 미청구 누적',
-                createdAt: admin.firestore.FieldValue.serverTimestamp(),
-            }).catch(() => { /* 이미 있으면 그대로 */ });
-            continue;
-        }
+        for (const monthKey of months) {
+            const ref = paymentDocRef(docId, monthKey);
 
-        const billingKey = await getBillingKey(docId);
-        if (!billingKey) continue;
-        if (!amount) { console.log(`[SKIP] ${d.academyName || docId} — 요금 플랜(반 개수) 미선택`); continue; }
+            if (status === 'overdue') {
+                if (!amount) { console.log(`[SKIP] ${d.academyName || docId} — 연체 중이나 요금 플랜 없음`); break; }
+                await ref.create({
+                    directorId: docId, month: monthKey, amount, status: 'unpaid',
+                    paidAt: null, error: '연체 중 — 미청구 누적',
+                    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+                }).catch(() => { /* 이미 있으면 그대로 */ });
+                continue;
+            }
 
-        const slot = await acquirePaymentSlot(ref, { directorId: docId, month: monthKey, amount }, { create: true, retryStatuses: [] });
-        if (!slot) { console.log(`[SKIP] ${d.academyName || docId} — 이번 달 이미 처리됨`); continue; }
+            if (billingKey === undefined) billingKey = await getBillingKey(docId);
+            if (!billingKey) { console.log(`[SKIP] ${d.academyName || docId} — 등록된 카드 없음`); break; }
+            if (!amount) { console.log(`[SKIP] ${d.academyName || docId} — 요금 플랜(반 개수) 미선택`); break; }
 
-        const result = await chargePaymentSlot(ref, { directorId: docId, month: monthKey, amount, billingKey, attempts: slot.attempts });
-        if (result.success) {
-            console.log(`[SUCCESS] ${d.academyName || docId}`);
-            await db.doc('directors/' + docId).update({
-                paymentStatus: 'active',
-                lastPaymentAt: admin.firestore.FieldValue.serverTimestamp(),
-            });
-        } else {
-            console.log(`[FAIL] ${d.academyName || docId}: ${result.error}`);
-            await db.doc('directors/' + docId).update({ paymentStatus: 'overdue' });
+            const slot = await acquirePaymentSlot(ref, { directorId: docId, month: monthKey, amount }, { create: true, retryStatuses: [] });
+            if (!slot) { console.log(`[SKIP] ${d.academyName || docId} ${monthKey} — 이미 처리됨`); continue; }
+
+            const result = await chargePaymentSlot(ref, { directorId: docId, month: monthKey, amount, billingKey, attempts: slot.attempts });
+            if (result.success) {
+                console.log(`[SUCCESS] ${d.academyName || docId} ${monthKey}`);
+                await db.doc('directors/' + docId).update({
+                    paymentStatus: 'active',
+                    lastPaymentAt: admin.firestore.FieldValue.serverTimestamp(),
+                });
+                status = 'active';
+            } else {
+                console.log(`[FAIL] ${d.academyName || docId} ${monthKey}: ${result.error}`);
+                await db.doc('directors/' + docId).update({ paymentStatus: 'overdue' });
+                status = 'overdue'; // 이후 달은 청구하지 않고 미납으로만 누적
+            }
         }
     }
+}
+
+// 첫 결제 — 카드 등록 직후 시작 월 요금을 즉시 청구한다(issueBillingKey에서 호출). 성공하면 true.
+// 이미 그 달 슬롯이 있으면(해지 후 같은 달 재가입 등) paid일 때만 성공으로 본다.
+async function chargeFirstPayment(directorId, billingKey, month, amount) {
+    const ref = paymentDocRef(directorId, month);
+    const slot = await acquirePaymentSlot(ref, { directorId, month, amount }, { create: true, retryStatuses: [] });
+    if (!slot) {
+        const ex = await ref.get();
+        return ex.exists && ex.data().status === 'paid';
+    }
+    const result = await chargePaymentSlot(ref, { directorId, month, amount, billingKey, attempts: slot.attempts });
+    return result.success;
 }
 
 // 카드등록 팝업(goPay) 호출에 필요한 서명된 폼 파라미터 발급. 원장 인증(passwordHash) 필수.
@@ -878,11 +933,14 @@ exports.prepareBillingAuth = functions.runWith({ secrets: ['NICEPAY_MID', 'NICEP
 // goPay() 팝업 인증 성공 후 브라우저가 실제 form POST로 호출하는 콜백(fetch 아님).
 // AuthToken+TxTid를 cardbill_regist.jsp로 교환해 빌키(BID)를 발급받고, 빌키는 directorBilling/{id}(서버 전용)에,
 // 표시용 카드정보(brand/last4)는 directors 문서에 저장한 뒤 admin.html의 returnUrl로 302 리다이렉트(?billing=success|fail)한다.
-// 카드 등록만으로는 연체(overdue)가 풀리지 않는다 — 연체는 payOverdueBilling에서 실제 청구가 성공해야만 해제.
+// 첫 등록(또는 해지 기간 종료 후 재가입)이면 그 자리에서 첫 달 요금을 즉시 청구하고 그 날짜를 청구 기준일(billingStartedAt)로
+// 기록한다. 즉시 청구가 실패하면 카드는 저장하되 overdue로 두고(?billing=paymentfail), 이미 연체 중인 원장이 카드만 다시 등록해서는
+// 연체가 풀리지 않는다 — 연체는 payOverdueBilling에서 실제 청구가 성공해야만 해제.
 exports.issueBillingKey = functions.runWith({ secrets: ['NICEPAY_MID', 'NICEPAY_MERCHANT_KEY'] }).https.onRequest(async (req, res) => {
-    const redirectBack = (returnUrl, ok) => {
+    const redirectBack = (returnUrl, result) => {
         const base = returnUrl || 'about:blank';
-        res.redirect(302, base + (base.includes('?') ? '&' : '?') + 'billing=' + (ok ? 'success' : 'fail'));
+        const r = result === true ? 'success' : (result === false ? 'fail' : result);
+        res.redirect(302, base + (base.includes('?') ? '&' : '?') + 'billing=' + r);
     };
     let returnUrl = null;
     try {
@@ -920,20 +978,42 @@ exports.issueBillingKey = functions.runWith({ secrets: ['NICEPAY_MID', 'NICEPAY_
         const d = dirSnap.data();
         const ts = admin.firestore.FieldValue.serverTimestamp();
 
+        const nowMs = Date.now();
+        // 첫 결제 여부: 기준일(billingStartedAt)이 아직 없거나, 해지 기간이 이미 끝난 뒤 다시 가입하는 경우.
+        // (해지했지만 이용 기간이 남아 있는 상태에서 카드를 다시 등록하면 해지만 철회하고 기존 청구 주기를 그대로 잇는다.)
+        const cancelled = !!(d.cancelAt && typeof d.cancelAt.toMillis === 'function' && d.cancelAt.toMillis() <= nowMs);
+        const isFirst = !d.billingStartedAt || cancelled;
+        // 제안 금액으로 정기결제 등록 = 제안 수락. 금액은 수락 반영 후 서버가 다시 계산한다.
+        const merged = { ...d, ...(customAmountOf(d) ? { customAmountAcceptedAt: ts } : {}) };
+        const firstAmount = isFirst ? directorMonthlyAmount(merged) : null;
+        if (isFirst && !firstAmount) { await reqRef.delete().catch(() => {}); redirectBack(returnUrl, false); return; } // 플랜/제안 모두 없음 — prepareBillingAuth가 막지만 방어
+
         await db.doc('directorBilling/' + directorId).set({ billingKey: resultBody.BID, updatedAt: ts });
         const update = {
             cardInfo: { brand: resultBody.CardName || '카드', last4: String(resultBody.CardNo || '').replace(/\D/g, '').slice(-4) || '****' },
-            // 카드를 (재)등록하면 해지가 철회된다. 연체 상태는 그대로 둔다(첫 등록 'none' → 'active' 만 전환).
             cancelAt: admin.firestore.FieldValue.delete(),
             cancelRequestedAt: admin.firestore.FieldValue.delete(),
             billingKey: admin.firestore.FieldValue.delete(), // 과거 방식(directors 문서에 저장)의 잔재 제거
         };
-        if (d.paymentStatus !== 'overdue') update.paymentStatus = 'active';
-        if (!d.billingStartedAt) update.billingStartedAt = ts; // 첫 청구 기준일(처음 시작한 날)
-        if (customAmountOf(d)) update.customAmountAcceptedAt = ts; // 제안 금액으로 정기결제 등록 = 제안 수락
+        if (customAmountOf(d)) update.customAmountAcceptedAt = ts;
+        if (isFirst) update.billingStartedAt = admin.firestore.Timestamp.fromDate(new Date(nowMs)); // 청구 기준일 = 첫 결제일
+        else if (d.paymentStatus !== 'overdue') update.paymentStatus = 'active'; // 연체는 카드 재등록만으로 풀리지 않는다
         await dirRef.update(update);
         await reqRef.delete().catch(() => {});
-        redirectBack(returnUrl, true);
+
+        if (!isFirst) { redirectBack(returnUrl, true); return; }
+
+        // 첫 결제: 카드 등록 성공 직후 그 자리에서 시작 월 요금을 즉시 청구한다.
+        // 실패해도 카드는 이미 저장되어 있고 overdue로 남겨 "연체 결제"로 풀게 한다(재시도 없음).
+        const c = kstParts(nowMs);
+        const paid = await chargeFirstPayment(directorId, resultBody.BID, monthKeyOf(c.y, c.m), firstAmount);
+        if (paid) {
+            await dirRef.update({ paymentStatus: 'active', lastPaymentAt: admin.firestore.FieldValue.serverTimestamp() });
+            redirectBack(returnUrl, true);
+        } else {
+            await dirRef.update({ paymentStatus: 'overdue' });
+            redirectBack(returnUrl, 'paymentfail');
+        }
     } catch (e) {
         console.error('issueBillingKey error:', e);
         redirectBack(returnUrl, false);
@@ -967,7 +1047,8 @@ exports.getDirectorBillingInfo = functions.https.onRequest(async (req, res) => {
             customAccepted: !!(custom && d.customAmountAcceptedAt),
             amount:         directorMonthlyAmount(d),
             prices:         PLAN_PRICES,
-            nextBillingDate: d.cancelAt ? null : kstDateStr(nextBillingInstant()),
+            billingDay:     billingStartMs(d) !== null ? kstParts(billingStartMs(d)).d : null,
+            nextBillingDate: (d.cancelAt || !billingKey) ? null : kstDateStr(nextBillingInstant(d)),
             cancelAt:       tsToKstDateStr(d.cancelAt),
             lastPaymentAt:  tsToKstDateStr(d.lastPaymentAt),
             unpaid,
@@ -1008,7 +1089,7 @@ exports.cancelDirectorService = functions.https.onRequest(async (req, res) => {
         if (d.paymentStatus === 'overdue') { res.json({ status: 'error', message: '미납 요금을 먼저 결제해주세요.' }); return; }
         if (d.cancelAt) { res.json({ status: 'success', cancelAt: tsToKstDateStr(d.cancelAt) }); return; }
         if (!(await getBillingKey(call.id))) { res.json({ status: 'error', message: '등록된 정기결제가 없습니다.' }); return; }
-        const cancelAt = admin.firestore.Timestamp.fromDate(nextBillingInstant());
+        const cancelAt = admin.firestore.Timestamp.fromDate(nextBillingInstant(d));
         await call.ref.update({ cancelAt, cancelRequestedAt: admin.firestore.FieldValue.serverTimestamp() });
         res.json({ status: 'success', cancelAt: tsToKstDateStr(cancelAt) });
     } catch (e) {
@@ -1059,15 +1140,15 @@ exports.payOverdueBilling = functions.runWith({ secrets: ['NICEPAY_MID', 'NICEPA
     }
 });
 
-// 월 자동결제 (트리거: 매월 1일 오전 9시 KST)
+// 월 자동결제 (트리거: 매일 오전 9시 KST — 원장별 청구일이 지났고 그 달 청구가 없는 원장만 청구)
 exports.monthlyAutoCharge = functions.runWith({ secrets: ['NICEPAY_MID', 'NICEPAY_MERCHANT_KEY'] }).pubsub
-    .schedule('0 9 1 * *').timeZone('Asia/Seoul')
+    .schedule('0 9 * * *').timeZone('Asia/Seoul')
     .onRun(async (context) => {
         await runMonthlyCharge(null);
         return null;
     });
 
-// 월 자동결제 수동 테스트용 — 슈퍼어드민 비밀번호 확인 후 지정 원장 1명만 청구 (이번 달 슬롯이 이미 있으면 건너뜀)
+// 월 자동결제 수동 테스트용 — 슈퍼어드민 비밀번호 확인 후 지정 원장 1명만 스케줄러와 같은 규칙으로 처리(청구일 전이면 아무 것도 안 함)
 exports.testMonthlyCharge = functions.runWith({ secrets: ['NICEPAY_MID', 'NICEPAY_MERCHANT_KEY'] }).https.onRequest(async (req, res) => {
     setCors(res);
     if (req.method === 'OPTIONS') { res.status(204).send(''); return; }
@@ -1113,6 +1194,8 @@ exports.listDirectorPayments = functions.https.onRequest(async (req, res) => {
                 customAccepted: !!(custom && d.customAmountAcceptedAt),
                 amount:         directorMonthlyAmount(d),
                 cancelAt:       tsToKstDateStr(d.cancelAt),
+                billingDay:     billingStartMs(d) !== null ? kstParts(billingStartMs(d)).d : null,
+                nextBillingDate: (d.cancelAt || billingStartMs(d) === null) ? null : kstDateStr(nextBillingInstant(d)),
                 unpaidTotal:    unpaidSum[doc.id] || 0,
             };
         });
@@ -1123,24 +1206,29 @@ exports.listDirectorPayments = functions.https.onRequest(async (req, res) => {
     }
 });
 
-// 결제상태 수동 변경 (active/overdue). 정상화(active) 시 미납(failed/unpaid) 건은 waived로 면제 처리해
-// 나중에 다시 연체될 때 옛 미납분이 같이 청구되지 않게 한다.
+// 결제상태 수동 변경 — "연체 처리"만 가능하다. 연체 해제(active 전환)와 미납 면제는 이 함수로 할 수 없고,
+// 원장이 연체 결제(payOverdueBilling)로 실제 청구에 성공해야만 풀린다. 수동 연체 처리 시에는 연체 결제로 풀 수 있도록
+// 현재 월 요금 기준의 미납(unpaid) 건을 하나 만들어 둔다(요금 플랜/제안 금액이 없는 원장은 금액을 알 수 없어 거부).
 exports.setDirectorPaymentStatus = functions.https.onRequest(async (req, res) => {
     setCors(res);
     if (req.method === 'OPTIONS') { res.status(204).send(''); return; }
     try {
         const { passwordHash, directorId, status } = parseBody(req) || {};
         if (!directorId || typeof directorId !== 'string' || directorId.includes('/') || !status) { res.json({ success: false, message: '필수 파라미터 누락' }); return; }
-        if (status !== 'active' && status !== 'overdue') { res.json({ success: false, message: '잘못된 상태값입니다.' }); return; }
+        if (status !== 'overdue') { res.json({ success: false, message: '연체 처리만 가능합니다. 연체 해제는 원장님의 연체 결제로만 됩니다.' }); return; }
         if (!(await isSuperadmin(passwordHash))) { res.json({ success: false, message: '인증 실패' }); return; }
         const ref = db.doc('directors/' + directorId);
-        if (!(await ref.get()).exists) { res.json({ success: false, message: '원장을 찾을 수 없습니다.' }); return; }
-        await ref.update({ paymentStatus: status });
-        if (status === 'active') {
-            const snap = await db.collection('payments').where('directorId', '==', directorId).get();
-            await Promise.all(snap.docs.filter(x => x.data().status === 'failed' || x.data().status === 'unpaid')
-                .map(x => x.ref.update({ status: 'waived' })));
-        }
+        const snap = await ref.get();
+        if (!snap.exists) { res.json({ success: false, message: '원장을 찾을 수 없습니다.' }); return; }
+        const d = snap.data();
+        if (d.paymentStatus === 'overdue') { res.json({ success: true }); return; }
+        const amount = directorMonthlyAmount(d);
+        if (!amount) { res.json({ success: false, message: '요금 플랜(또는 수락된 제안 금액)이 없어 청구 금액을 알 수 없습니다.' }); return; }
+        await db.doc(`payments/${directorId}_manual_${Date.now()}`).set({
+            directorId, month: kstMonthKey(), amount, status: 'unpaid',
+            paidAt: null, error: '관리자 연체 처리', createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+        await ref.update({ paymentStatus: 'overdue' });
         res.json({ success: true });
     } catch (e) {
         console.error('setDirectorPaymentStatus error:', e);
