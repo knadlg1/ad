@@ -2390,7 +2390,7 @@ function renderStudents(){
     const clsFilter=document.getElementById('stuedit-cls-filter');
     if(clsFilter){
         const cur=clsFilter.value;
-        clsFilter.innerHTML='<option value="">전체 반</option>'+classesList.map(c=>`<option value="${c.id}">${escHtml(c.name)}</option>`).join('');
+        clsFilter.innerHTML='<option value="">전체 반</option>'+classesList.filter(c=>!c.graduated).map(c=>`<option value="${c.id}">${escHtml(c.name)}</option>`).join('');
         if(cur)clsFilter.value=cur;
     }
     filterStudentsPanel();
@@ -2402,7 +2402,10 @@ function filterStudentsPanel(){
     const clsFilter=document.getElementById('stuedit-cls-filter')?.value||'';
     const listEl=document.getElementById('stuedit-stu-list');
     if(!listEl)return;
+    // 졸업 처리된 반의 학생은 이 탭에서 숨긴다(진행 중인 반 학생과 미배정 학생만 표시)
+    const gradIds=new Set(classesList.filter(c=>c.graduated).map(c=>c.id));
     const filtered=studentsList.filter(s=>{
+        if(s.classId&&gradIds.has(s.classId))return false;
         const nameOk=!search||(s.name||'').toLowerCase().includes(search);
         const clsOk=!clsFilter||s.classId===clsFilter;
         return nameOk&&clsOk;
@@ -2413,7 +2416,7 @@ function filterStudentsPanel(){
     }
     const rows=filtered.map(s=>{
         const clsOpts='<option value=""'+(s.classId?'':' selected')+'>미배정</option>'+
-            classesList.map(c=>`<option value="${c.id}"${c.id===s.classId?' selected':''}>${escHtml(c.name)}</option>`).join('');
+            classesList.filter(c=>!c.graduated).map(c=>`<option value="${c.id}"${c.id===s.classId?' selected':''}>${escHtml(c.name)}</option>`).join('');
         const hospOpts='<option value=""'+(s.hospital?'':' selected')+'>병원 미지정</option>'+
             academyHospitals.map(h=>`<option value="${escHtml(h.name)}"${h.name===s.hospital?' selected':''}>${escHtml(h.name)}</option>`).join('');
         const dropoutBadge=s.droppedOut?'<span class="stu-dropout-badge">중도탈락</span>':'';
@@ -5245,6 +5248,7 @@ async function toggleClassGraduated(clsId){
         closeClsEdit();
         renderRegisteredClasses();
         renderClassSidebar();
+        renderStudents();
     }catch(e){showToast('처리 실패: '+e.message,'error');}
     showLoader(false);
 }
