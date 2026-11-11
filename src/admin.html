@@ -380,8 +380,9 @@ css inline edit/* 출결 인증 요청 */
 .right-col{display:flex;flex-direction:column;overflow:hidden;background:var(--surface);}
 
 /* 수평 탭 바 */
-.htab-bar{display:flex;border-bottom:1px solid var(--border);padding:0 10px;flex-shrink:0;background:var(--surface);align-items:center;}
-.htab-btn{padding:8px 14px;border:none;background:none;font-size:13px;font-weight:600;color:var(--muted);cursor:pointer;border-radius:7px;margin:6px 3px;transition:all .15s;white-space:nowrap;}
+.htab-bar{display:flex;border-bottom:1px solid var(--border);padding:0 4px;flex-shrink:0;background:var(--surface);align-items:center;overflow-x:auto;scrollbar-width:none;}
+.htab-bar::-webkit-scrollbar{display:none;}
+.htab-btn{flex:1 1 auto;padding:7px 3px;border:none;background:none;font-size:11px;font-weight:600;color:var(--muted);cursor:pointer;border-radius:7px;margin:6px 1px;text-align:center;transition:all .15s;white-space:nowrap;}
 .htab-btn:hover{background:var(--canvas);color:var(--text);}
 .htab-btn.active{background:var(--brand);color:#fff;}
 .htab-content{flex:1;overflow:hidden;display:flex;flex-direction:column;}
@@ -521,7 +522,7 @@ css inline edit/* 출결 인증 요청 */
 
 /* ── 홈 그리드 + 푸터 ── */
 #page-home.active{display:flex !important;flex-direction:column;padding:0;overflow:hidden;}
-.home-grid{display:grid;grid-template-columns:76% 24%;flex:1;overflow:hidden;min-height:0;}
+.home-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(284px,24%);flex:1;overflow:hidden;min-height:0;}
 .home-footer-right{display:flex;align-items:center;gap:12px;flex-shrink:0;}
 .kakao-chat-btn{display:inline-flex;align-items:center;gap:5px;padding:6px 13px;border-radius:16px;background:#FEE500;color:#191919;font-size:12px;font-weight:700;text-decoration:none;border:1.5px solid #F5D800;transition:transform .15s ease,box-shadow .15s ease,background .15s ease;}
 .kakao-chat-btn:hover{background:#FFEB3B;transform:translateY(-2px);box-shadow:0 4px 10px rgba(0,0,0,.15);}
