@@ -313,15 +313,18 @@ body{font-family:'Pretendard',system-ui,sans-serif;background:var(--canvas);colo
 /* 승인 탭 구분 */
 .approve-section-head{font-size:12px;font-weight:800;color:var(--brand);padding:7px 10px;background:var(--brand-xlight);border-radius:8px;margin-bottom:10px;margin-top:4px;letter-spacing:0.03em;}
 /* 반정보 - 등록된 반 목록 */
-.cls-card{display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:10px 12px;margin-bottom:8px;}
-.cls-card-main{min-width:0;flex:1;}
-.cls-card-name{font-size:14px;font-weight:700;color:var(--text);margin-bottom:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.cls-card{background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:10px 12px;margin-bottom:8px;}
+.cls-card-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:4px;}
+.cls-card-actions{display:flex;gap:6px;flex-shrink:0;}
+.cls-card-actions .btn-sm{padding:6px 11px;white-space:nowrap;}
+.cls-card-name{min-width:0;flex:1;font-size:14px;font-weight:700;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .cls-card-meta{font-size:11px;color:var(--muted);line-height:1.4;word-break:keep-all;}
-.cls-edit-btn{flex-shrink:0;white-space:nowrap;}
 .cls-grad-badge{display:inline-block;margin-left:6px;padding:1px 7px;border-radius:10px;font-size:10px;font-weight:700;color:#6b7280;background:#e5e7eb;vertical-align:middle;}
 .cls-card.grad{background:#f1f2f5;border-color:#dcdfe5;}
 .cls-card.grad .cls-card-name{color:#6b7280;}
 .cls-card.grad .btn-outline{color:#6b7280;border-color:#b6bbc5;}
+.cls-card .cls-grad-btn{color:#6b7280;border-color:#b6bbc5;}
+.cls-card.grad .cls-up-btn{color:var(--brand);border-color:var(--brand);}
 .cls-section-title.grad{color:#6b7280;background:#eceef2;}
 /* 신규가입 - 체크박스 bulk */
 .pending-row-check{display:flex;align-items:flex-start;gap:8px;}
@@ -1392,7 +1395,6 @@ css inline edit/* 출결 인증 요청 */
     </div>
     <button class="doc-preview-btn" onclick="saveEditClsInfo()">저장</button>
     <button style="padding:8px;border-radius:8px;border:1.5px solid var(--border);background:#fff;font-size:13px;cursor:pointer;color:var(--muted);" onclick="closeClsEdit()">취소</button>
-    <button id="cls-edit-grad-btn" style="padding:8px;border-radius:8px;border:none;background:none;font-size:12px;cursor:pointer;color:var(--muted);text-decoration:underline;" onclick="toggleClassGraduated(editingClsInfoId)"></button>
   </div>
 </div>
 
@@ -5026,11 +5028,16 @@ function clsCardHtml(cls){
     const dot=s=>String(s).slice(2).replace(/-/g,'.');
     const period=cls.trainStart&&cls.trainEnd?`${dot(cls.trainStart)} ~ ${dot(cls.trainEnd)}`:'훈련기간 없음';
     return`<div class="cls-card${grad?' grad':''}">
-        <div class="cls-card-main">
+        <div class="cls-card-head">
             <div class="cls-card-name">${escHtml(cls.name||'(이름없음)')}${grad?'<span class="cls-grad-badge">졸업</span>':''}</div>
-            <div class="cls-card-meta"><span style="white-space:nowrap;">${escHtml(cls.code||'반코드 없음')}</span> · <span style="white-space:nowrap;">${period}</span></div>
+            <div class="cls-card-actions">
+                <button class="btn btn-outline btn-sm" onclick="openClsEdit('${cls.id}')">수정</button>
+                ${grad
+                    ?`<button class="btn btn-outline btn-sm cls-up-btn" onclick="toggleClassGraduated('${cls.id}')">↑ 진행</button>`
+                    :`<button class="btn btn-outline btn-sm cls-grad-btn" onclick="toggleClassGraduated('${cls.id}')">↓ 졸업</button>`}
+            </div>
         </div>
-        <button class="btn btn-outline btn-sm cls-edit-btn" onclick="openClsEdit('${cls.id}')">수정</button>
+        <div class="cls-card-meta"><span style="white-space:nowrap;">${escHtml(cls.code||'반코드 없음')}</span> · <span style="white-space:nowrap;">${period}</span></div>
     </div>`;
 }
 
@@ -5076,7 +5083,6 @@ function openClsEdit(clsId){
     document.getElementById('cls-edit-tt-cur').textContent=days.length
         ?`현재: ${cls.timetableFileName?cls.timetableFileName+' · ':''}현장 ${days.length}일 (${days[0]}~${days[days.length-1]})`
         :'등록된 전자시간표 없음';
-    document.getElementById('cls-edit-grad-btn').textContent=cls.graduated?'↩️ 졸업 해제':'🎓 졸업 처리';
     document.getElementById('cls-edit-modal').classList.add('open');
 }
 function closeClsEdit(){
