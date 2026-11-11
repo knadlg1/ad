@@ -540,6 +540,11 @@ css inline edit/* 출결 인증 요청 */
 /* ── 홈 그리드 + 푸터 ── */
 #page-home.active{display:flex !important;flex-direction:column;padding:0;overflow:hidden;}
 .home-grid{display:grid;grid-template-columns:76% 24%;flex:1;overflow:hidden;min-height:0;}
+.home-footer-right{display:flex;align-items:center;gap:12px;flex-shrink:0;}
+.kakao-chat-btn{display:inline-flex;align-items:center;gap:5px;padding:6px 13px;border-radius:16px;background:#FEE500;color:#191919;font-size:12px;font-weight:700;text-decoration:none;border:1.5px solid #F5D800;transition:transform .15s ease,box-shadow .15s ease,background .15s ease;}
+.kakao-chat-btn:hover{background:#FFEB3B;transform:translateY(-2px);box-shadow:0 4px 10px rgba(0,0,0,.15);}
+.kakao-chat-btn:active{transform:scale(.96);box-shadow:none;}
+@media (prefers-reduced-motion:reduce){.kakao-chat-btn:hover{transform:none;}}
 .home-footer{padding:18px 28px;border-top:1px solid var(--border);background:var(--surface);font-size:11px;color:var(--muted);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;gap:16px;}
 .home-footer-left{display:flex;gap:16px;}
 
@@ -1247,7 +1252,13 @@ css inline edit/* 출결 인증 요청 */
           <span>사업자등록번호: 505-22-63477</span>
           <span>대표자: 이상준</span>
         </div>
-        <span>문의: knadl@naver.com</span>
+        <div class="home-footer-right">
+          <a class="kakao-chat-btn" href="https://pf.kakao.com/_xlAFsX/chat" target="_blank" rel="noopener" title="카카오톡으로 바로 상담하기">
+            <svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"><path fill="#191919" d="M12 3C6.48 3 2 6.58 2 11c0 2.84 1.87 5.33 4.69 6.75l-.95 3.48c-.08.3.26.53.52.36L10.4 19.1c.52.06 1.05.1 1.6.1 5.52 0 10-3.58 10-8S17.52 3 12 3z"/></svg>
+            카카오 상담
+          </a>
+          <span>문의: knadl@naver.com</span>
+        </div>
       </div>
       </div>
 
