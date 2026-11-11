@@ -678,26 +678,30 @@ css inline edit/* 출결 인증 요청 */
 .att-mreq-btn:disabled{background:#FDBA74;opacity:.75;cursor:not-allowed;}
 .att-mreq-date{font-size:10px;color:#9a3412;text-align:center;line-height:1.25;min-height:12px;}
 .att-mreq-date.warn{color:#dc2626;font-weight:700;}
-.mo-empty{align-self:center;margin:0 auto;font-size:12px;color:#9a3412;opacity:.7;}
+.mo-empty{grid-row:1 / span 2;align-self:center;margin:0 auto;font-size:12px;color:#9a3412;opacity:.7;}
 .att-missing-title{font-size:12px;font-weight:700;color:#c2410c;white-space:nowrap;}
 .att-missing-count{font-size:13px;font-weight:800;color:#c2410c;background:#ffedd5;border-radius:10px;padding:1px 9px;white-space:nowrap;}
-.att-missing-body{flex:1;min-width:0;display:flex;flex-wrap:nowrap;gap:7px;overflow-x:auto;overflow-y:hidden;padding:1px 1px 6px;scrollbar-width:thin;scrollbar-color:#fdba74 transparent;-webkit-overflow-scrolling:touch;cursor:grab;}
+.att-missing-body{flex:1;min-width:0;display:grid;grid-auto-flow:column;grid-template-rows:repeat(2,auto);grid-auto-columns:max-content;align-content:center;gap:6px 7px;overflow-x:auto;overflow-y:hidden;padding:1px 1px 6px;scrollbar-width:thin;scrollbar-color:#fdba74 transparent;-webkit-overflow-scrolling:touch;cursor:grab;}
 .att-missing-body.dragging{cursor:grabbing;user-select:none;}
 .att-missing-body::-webkit-scrollbar{height:5px;}
 .att-missing-body::-webkit-scrollbar-thumb{background:#fdba74;border-radius:3px;}
-.mo-card{position:relative;flex-shrink:0;width:218px;box-sizing:border-box;display:flex;flex-direction:column;justify-content:center;gap:3px;padding:6px 10px;background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;font-size:11.5px;color:#1e293b;overflow:hidden;transition:transform .45s ease,opacity .45s ease,background-color .18s ease,border-color .18s ease,box-shadow .2s ease,width .3s ease .35s,padding .3s ease .35s,min-height .3s ease .35s,border-width .3s ease .35s;}
+.mo-card{position:relative;flex-shrink:0;grid-row:span 2;width:228px;box-sizing:border-box;display:flex;flex-direction:column;justify-content:center;gap:3px;padding:6px 10px;background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;font-size:12.5px;color:#1e293b;overflow:hidden;transition:transform .45s ease,opacity .45s ease,background-color .18s ease,border-color .18s ease,box-shadow .2s ease,width .3s ease .35s,padding .3s ease .35s,min-height .3s ease .35s,border-width .3s ease .35s;}
 .mo-card:hover{box-shadow:0 4px 12px rgba(194,65,12,.18);}
 .mo-card.leaving{transform:translateY(30px);opacity:0;pointer-events:none;}
-.mo-line{display:flex;align-items:center;gap:5px;white-space:nowrap;}
-.mo-name{font-weight:800;}
+.mo-line{display:flex;align-items:center;justify-content:space-between;gap:5px;white-space:nowrap;}
+.mo-name{font-weight:800;min-width:0;overflow:hidden;text-overflow:ellipsis;}
 .mo-date{color:#c2410c;}
 .mo-dot{display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;width:18px;height:18px;border-radius:50%;font-size:10px;font-weight:800;line-height:1;}
-.mo-dot-in{background:#DBEAFE;color:#1D4ED8;}
-.mo-dot-out{background:#EDE9FE;color:#6D28D9;}
+.mo-dot-wide{width:auto;padding:0 7px;border-radius:9px;}
+.mo-dot-in{background:#BAE6FD;color:#0369A1;}
+.mo-dot-out{background:#FECACA;color:#B91C1C;}
 .mo-dot-stu{background:#DCFCE7;color:#15803D;}
 .mo-dot-mgr{background:#FEF3C7;color:#B45309;}
 .mo-time{font-weight:700;}
 .mo-badge{display:inline-flex;align-self:flex-start;padding:1px 9px;border-radius:9px;font-size:10px;font-weight:700;}
+.mo-card.compact{grid-row:auto;width:auto;flex-direction:row;align-items:center;justify-content:flex-start;gap:8px;padding:3px 10px;font-size:11.5px;white-space:nowrap;}
+.mo-card.compact .mo-line{justify-content:flex-start;gap:6px;}
+.mo-card.compact .mo-badge{align-self:center;flex-shrink:0;}
 .mo-badge.wait{background:#FFEDD5;color:#C2410C;}
 .mo-badge.done{background:#DCFCE7;color:#15803D;}
 .mo-sigs{display:flex;align-items:center;gap:6px;}
@@ -4311,7 +4315,8 @@ function buildMissingItems(){
         if(r.status==='submitted')it.ar=r;else it.arWait=r;
         map.set(k,it);
     });
-    return [...map.values()].sort((a,b)=>b.date.localeCompare(a.date));
+    const isReady=it=>!!(it.mo||it.ar);
+    return [...map.values()].sort((a,b)=>(isReady(b)-isReady(a))||b.date.localeCompare(a.date));
 }
 
 function renderMissingSection(){
@@ -4325,7 +4330,7 @@ function renderMissingSection(){
     countEl.textContent=items.length+'명';
     section.style.display='';
     if(!items.length){listEl.innerHTML='<div class="mo-empty">누락 없음</div>';return;}
-    const dot=ch=>`<span class="mo-dot mo-dot-${{출:'in',퇴:'out',본:'stu',담:'mgr'}[ch]}">${ch}</span>`;
+    const dot=ch=>`<span class="mo-dot mo-dot-${{출근:'in',퇴근:'out',본:'stu',담:'mgr'}[ch]}${ch.length>1?' mo-dot-wide':''}">${ch}</span>`;
     listEl.innerHTML=items.map(it=>{
         const kid=escHtml(String(it.stu.kakaoId)),name=escHtml(it.stu.name||'-');
         const line=(tag,time)=>`<div class="mo-line"><span class="mo-name">${name}</span><span class="mo-date">${it.date}</span>${dot(tag)}<span class="mo-time">${escHtml(time)}</span></div>`;
@@ -4333,13 +4338,13 @@ function renderMissingSection(){
         const ready=it.mo?{kind:'mo',r:it.mo,inT:it.inTime||it.mo.inTime,outT:it.mo.outTime}:(it.ar?{kind:'ar',r:it.ar,inT:it.ar.inTime||it.inTime,outT:it.ar.outTime}:null);
         if(ready){
             const inT=trimToMinutes(ready.inT)||'-',outT=trimToMinutes(ready.outT);
-            return`<div class="mo-card can" data-kid="${kid}" data-date="${it.date}">${line('출',inT)}${outT?line('퇴',outT):''}<div class="mo-sigs">${sig('본',ready.r.studentSig)}${sig('담',ready.r.managerSig)}</div><div class="mo-veil"><button class="mo-ok" onclick="approveNureok('${ready.kind}','${ready.r.id}','${kid}','${it.date}',this)">승인</button><button class="mo-no" onclick="rejectNureok('${ready.kind}','${ready.r.id}','${kid}',this)">거절</button></div></div>`;
+            return`<div class="mo-card can" data-kid="${kid}" data-date="${it.date}">${line('출근',inT)}${outT?line('퇴근',outT):''}<div class="mo-sigs">${sig('본',ready.r.studentSig)}${sig('담',ready.r.managerSig)}</div><div class="mo-veil"><button class="mo-ok" onclick="approveNureok('${ready.kind}','${ready.r.id}','${kid}','${it.date}',this)">승인</button><button class="mo-no" onclick="rejectNureok('${ready.kind}','${ready.r.id}','${kid}',this)">거절</button></div></div>`;
         }
         const inT=trimToMinutes(it.inTime)||'-';
         if(it.arWait){
-            return`<div class="mo-card cancelable" data-kid="${kid}" data-date="${it.date}">${line('출',inT)}<span class="mo-badge wait">대기중</span><div class="mo-veil"><button class="mo-no mo-cancel" onclick="cancelAuthRequest('${it.arWait.id}','${kid}')">요청 취소</button></div></div>`;
+            return`<div class="mo-card compact cancelable" data-kid="${kid}" data-date="${it.date}">${line('출근',inT)}<span class="mo-badge wait">대기중</span><div class="mo-veil"><button class="mo-no mo-cancel" onclick="cancelAuthRequest('${it.arWait.id}','${kid}')">요청 취소</button></div></div>`;
         }
-        return`<div class="mo-card" data-kid="${kid}" data-date="${it.date}">${line('출',inT)}<span class="mo-badge wait">대기중</span></div>`;
+        return`<div class="mo-card compact" data-kid="${kid}" data-date="${it.date}">${line('출근',inT)}<span class="mo-badge wait">대기중</span></div>`;
     }).join('');
 }
 
