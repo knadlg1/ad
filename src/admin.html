@@ -618,9 +618,9 @@ css inline edit/* 출결 인증 요청 */
 .sedit-row.dropped{background:#FFE9EC;border-bottom-color:#FECDD3;}
 .sedit-row.dropped .sedit-name{color:#9F1239;}
 .sedit-head{display:flex;align-items:center;gap:10px;margin-bottom:6px;}
-.sedit-name{font-size:13px;font-weight:800;min-width:48px;max-width:42%;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-.sedit-btns{display:flex;gap:6px;flex:1;min-width:0;}
-.sedit-btns .stu-dropout-btn,.sedit-btns .stu-jabi-btn{flex:1;text-align:center;padding:6px 8px;font-size:12px;}
+.sedit-name{font-size:13px;font-weight:800;width:62px;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.sedit-btns{display:flex;gap:6px;flex-shrink:0;}
+.sedit-btns .stu-dropout-btn,.sedit-btns .stu-jabi-btn{width:60px;text-align:center;padding:5px 0;font-size:12px;}
 .sedit-sels{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:5px;}
 .sedit-sels .stu-edit-inline-sel{min-width:0;}
 .stu-edit-inline-sel{width:100%;padding:5px 6px;border:1.5px solid var(--border);border-radius:6px;font-size:12px;outline:none;background:#fff;cursor:pointer;transition:.15s;}
@@ -694,26 +694,30 @@ css inline edit/* 출결 인증 요청 */
 .att-missing-title{font-size:12px;font-weight:700;color:#c2410c;}
 .att-missing-count{font-size:12px;font-weight:800;color:#c2410c;background:#ffedd5;border-radius:10px;padding:1px 7px;}
 .att-missing-body{display:flex;flex-wrap:wrap;gap:8px;max-height:270px;overflow-y:auto;padding:2px;}
-.mo-card{position:relative;flex-shrink:0;width:244px;box-sizing:border-box;min-height:78px;display:flex;flex-direction:column;gap:6px;padding:10px 12px;background:#fff;border:1px solid #fed7aa;border-radius:10px;font-size:12px;color:#1e293b;overflow:hidden;transition:transform .45s ease,opacity .45s ease,box-shadow .2s ease,width .3s ease .35s,padding .3s ease .35s,min-height .3s ease .35s,border-width .3s ease .35s;}
+.mo-card{position:relative;flex-shrink:0;width:256px;box-sizing:border-box;min-height:78px;display:flex;flex-direction:column;gap:6px;padding:10px 12px;background:#fff;border:1px solid #fed7aa;border-radius:10px;font-size:12px;color:#1e293b;overflow:hidden;transition:transform .45s ease,opacity .45s ease,box-shadow .2s ease,width .3s ease .35s,padding .3s ease .35s,min-height .3s ease .35s,border-width .3s ease .35s;}
 .mo-card:hover{box-shadow:0 4px 12px rgba(194,65,12,.18);}
 .mo-card.leaving{transform:translateY(30px);opacity:0;pointer-events:none;}
 .mo-line{display:flex;align-items:center;gap:6px;white-space:nowrap;}
 .mo-name{font-weight:800;}
 .mo-date{color:#c2410c;}
-.mo-tag{font-weight:700;color:#64748b;}
+.mo-dot{display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;width:21px;height:21px;border-radius:50%;font-size:11px;font-weight:800;line-height:1;}
+.mo-dot-in{background:#DBEAFE;color:#1D4ED8;}
+.mo-dot-out{background:#EDE9FE;color:#6D28D9;}
+.mo-dot-stu{background:#DCFCE7;color:#15803D;}
+.mo-dot-mgr{background:#FEF3C7;color:#B45309;}
 .mo-time{font-weight:700;}
 .mo-badge{display:inline-flex;align-self:flex-start;padding:2px 11px;border-radius:10px;font-size:11px;font-weight:700;}
 .mo-badge.wait{background:#FFEDD5;color:#C2410C;}
 .mo-badge.done{background:#DCFCE7;color:#15803D;}
-.mo-sigs{display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
-.mo-sig-label{font-size:11px;font-weight:700;color:#64748b;}
-.mo-sig-img{height:26px;max-width:62px;object-fit:contain;background:#fff;border:1px solid #e2e8f0;border-radius:4px;}
-.mo-veil{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(255,247,237,.94);opacity:0;pointer-events:none;transition:opacity .18s ease;}
+.mo-sigs{display:flex;align-items:center;gap:6px;}
+.mo-sig-none{font-size:11px;color:#94a3b8;}
+.mo-sig-img{height:24px;max-width:54px;object-fit:contain;background:#fff;border:1px solid #e2e8f0;border-radius:4px;}
+.mo-veil{margin-left:auto;opacity:0;pointer-events:none;transition:opacity .18s ease;}
 .mo-card.can:hover .mo-veil{opacity:1;pointer-events:auto;}
-.mo-ok{padding:8px 30px;border:1.5px solid #86EFAC;border-radius:16px;background:#BBF7D0;color:#15803D;font-size:13px;font-weight:800;cursor:pointer;transition:background .15s ease,box-shadow .15s ease,transform .15s ease;}
+.mo-ok{padding:4px 14px;border:1.5px solid #86EFAC;border-radius:12px;background:#BBF7D0;color:#15803D;font-size:12px;font-weight:800;cursor:pointer;transition:background .15s ease,box-shadow .15s ease,transform .15s ease;}
 .mo-ok:hover{background:#86EFAC;box-shadow:0 3px 8px rgba(21,128,61,.25);transform:translateY(-1px);}
 .mo-ok:disabled{opacity:.7;cursor:default;transform:none;}
-@media (hover:none){.mo-veil{position:static;opacity:1;pointer-events:auto;background:none;justify-content:flex-end;}}
+@media (hover:none){.mo-veil{opacity:1;pointer-events:auto;}}
 @media (prefers-reduced-motion:reduce){.mo-card,.mo-ok,.mo-veil{transition:none;}}
 /* ── 반코드 빌더 ── */
 .cls-code-builder{display:flex;align-items:center;gap:4px;flex-wrap:wrap;}
@@ -4362,11 +4366,12 @@ function renderMissingSection(){
     listEl.innerHTML=missing.map(m=>{
         const name=escHtml(m.stu.name||'-');
         const req=reqFor(m);
-        const line=(tag,time)=>`<div class="mo-line"><span class="mo-name">${name}</span><span class="mo-date">${m.date}</span><span class="mo-tag">(${tag})</span><span class="mo-time">${escHtml(time)}</span></div>`;
+        const dot=(ch)=>`<span class="mo-dot mo-dot-${{출:'in',퇴:'out',본:'stu',담:'mgr'}[ch]}">${ch}</span>`;
+        const line=(tag,time)=>`<div class="mo-line"><span class="mo-name">${name}</span><span class="mo-date">${m.date}</span>${dot(tag)}<span class="mo-time">${escHtml(time)}</span></div>`;
         if(!req)return`<div class="mo-card" data-kid="${escHtml(String(m.stu.kakaoId))}" data-date="${m.date}">${line('출',m.inTime.slice(0,5))}<span class="mo-badge wait">대기중</span></div>`;
         const out=trimToMinutes(req.outTime);
-        const sig=(label,v)=>v?`<span class="mo-sig-label">(${label})</span><img class="mo-sig-img" src="${sigSrc(v)}" alt="">`:`<span class="mo-sig-label">(${label}) -</span>`;
-        return`<div class="mo-card can" data-kid="${escHtml(String(m.stu.kakaoId))}" data-date="${m.date}">${line('출',m.inTime.slice(0,5))}${line('퇴',out)}<div class="mo-sigs">${sig('본',req.studentSig)}${sig('담',req.managerSig)}</div><div class="mo-veil"><button class="mo-ok" onclick="approveMissingCard('${req.id}','${escHtml(String(m.stu.kakaoId))}','${m.date}','${escHtml(out)}',this)">승인</button></div></div>`;
+        const sig=(label,v)=>v?`${dot(label)}<img class="mo-sig-img" src="${sigSrc(v)}" alt="">`:`${dot(label)}<span class="mo-sig-none">-</span>`;
+        return`<div class="mo-card can" data-kid="${escHtml(String(m.stu.kakaoId))}" data-date="${m.date}">${line('출',m.inTime.slice(0,5))}${line('퇴',out)}<div class="mo-sigs">${sig('본',req.studentSig)}${sig('담',req.managerSig)}<div class="mo-veil"><button class="mo-ok" onclick="approveMissingCard('${req.id}','${escHtml(String(m.stu.kakaoId))}','${m.date}','${escHtml(out)}',this)">승인</button></div></div></div>`;
     }).join('');
 }
 
