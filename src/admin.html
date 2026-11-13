@@ -549,6 +549,11 @@ css inline edit/* 출결 인증 요청 */
 .att-table td{padding:8px 8px;vertical-align:middle;white-space:nowrap;text-align:center;}
 .att-td-cls{font-size:13px;color:var(--brand);font-weight:700;max-width:88px;overflow:hidden;text-overflow:ellipsis;}
 .att-th-jabi,.att-td-jabi{width:88px;padding-left:2px!important;padding-right:2px!important;text-align:center;}
+.jb-hours{display:flex;flex-direction:column;gap:2px;align-items:center;line-height:1.35;}
+.jb-hours .jb-main{font-size:12px;font-weight:800;color:#3730A3;white-space:nowrap;}
+.jb-hours .jb-main b{font-weight:800;}
+.jb-hours .jb-sub{font-size:10px;font-weight:600;color:var(--muted);white-space:nowrap;}
+.jb-hours .jb-sub.t{color:#0369A1;}.jb-hours .jb-sub.p{color:#B45309;}
 .att-jabi-tag{display:inline-block;padding:1px 8px;border-radius:10px;background:#E0E7FF;color:#4338CA;font-size:10px;font-weight:800;vertical-align:middle;line-height:1.5;}
 .att-td-name{font-weight:700;font-size:15px;}
 .att-td-hosp{font-size:13px;color:var(--muted);max-width:100px;overflow:hidden;text-overflow:ellipsis;}
@@ -1547,7 +1552,7 @@ let authReqBarData = null;
 let _authReqKakaoId = '', _authReqName = '';
 let academyHospitals = [];
 let academyHospitalIds = new Map(); // name -> academies/{acId}/hospitals/{docId} (2026-07-21: hospitalId 동시 기록용)
-let parsedHolidays = [], parsedPracticeDays = [], parsedFileName = '', parsedClassId = '', parsedTimetableData = {}, parsedTrainStart = null, parsedTrainEnd = null, parsedLunchStart = null, parsedLunchEnd = null, parsedPracticePeriods = [];
+let parsedHolidays = [], parsedPracticeDays = [], parsedFileName = '', parsedClassId = '', parsedTimetableData = {}, parsedTrainStart = null, parsedTrainEnd = null, parsedLunchStart = null, parsedLunchEnd = null, parsedPracticePeriods = [], parsedTheoryData = {};
 let regPhone = '';
 let lastUpdatedAt = null;
 
@@ -2074,6 +2079,7 @@ function renderAttendance(){
             if(stu.droppedOut)return;
             if(classFilter){if(stu.classId!==classFilter)return;}else if(gradClassIds.has(stu.classId))return;
             if(!nameMatches(stu.name,nameQ)||!hospMatches(stu)||!jabiMatches(stu))return;
+            if(stu.jabi)return; // 자비 학생은 결석/지각/조퇴 집계 대상 아님(이론/실습 시간만 표시)
             const cls=classesList.find(c=>c.id===stu.classId);
             const tt=cls?.timetableData;
             const pracDays=cls?(cls.practiceDays||[]):[];
@@ -2084,7 +2090,7 @@ function renderAttendance(){
             const sched=cls?.timetableData?.[d];
             const schedStart=sched?toMins(sched.start):9*60;
             const schedEnd=sched?toMins(sched.end):16*60+30;
-            if(!rec||!rec.inTime){absent.push({name:stu.name,cls:clsName,date:d});return;}
+            if(!rec||!rec.inTime){if(absenceDecided(d,sched))absent.push({name:stu.name,cls:clsName,date:d});return;}
             const inT=rec.inTime.slice(0,5);
             const outT=rec.outTime?rec.outTime.slice(0,5):'';
             if(toMins(inT)>schedStart)tardy.push({name:stu.name,cls:clsName,in:inT,out:outT,date:d});
@@ -2172,7 +2178,9 @@ function renderAttendance(){
             });
             const accH=Math.round(totalMins/6)/10;
             const TOTAL=780;
-            const selRec=stuRecs.find(r=>normDate(r.date)===selDate);
+            // 실습일이 아닌 날(이론일 등)에 들어온 기록은 일반 학생에겐 무시(자비 학생은 이론/실습 시간으로 따로 셈)
+            const selIsPractice=clsTt?(selDate in clsTt):(practiceDays.length>0?practiceDays.includes(selDate):true);
+            const selRec=(selIsPractice||stu.jabi)?stuRecs.find(r=>normDate(r.date)===selDate):null;
             const inT=selRec?.inTime?selRec.inTime.slice(0,5):'';
             const outT=selRec?.outTime?selRec.outTime.slice(0,5):'';
             const selDaySched=clsTt?clsTt[selDate]:null;
@@ -2215,12 +2223,20 @@ function renderAttendance(){
             const gapPct=Math.max(0,stdPct-actualPct);
             const remainPct=Math.max(0,100-Math.max(actualPct,stdPct));
             const accBar=`<div class="prog-wrap-s"><div class="prog-bar-track-s"><div style="background:var(--brand);width:${actualPct}%;height:100%;"></div><div style="background:#c4b5fd;width:${gapPct}%;height:100%;"></div><div style="background:#e2e8f0;width:${remainPct}%;height:100%;"></div></div><div class="prog-label-s">${accH}h / ${stdH}h / 780h</div></div>`;
+            if(!selIsPractice&&!stu.jabi){statusHtml='<span class="status-badge sb-none">실습일 아님</span>';rowClass='att-tr-none';}
+            const jabiRes=stu.jabi?calcJabiHours(cls,stuRecs):null;
+            if(stu.jabi){
+                const dayLbl=jabiDayTypeLabel(cls,selDate)||'수업';
+                if(selRec&&selRec.inTime&&selRec.outTime){statusHtml=`<span class="status-badge sb-ok">${dayLbl}</span>`;rowClass='att-tr-ok';}
+                else if(selRec&&selRec.inTime){statusHtml=`<span class="status-badge sb-working">${dayLbl}중</span>`;rowClass='att-tr-working';}
+                else{statusHtml='<span class="status-badge sb-none">-</span>';rowClass='att-tr-none';}
+            }
             return `<tr class="${rowClass}">
                 <td class="att-td-cls">${escHtml(clsName)}</td>
                 <td class="att-td-jabi">${stu.jabi?'<span class="att-jabi-tag">자비</span>':''}</td>
                 <td class="att-td-name">${escHtml(stu.name||'-')}</td>
                 <td class="att-td-hosp">${escHtml(stu.hospital||'-')}</td>
-                <td class="prog-cell">${accBar}</td>
+                <td class="prog-cell">${stu.jabi?jabiHoursHtml(jabiRes,true):accBar}</td>
                 <td class="att-td-time">${inT||'-'}</td>
                 <td class="att-td-time">${outT||'-'}</td>
                 <td>${statusHtml}</td>
@@ -2244,13 +2260,44 @@ function renderAttendance(){
                 if(effEnd&&d>effEnd)return false;
                 return clsTt?(d in clsTt):(practiceDays.length>0?practiceDays.includes(d):true);
             });
+            if(stu.jabi){
+                const jRecs=stuRecs.filter(r=>{const nd=normDate(r.date);return r.inTime&&nd>=startDate&&nd<=endDate;});
+                const jDates=[...new Set(jRecs.map(r=>normDate(r.date)))].sort();
+                const jRes=calcJabiHours(cls,stuRecs,startDate,endDate);
+                const dash='<td style="text-align:center;color:var(--muted);">-</td>';
+                const jRow=`<tr class="att-range-summary">
+                    <td class="att-td-cls">${escHtml(clsName)}</td>
+                    <td class="att-td-jabi"><span class="att-jabi-tag">자비</span></td>
+                    <td class="att-td-name">${escHtml(stu.name||'-')}</td>
+                    <td class="att-td-hosp">${escHtml(stu.hospital||'-')}</td>
+                    <td style="text-align:center;font-weight:600;">${jDates.length}일</td>${dash}${dash}${dash}${dash}
+                    <td style="text-align:center;">${jabiHoursHtml(jRes,true,true)}</td>
+                </tr>`;
+                if(!stuFilter)return jRow;
+                const jHead=`<tr class="att-detail-section-row"><td colspan="10"><span class="att-detail-section-label">날짜별 상세</span></td></tr>`;
+                const jDetail=jDates.map(d=>{
+                    const rec=jRecs.find(r=>normDate(r.date)===d);
+                    const dow=DOW[new Date(d+'T00:00:00').getDay()];
+                    const lbl=jabiDayTypeLabel(cls,d);
+                    const hh=calcJabiHours(cls,[rec],d,d);
+                    const hrs=Math.round((hh.theory+hh.practice)/6)/10;
+                    const st=lbl?`<span class="status-badge sb-ok">${lbl}</span> ${hrs}h`:'<span class="status-badge sb-none">시간표 외</span>';
+                    return `<tr class="att-detail-row">
+                        <td class="att-detail-date" colspan="4">${d.slice(5).replace('-','/')} (${dow})</td>
+                        <td class="att-detail-time">${rec.inTime?rec.inTime.slice(0,5):'—'}</td>
+                        <td class="att-detail-time">${rec.outTime?rec.outTime.slice(0,5):'—'}</td>
+                        <td class="att-detail-status-cell" colspan="4">${st}</td>
+                    </tr>`;
+                }).join('');
+                return jRow+jHead+jDetail;
+            }
             let attendedDays=0,absentDays=0,tardyCount=0,earlyCount=0,extCount=0,totalMins=0;
             pracDateList.forEach(d=>{
                 const rec=stuRecs.find(r=>normDate(r.date)===d);
                 const sched=clsTt?clsTt[d]:null;
                 const sMs=sched?toMins(sched.start):9*60;
                 const eMs=sched?toMins(sched.end):16*60+30;
-                if(!rec||!rec.inTime){absentDays++;return;}
+                if(!rec||!rec.inTime){if(absenceDecided(d,sched))absentDays++;return;}
                 attendedDays++;
                 const inMins=toMins(rec.inTime.slice(0,5));
                 if(inMins>sMs)tardyCount++;
@@ -2292,7 +2339,8 @@ function renderAttendance(){
                 const dateLabel=d.slice(5).replace('-','/')+' ('+dow+')';
                 let statusHtml,absentCls='';
                 if(!rec||!rec.inTime){
-                    statusHtml='<span class="status-badge sb-absent">결석</span>';absentCls=' att-detail-absent';
+                    if(absenceDecided(d,sched)){statusHtml='<span class="status-badge sb-absent">결석</span>';absentCls=' att-detail-absent';}
+                    else statusHtml='<span class="status-badge sb-none">예정</span>';
                 } else {
                     const inMins=toMins(rec.inTime.slice(0,5));
                     const isLate=inMins>sMs;
@@ -3410,7 +3458,7 @@ function processFile(file){
             const wb=XLSX.read(e.target.result,{type:'binary'});
             const ws=wb.Sheets[wb.SheetNames[0]];
             const rows=XLSX.utils.sheet_to_json(ws,{header:1,raw:true});
-            parsedTimetableData={};parsedPracticeDays=[];parsedHolidays=[];parsedTrainStart=null;parsedTrainEnd=null;parsedLunchStart=null;parsedLunchEnd=null;parsedPracticePeriods=[];
+            parsedTimetableData={};parsedPracticeDays=[];parsedHolidays=[];parsedTrainStart=null;parsedTrainEnd=null;parsedLunchStart=null;parsedLunchEnd=null;parsedPracticePeriods=[];parsedTheoryData={};
             function pD(raw){
                 if(raw==null||raw==='')return null;
                 if(typeof raw==='number'){const adj=raw>59?raw-1:raw;const d=new Date((adj-25569)*86400000);const yr=d.getUTCFullYear(),mo=String(d.getUTCMonth()+1).padStart(2,'0'),dy=String(d.getUTCDate()).padStart(2,'0');if(yr<1990||yr>2100)return null;return `${yr}-${mo}-${dy}`;}
@@ -3445,6 +3493,7 @@ function processFile(file){
                 parsedPracticeDays.push(date);
             });
             parsedPracticePeriods=computePracticePeriodBlocks(parsedPracticeDays.slice().sort(),parsedOtherSubjectDates);
+            parsedTheoryData=collectTheoryDays(rows,pD,pT,parsedTimetableData);
             // 점심시간 감지: 실습기간 내 '시간구분'=2인 행의 시작시간 → lunchStart, 다음 행의 시작시간 → lunchEnd
             (()=>{
                 if(!parsedPracticeDays.length)return;
@@ -3542,7 +3591,7 @@ function toggleDay(ds){
     renderTTCalendar();
 }
 
-function resetTimetable(){parsedHolidays=[];parsedPracticeDays=[];parsedTimetableData={};parsedClassId='';parsedTrainStart=null;parsedTrainEnd=null;parsedLunchStart=null;parsedLunchEnd=null;parsedPracticePeriods=[];document.getElementById('tt-parse-result').style.display='none';document.getElementById('tt-file').value='';}
+function resetTimetable(){parsedHolidays=[];parsedPracticeDays=[];parsedTimetableData={};parsedClassId='';parsedTrainStart=null;parsedTrainEnd=null;parsedLunchStart=null;parsedLunchEnd=null;parsedPracticePeriods=[];parsedTheoryData={};document.getElementById('tt-parse-result').style.display='none';document.getElementById('tt-file').value='';}
 
 async function saveTimetable(){
     if(!parsedClassId||(!parsedPracticeDays.length&&!parsedHolidays.length)){showToast('반과 일정을 확인해주세요','info');return;}
@@ -3551,7 +3600,7 @@ async function saveTimetable(){
         const all=[...parsedPracticeDays,...parsedHolidays].sort();
         const sortedPrac=parsedPracticeDays.slice().sort();
         const parsedLunchMins=parsedLunchStart&&parsedLunchEnd?(()=>{const[sh,sm]=parsedLunchStart.split(':').map(Number);const[eh,em]=parsedLunchEnd.split(':').map(Number);return(eh*60+em)-(sh*60+sm);})():30;
-        await window.fsUpdateDoc(window.fsDoc(window.db,'classes',parsedClassId),{holidays:parsedHolidays,practiceDays:parsedPracticeDays,timetableData:parsedTimetableData,timetableFileName:parsedFileName,timetableUpdatedAt:Date.now(),practiceStart:sortedPrac.length?sortedPrac[0]:null,practiceEnd:sortedPrac.length?sortedPrac[sortedPrac.length-1]:null,practicePeriods:parsedPracticePeriods,trainStart:parsedTrainStart,trainEnd:parsedTrainEnd,lunchStart:parsedLunchStart||null,lunchEnd:parsedLunchEnd||null,lunchBreakMins:parsedLunchMins});
+        await window.fsUpdateDoc(window.fsDoc(window.db,'classes',parsedClassId),{holidays:parsedHolidays,practiceDays:parsedPracticeDays,timetableData:parsedTimetableData,theoryData:parsedTheoryData,theoryDays:Object.keys(parsedTheoryData).sort(),timetableFileName:parsedFileName,timetableUpdatedAt:Date.now(),practiceStart:sortedPrac.length?sortedPrac[0]:null,practiceEnd:sortedPrac.length?sortedPrac[sortedPrac.length-1]:null,practicePeriods:parsedPracticePeriods,trainStart:parsedTrainStart,trainEnd:parsedTrainEnd,lunchStart:parsedLunchStart||null,lunchEnd:parsedLunchEnd||null,lunchBreakMins:parsedLunchMins});
         if(all.length){
             const s=all[0],e=all[all.length-1];
             const members=studentsList.filter(ss=>ss.classId===parsedClassId);
@@ -3882,7 +3931,7 @@ function renderVtabClasses(){
 }
 
 // vtab-cls 반 생성용 전자시간표 변수
-let clsTtHolidays=[], clsTtPracticeDays=[], clsTtFileName='', clsTtData={}, clsTtTrainStart=null, clsTtTrainEnd=null, clsTtLunchMins=30, clsTtLunchStart=null, clsTtLunchEnd=null, clsTtPracticePeriods=[];
+let clsTtHolidays=[], clsTtPracticeDays=[], clsTtFileName='', clsTtData={}, clsTtTrainStart=null, clsTtTrainEnd=null, clsTtLunchMins=30, clsTtLunchStart=null, clsTtLunchEnd=null, clsTtPracticePeriods=[], clsTtTheoryData={};
 function toMins(t){const p=(t||'').split(':').map(Number);return(p[0]||0)*60+(p[1]||0);}
 function normDate(d){if(d&&/^\d{8}$/.test(d))return`${d.slice(0,4)}-${d.slice(4,6)}-${d.slice(6,8)}`;return d||'';}
 function getClsPracticePeriod(cls){
@@ -3968,7 +4017,7 @@ function parseClsTimetable(e){
             const wb=XLSX.read(ev.target.result,{type:'binary'});
             const ws=wb.Sheets[wb.SheetNames[0]];
             const rows=XLSX.utils.sheet_to_json(ws,{header:1,raw:true});
-            clsTtData={};clsTtPracticeDays=[];clsTtHolidays=[];clsTtTrainStart=null;clsTtTrainEnd=null;clsTtPracticePeriods=[];
+            clsTtData={};clsTtPracticeDays=[];clsTtHolidays=[];clsTtTrainStart=null;clsTtTrainEnd=null;clsTtPracticePeriods=[];clsTtTheoryData={};
 
             // Excel 날짜 시리얼 → "YYYY-MM-DD"
             function parseDate(raw){
@@ -4020,6 +4069,7 @@ function parseClsTimetable(e){
                 clsTtPracticeDays.push(date);
             });
             clsTtPracticePeriods=computePracticePeriodBlocks(clsTtPracticeDays.slice().sort(),clsTtOtherSubjectDates);
+            clsTtTheoryData=collectTheoryDays(rows,parseDate,parseTime,clsTtData);
 
             // 점심시간 감지: 실습기간 내 '시간구분'=2인 행의 시작시간 → lunchStart, 다음 행의 시작시간 → lunchEnd
             clsTtLunchMins=30;clsTtLunchStart=null;clsTtLunchEnd=null;
@@ -4072,7 +4122,7 @@ function parseClsTimetable(e){
 }
 
 function resetClsTimetable(){
-    clsTtHolidays=[];clsTtPracticeDays=[];clsTtFileName='';clsTtData={};clsTtTrainStart=null;clsTtTrainEnd=null;clsTtLunchMins=30;clsTtLunchStart=null;clsTtLunchEnd=null;clsTtPracticePeriods=[];
+    clsTtHolidays=[];clsTtPracticeDays=[];clsTtFileName='';clsTtData={};clsTtTrainStart=null;clsTtTrainEnd=null;clsTtLunchMins=30;clsTtLunchStart=null;clsTtLunchEnd=null;clsTtPracticePeriods=[];clsTtTheoryData={};
     document.getElementById('cls-file-label').textContent='선택된 파일 없음';
     document.getElementById('cls-tt-parse').style.display='none';
     document.getElementById('cls-tt-file').value='';
@@ -4097,7 +4147,7 @@ async function createClassFromVtab(){
         const docRef=await window.fsAddDoc(window.fsCollection(window.db,'classes'),{
             name,code,academyId:directorData?.academyId||'',
             holidays:clsTtHolidays,practiceDays:clsTtPracticeDays,
-            timetableData:clsTtData,
+            timetableData:clsTtData,theoryData:clsTtTheoryData,theoryDays:Object.keys(clsTtTheoryData).sort(),
             timetableFileName:clsTtFileName,timetableUpdatedAt:Date.now(),
             practiceStart:sortedDays.length?sortedDays[0]:null,
             practiceEnd:sortedDays.length?sortedDays[sortedDays.length-1]:null,
@@ -4759,6 +4809,90 @@ function timeToMinutes(t){
 }
 // 점심시간 차감 후 시간(h) 계산. 문턱값(thresholdMin)을 넘긴 경우, 점심을 뺀 뒤 내림해도
 // 문턱값 환산 시간(예:240분→4시간) 아래로는 떨어지지 않도록 최소치를 보장한다.
+// 전자시간표에서 현장실습이 아닌 과목(이론)이 편성된 날 → { 'YYYY-MM-DD': {start,end} }
+// (timetableData는 기존대로 현장실습일만 담고, 이론일은 theoryData에 따로 저장한다 — 결석/지각 판정은 timetableData만 본다)
+function collectTheoryDays(rows,parseDate,parseTime,practiceData){
+    const out={};
+    rows.forEach(row=>{
+        const date=parseDate(row[0]);if(!date)return;
+        const subj=((row[8]||'').toString()).trim();
+        if(!subj||subj.includes('현장실습')||(practiceData&&practiceData[date])||out[date])return;
+        const start=parseTime(row[1]),end=parseTime(row[2]);
+        if(!start||!end)return;
+        out[date]={start,end};
+    });
+    return out;
+}
+// 자비 학생 시간: 전자시간표의 이론기간에 찍힌 시간은 이론시간, 현장실습기간에 찍힌 시간은 실습시간.
+// 시간표에 없는 날(주말·공휴일 등)은 그 날 이전 가장 가까운 시간표 일자가 속한 기간으로 본다. 시간 계산식은 기존(capWorkHours)과 동일.
+function buildTtRuns(cls){
+    const days=[];
+    Object.entries(cls?.theoryData||{}).forEach(([d,sc])=>days.push({d,type:'theory',start:sc.start}));
+    Object.entries(cls?.timetableData||{}).forEach(([d,sc])=>days.push({d,type:'practice',start:sc.start}));
+    days.sort((a,b)=>a.d<b.d?-1:1);
+    const runs=[];
+    days.forEach(x=>{const last=runs[runs.length-1];if(last&&last.type===x.type){last.end=x.d;last.days.push(x);}else runs.push({type:x.type,start:x.d,end:x.d,days:[x]});});
+    return runs;
+}
+function jabiRunIndex(runs,date){
+    let idx=-1;
+    for(let i=0;i<runs.length;i++){if(runs[i].start<=date)idx=i;else break;}
+    if(idx<0)return -1;
+    if(idx===runs.length-1&&date>runs[idx].end)return -1;
+    return idx;
+}
+function calcJabiHours(cls,recs,fromDate,toDate){
+    const runs=buildTtRuns(cls);
+    const lunchM=cls?.lunchBreakMins||30;
+    const res={theory:0,practice:0,hasTheory:!!(cls&&cls.theoryData&&Object.keys(cls.theoryData).length),periods:runs.map(r=>({type:r.type,start:r.start,end:r.end,mins:0}))};
+    (recs||[]).forEach(rec=>{
+        if(!rec.inTime||!rec.outTime||!/^\d/.test(rec.outTime))return;
+        const nd=normDate(rec.date);
+        if(fromDate&&nd<fromDate)return;
+        if(toDate&&nd>toDate)return;
+        const ri=jabiRunIndex(runs,nd);
+        if(ri<0)return;
+        const run=runs[ri];
+        let day=run.days[0];
+        for(const x of run.days){if(x.d<=nd)day=x;else break;}
+        const[ih,im]=(rec.inTime||'').split(':').map(Number);
+        const[oh,om]=(rec.outTime||'').split(':').map(Number);
+        if(isNaN(ih)||isNaN(oh))return;
+        const adjIn=Math.max(ih*60+(im||0),toMins(day.start));
+        const out=oh*60+(om||0);
+        if(out<=adjIn)return;
+        const wh=capWorkHours(out-adjIn,240,lunchM,8);
+        if(wh<=0)return;
+        res.periods[ri].mins+=wh*60;
+        res[run.type]+=wh*60;
+    });
+    return res;
+}
+function jabiDayTypeLabel(cls,date){
+    const runs=buildTtRuns(cls);
+    const ri=jabiRunIndex(runs,date);
+    return ri<0?'':(runs[ri].type==='theory'?'이론':'실습');
+}
+function jabiHoursHtml(res,withPeriods,stack){
+    const h=m=>Math.round(m/6)/10;
+    const fmt=d=>parseInt(d.slice(5,7))+'/'+parseInt(d.slice(8,10));
+    const tTxt=`이론 <b>${res.hasTheory?h(res.theory):'-'}</b>h`,pTxt=`실습 <b>${h(res.practice)}</b>h`;
+    let html=`<div class="jb-hours">${stack?`<div class="jb-main">${tTxt}</div><div class="jb-main">${pTxt}</div>`:`<div class="jb-main">${tTxt} · ${pTxt}</div>`}`;
+    if(withPeriods){
+        res.periods.filter(p=>p.mins>0).forEach(p=>{
+            html+=`<div class="jb-sub ${p.type==='theory'?'t':'p'}">${p.type==='theory'?'이론':'실습'} ${fmt(p.start)}~${fmt(p.end)} ${h(p.mins)}h</div>`;
+        });
+    }
+    return html+'</div>';
+}
+// 결석 확정 여부: 지난 날짜만 결석. 오늘은 수업 종료 시각이 지난 뒤에만, 미래는 결석 아님
+function absenceDecided(d,sched){
+    const t=todayKST();
+    if(d<t)return true;
+    if(d>t)return false;
+    const n=new Date();
+    return n.getHours()*60+n.getMinutes()>(sched?toMins(sched.end):16*60+30);
+}
 function capWorkHours(rawMins,thresholdMin,lunchMins,maxHours){
     if(rawMins>=thresholdMin){
         const netMins=rawMins-lunchMins;
@@ -5259,7 +5393,7 @@ async function generateDirectEntryHtml(cls,students,startDate,endDate,sigs){
 }
 
 // ── 등록된 반 목록 ────────────────────────────────────────
-let editingClsInfoId=null, editInfoTtData={}, editInfoTtPracticeDays=[], editInfoTtFileName='', editInfoTtTrainStart=null, editInfoTtTrainEnd=null, editInfoTtLunchMins=30, editInfoTtLunchStart=null, editInfoTtLunchEnd=null, editInfoTtPracticePeriods=[];
+let editingClsInfoId=null, editInfoTtData={}, editInfoTtPracticeDays=[], editInfoTtFileName='', editInfoTtTrainStart=null, editInfoTtTrainEnd=null, editInfoTtLunchMins=30, editInfoTtLunchStart=null, editInfoTtLunchEnd=null, editInfoTtPracticePeriods=[], editInfoTtTheoryData={};
 
 function clsCardHtml(cls){
     const grad=!!cls.graduated;
@@ -5315,7 +5449,7 @@ function openClsEdit(clsId){
     const cls=classesList.find(c=>c.id===clsId);
     if(!cls)return;
     editingClsInfoId=clsId;
-    editInfoTtData={};editInfoTtPracticeDays=[];editInfoTtFileName='';editInfoTtTrainStart=null;editInfoTtTrainEnd=null;editInfoTtLunchMins=30;editInfoTtLunchStart=null;editInfoTtLunchEnd=null;editInfoTtPracticePeriods=[];
+    editInfoTtData={};editInfoTtTheoryData={};editInfoTtPracticeDays=[];editInfoTtFileName='';editInfoTtTrainStart=null;editInfoTtTrainEnd=null;editInfoTtLunchMins=30;editInfoTtLunchStart=null;editInfoTtLunchEnd=null;editInfoTtPracticePeriods=[];
     document.getElementById('cls-edit-name').value=cls.name||'';
     document.getElementById('cls-edit-code').value=cls.code||'';
     document.getElementById('cls-edit-tt-result').textContent='';
@@ -5327,7 +5461,7 @@ function openClsEdit(clsId){
 }
 function closeClsEdit(){
     editingClsInfoId=null;
-    editInfoTtData={};editInfoTtPracticeDays=[];editInfoTtFileName='';editInfoTtTrainStart=null;editInfoTtTrainEnd=null;editInfoTtLunchMins=30;editInfoTtLunchStart=null;editInfoTtLunchEnd=null;editInfoTtPracticePeriods=[];
+    editInfoTtData={};editInfoTtTheoryData={};editInfoTtPracticeDays=[];editInfoTtFileName='';editInfoTtTrainStart=null;editInfoTtTrainEnd=null;editInfoTtLunchMins=30;editInfoTtLunchStart=null;editInfoTtLunchEnd=null;editInfoTtPracticePeriods=[];
     document.getElementById('cls-edit-modal').classList.remove('open');
     document.getElementById('cls-info-tt-file').value='';
 }
@@ -5348,7 +5482,7 @@ function parseEditClsInfoTimetable(e){
             const ws=wb.Sheets[wb.SheetNames[0]];
             const rows=XLSX.utils.sheet_to_json(ws,{header:1,raw:true});
             let tStart=null,tEnd=null;
-            editInfoTtData={};editInfoTtPracticeDays=[];
+            editInfoTtData={};editInfoTtTheoryData={};editInfoTtPracticeDays=[];
             function parseDate(raw){if(raw==null||raw==='')return null;if(typeof raw==='number'){const adj=raw>59?raw-1:raw;const d=new Date((adj-25569)*86400000);const yr=d.getUTCFullYear(),mo=String(d.getUTCMonth()+1).padStart(2,'0'),dy=String(d.getUTCDate()).padStart(2,'0');if(yr<1990||yr>2100)return null;return`${yr}-${mo}-${dy}`;}const s=raw.toString().trim();if(/^\d{8}$/.test(s))return`${s.slice(0,4)}-${s.slice(4,6)}-${s.slice(6,8)}`;if(/^\d{4}-\d{2}-\d{2}$/.test(s))return s;return null;}
             function parseTime(raw){if(raw==null||raw==='')return null;if(typeof raw==='number'){const tm=Math.round(raw*24*60);const h=Math.floor(tm/60),m=tm%60;return`${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;}const s=raw.toString().trim();if(/^\d{4}$/.test(s))return`${s.slice(0,2)}:${s.slice(2,4)}`;if(/^\d{1,2}:\d{2}/.test(s))return s.slice(0,5);return null;}
             const editInfoTtOtherSubjectDates=new Set();
@@ -5365,6 +5499,7 @@ function parseEditClsInfoTimetable(e){
                 editInfoTtData[d]={start,end};editInfoTtPracticeDays.push(d);
             });
             editInfoTtPracticePeriods=computePracticePeriodBlocks(editInfoTtPracticeDays.slice().sort(),editInfoTtOtherSubjectDates);
+            editInfoTtTheoryData=collectTheoryDays(rows,parseDate,parseTime,editInfoTtData);
             let lunch=30,lunchSt=null,lunchEd=null;
             (()=>{if(!editInfoTtPracticeDays.length)return;const pDays=editInfoTtPracticeDays.slice().sort();const pStart=pDays[0],pEnd=pDays[pDays.length-1];const hIdx=rows.findIndex(r=>(r||[]).some(c=>(c||'').toString().trim()==='시간구분'));if(hIdx<0)return;const hdr=(rows[hIdx]||[]).map(c=>(c||'').toString().trim());const tgIdx=hdr.indexOf('시간구분');const stIdx=hdr.findIndex(h=>h==='시작시간'||h==='시작 시간');if(tgIdx>=0&&stIdx>=0){for(let ri=hIdx+1;ri<rows.length-1;ri++){const date=parseDate(rows[ri][0]);if(!date||date<pStart||date>pEnd)continue;const tg=(rows[ri][tgIdx]||'').toString().trim();if(tg==='2'){const ls=parseTime(rows[ri][stIdx]);const le=parseTime(rows[ri+1][stIdx]);if(ls&&le){const[sh,sm]=ls.split(':').map(Number);const[eh,em]=le.split(':').map(Number);const lm=(eh*60+em)-(sh*60+sm);if(lm>0&&lm<=120){lunch=lm;lunchSt=ls;lunchEd=le;}}break;}}}})();
             editInfoTtTrainStart=tStart;editInfoTtTrainEnd=tEnd;editInfoTtLunchMins=lunch;editInfoTtLunchStart=lunchSt;editInfoTtLunchEnd=lunchEd;
@@ -5391,6 +5526,8 @@ async function saveEditClsInfo(){
         if(hasTt){
             const sorted=editInfoTtPracticeDays.slice().sort();
             update.timetableData=editInfoTtData;
+            update.theoryData=editInfoTtTheoryData;
+            update.theoryDays=Object.keys(editInfoTtTheoryData).sort();
             update.practiceDays=editInfoTtPracticeDays;
             update.practiceStart=sorted[0];
             update.practiceEnd=sorted[sorted.length-1];
@@ -5406,7 +5543,7 @@ async function saveEditClsInfo(){
         await window.fsUpdateDoc(window.fsDoc(window.db,'classes',clsId),update);
         cls.name=name;
         if(code)cls.code=code;
-        if(hasTt){const sorted=editInfoTtPracticeDays.slice().sort();cls.timetableData=editInfoTtData;cls.practiceDays=editInfoTtPracticeDays;cls.practiceStart=sorted[0];cls.practiceEnd=sorted[sorted.length-1];cls.practicePeriods=editInfoTtPracticePeriods;cls.trainStart=editInfoTtTrainStart;cls.trainEnd=editInfoTtTrainEnd;cls.lunchBreakMins=editInfoTtLunchMins;cls.lunchStart=editInfoTtLunchStart||null;cls.lunchEnd=editInfoTtLunchEnd||null;cls.timetableFileName=editInfoTtFileName;}
+        if(hasTt){const sorted=editInfoTtPracticeDays.slice().sort();cls.timetableData=editInfoTtData;cls.theoryData=editInfoTtTheoryData;cls.practiceDays=editInfoTtPracticeDays;cls.practiceStart=sorted[0];cls.practiceEnd=sorted[sorted.length-1];cls.practicePeriods=editInfoTtPracticePeriods;cls.trainStart=editInfoTtTrainStart;cls.trainEnd=editInfoTtTrainEnd;cls.lunchBreakMins=editInfoTtLunchMins;cls.lunchStart=editInfoTtLunchStart||null;cls.lunchEnd=editInfoTtLunchEnd||null;cls.timetableFileName=editInfoTtFileName;}
         showToast('반 정보 저장됨','success');
         closeClsEdit();
         renderRegisteredClasses();
