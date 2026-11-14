@@ -10,9 +10,6 @@
 <meta name="application-name" content="Here 관리">
 <meta name="msapplication-TileImage" content="../assets/icon.png">
 <meta name="msapplication-TileColor" content="#6c63ff">
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
-<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-<script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/ko.js"></script>
 <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
 <script src="https://pg-web.nicepay.co.kr/v3/common/js/nicepay-pgweb.js"></script>
 <script type="module">
@@ -211,7 +208,7 @@ body{font-family:'Pretendard',system-ui,sans-serif;background:var(--canvas);colo
 .att-cls-btn:hover{background:var(--brand-xlight);color:var(--brand);}
 .att-cls-btn.active{background:var(--brand);color:#fff;box-shadow:0 3px 8px rgba(108,99,255,.3);}
 /* ── 사이드바 2: 날짜 + 학생 검색 ── */
-.att-date-stu-sidebar{width:256px;padding:18px 14px;gap:8px;justify-content:center;}
+.att-date-stu-sidebar{width:256px;padding:18px 14px;gap:8px;justify-content:safe center;}
 /* 날짜 카드 */
 .att-cal-card{background:#fff;border:2px solid var(--border);border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:8px;transition:border-color .15s;}
 .att-cal-card:focus-within{border-color:var(--brand);}
@@ -294,6 +291,18 @@ body{font-family:'Pretendard',system-ui,sans-serif;background:var(--canvas);colo
 .doc-stu-all{display:flex;align-items:center;gap:7px;font-size:12px;font-weight:800;color:var(--brand);padding:4px 2px 6px;border-bottom:1px solid var(--border);margin-bottom:3px;cursor:pointer;}
 .doc-stu-row{display:flex;align-items:center;gap:7px;font-size:12px;font-weight:600;color:var(--text);padding:3px 2px;cursor:pointer;border-radius:5px;}
 .doc-stu-row:hover{background:var(--brand-xlight);}
+/* 문서발급 (왼쪽 사이드바, 달력 아래) */
+.att-date-stu-sidebar .att-cal-card,.att-date-stu-sidebar .last-updated-bar{flex-shrink:0;}
+.doc-side-card{background:#fff;border:2px solid var(--border);border-radius:12px;padding:12px;margin-top:6px;display:flex;flex-direction:column;gap:8px;flex-shrink:0;}
+.doc-side-title{font-size:11px;font-weight:800;color:var(--brand);letter-spacing:0.06em;}
+.doc-side-card .doc-type-btns{gap:6px;margin-bottom:2px;}
+.doc-side-card .doc-type-btn{padding:8px 4px 7px;gap:4px;min-width:0;}
+.doc-side-card .doc-type-btn img{width:28px;height:28px;}
+.doc-side-card .doc-type-btn-label{font-size:11px;word-break:keep-all;}
+.doc-side-card .doc-type-btn-desc{display:none;}
+.doc-period{display:flex;flex-direction:column;gap:2px;padding:7px 9px;border-radius:7px;background:var(--brand-xlight);}
+.doc-period-label{font-size:10px;font-weight:700;color:var(--muted);}
+.doc-period-val{font-size:13px;font-weight:800;color:var(--brand);word-break:keep-all;}
 /* 승인 탭 구분 */
 .approve-section-head{font-size:12px;font-weight:800;color:var(--brand);padding:7px 10px;background:var(--brand-xlight);border-radius:8px;margin-bottom:10px;margin-top:4px;letter-spacing:0.03em;}
 /* 반정보 - 등록된 반 목록 */
@@ -500,10 +509,6 @@ css inline edit/* 출결 인증 요청 */
 .loading-overlay.success .spinner{display:none;}
 .loading-overlay.success .loading-success-icon{display:flex;}
 .spinner{width:38px;height:38px;border:3px solid rgba(255,255,255,0.25);border-top-color:#fff;border-radius:50%;animation:spin 0.7s linear infinite;}
-.doc-daterange-input{display:none;}
-.flatpickr-calendar.inline{width:100%;box-shadow:none;border:1px solid var(--border);border-radius:8px;}
-.flatpickr-calendar.inline .flatpickr-days,.flatpickr-calendar.inline .dayContainer{width:100%!important;max-width:100%!important;min-width:0!important;}
-.flatpickr-calendar.inline .flatpickr-day{flex-basis:calc(100% / 7)!important;max-width:calc(100% / 7)!important;}
 @keyframes spin{to{transform:rotate(360deg);}}
 #seal-spotlight-overlay{position:fixed;inset:0;background:rgba(0,0,0,0);z-index:9000;pointer-events:none;transition:background 0.3s;}
 #seal-spotlight-overlay.active{background:rgba(0,0,0,0.45);pointer-events:auto;}
@@ -948,6 +953,54 @@ css inline edit/* 출결 인증 요청 */
                 <input type="hidden" id="att-end-date">
                 <div class="att-mini-cal" id="att-mini-cal"></div>
               </div>
+              <!-- 문서발급: 위 달력에서 고른 범위가 곧 문서발급 기간 -->
+              <div class="doc-side-card">
+                <div class="doc-side-title">문서발급</div>
+                <div class="doc-type-btns">
+                  <button class="doc-type-btn card-btn active" id="doc-type-card" onclick="selectDocType('card')">
+                    <img src="../assets/pdf.png" alt="실습카드">
+                    <div class="doc-type-btn-label">실습카드</div>
+                    <div class="doc-type-btn-desc">실습 병원 담당자 서명과 학생 서명 관련 서류</div>
+                  </button>
+                  <button class="doc-type-btn entry-btn" id="doc-type-entry" onclick="selectDocType('entry')">
+                    <img src="../assets/pdf.png" alt="직권입력관리대장">
+                    <div class="doc-type-btn-label">직권입력관리대장</div>
+                    <div class="doc-type-btn-desc">실습에 대한 학원 담당자의 확인 서류</div>
+                  </button>
+                </div>
+
+                <!-- 실습카드 폼 -->
+                <div class="doc-form-section active" id="doc-form-card">
+                  <div>
+                    <div class="doc-sel-label">반 선택</div>
+                    <select class="doc-select" id="doc-card-cls" onchange="updateDocCardStudents()">
+                      <option value="">반을 선택하세요</option>
+                    </select>
+                  </div>
+                  <div>
+                    <div class="doc-sel-label">학생 선택</div>
+                    <div class="doc-stu-list" id="doc-card-stu-list"><div class="doc-stu-empty">반을 먼저 선택하세요</div></div>
+                  </div>
+                  <div class="doc-period"><span class="doc-period-label">발급 기간</span><span class="doc-period-val"></span></div>
+                  <button class="doc-preview-btn" onclick="previewDoc('card')">미리보기</button>
+                </div>
+
+                <!-- 직권입력관리대장 폼 -->
+                <div class="doc-form-section" id="doc-form-entry">
+                  <div>
+                    <div class="doc-sel-label">반 선택</div>
+                    <select class="doc-select" id="doc-entry-cls" onchange="updateDocEntryStudents()">
+                      <option value="">반을 선택하세요</option>
+                    </select>
+                  </div>
+                  <div>
+                    <div class="doc-sel-label">학생 선택</div>
+                    <div class="doc-stu-list" id="doc-entry-stu-list"><div class="doc-stu-empty">반을 먼저 선택하세요</div></div>
+                  </div>
+                  <div class="doc-period"><span class="doc-period-label">발급 기간</span><span class="doc-period-val"></span></div>
+                  <button class="doc-preview-btn" onclick="previewDoc('entry')">미리보기</button>
+                </div>
+              </div>
             </div>
             <!-- 우측: 4구역 + 테이블 -->
             <div class="att-col-body-main">
@@ -1056,64 +1109,8 @@ css inline edit/* 출결 인증 요청 */
           <span id="missingout-count" style="display:none;"></span>
           <div class="htab-content">
 
-            <!-- 문서발급 탭 -->
-            <div class="htab-panel active" id="vtab-docs">
-              <!-- 서류 유형 선택 -->
-              <div class="doc-type-btns">
-                <button class="doc-type-btn card-btn active" id="doc-type-card" onclick="selectDocType('card')">
-                  <img src="../assets/pdf.png" alt="실습카드">
-                  <div class="doc-type-btn-label">실습카드</div>
-                  <div class="doc-type-btn-desc">실습 병원 담당자 서명과 학생 서명 관련 서류</div>
-                </button>
-                <button class="doc-type-btn entry-btn" id="doc-type-entry" onclick="selectDocType('entry')">
-                  <img src="../assets/pdf.png" alt="직권입력관리대장">
-                  <div class="doc-type-btn-label">직권입력관리대장</div>
-                  <div class="doc-type-btn-desc">실습에 대한 학원 담당자의 확인 서류</div>
-                </button>
-              </div>
-
-              <!-- 실습카드 폼 -->
-              <div class="doc-form-section active" id="doc-form-card">
-                <div>
-                  <div class="doc-sel-label">반 선택</div>
-                  <select class="doc-select" id="doc-card-cls" onchange="updateDocCardStudents()">
-                    <option value="">반을 선택하세요</option>
-                  </select>
-                </div>
-                <div>
-                  <div class="doc-sel-label">학생 선택</div>
-                  <div class="doc-stu-list" id="doc-card-stu-list"><div class="doc-stu-empty">반을 먼저 선택하세요</div></div>
-                </div>
-                <div>
-                  <div class="doc-sel-label">날짜 선택</div>
-                  <input type="text" id="doc-card-daterange" class="doc-daterange-input" placeholder="날짜 범위를 선택하세요" readonly>
-                  <input type="hidden" id="doc-card-start">
-                  <input type="hidden" id="doc-card-end">
-                </div>
-                <button class="doc-preview-btn" onclick="previewDoc('card')">미리보기</button>
-              </div>
-
-              <!-- 직권입력관리대장 폼 -->
-              <div class="doc-form-section" id="doc-form-entry">
-                <div>
-                  <div class="doc-sel-label">반 선택</div>
-                  <select class="doc-select" id="doc-entry-cls" onchange="updateDocEntryStudents()">
-                    <option value="">반을 선택하세요</option>
-                  </select>
-                </div>
-                <div>
-                  <div class="doc-sel-label">학생 선택</div>
-                  <div class="doc-stu-list" id="doc-entry-stu-list"><div class="doc-stu-empty">반을 먼저 선택하세요</div></div>
-                </div>
-                <div>
-                  <div class="doc-sel-label">날짜 선택</div>
-                  <input type="text" id="doc-entry-daterange" class="doc-daterange-input" placeholder="날짜 범위를 선택하세요" readonly>
-                  <input type="hidden" id="doc-entry-start">
-                  <input type="hidden" id="doc-entry-end">
-                </div>
-                <button class="doc-preview-btn" onclick="previewDoc('entry')">미리보기</button>
-              </div>
-            </div>
+            <!-- 문서발급 탭: 내용은 왼쪽 달력 아래로 이동 — 다른 기능으로 대체 예정 -->
+            <div class="htab-panel active" id="vtab-docs"></div>
 
             <!-- 승인 탭 (출결 + 신규가입 통합) -->
             <div class="htab-panel" id="vtab-approve">
@@ -1769,22 +1766,6 @@ function showApp(){
     loadBillingInfo();
     loadNotices();
     setDateRange('today');
-    if(!_flatpickrInited&&typeof flatpickr!=='undefined'){
-        _flatpickrInited=true;
-        const mkOpts=cb=>({mode:'range',locale:'ko',dateFormat:'Y-m-d',inline:true,onClose(dates){
-            const s=dates[0]?flatpickr.formatDate(dates[0],'Y-m-d'):'';
-            const e=dates[1]?flatpickr.formatDate(dates[1],'Y-m-d'):s;
-            cb(s,e);
-        }});
-        flatpickr('#doc-card-daterange',mkOpts((s,e)=>{
-            document.getElementById('doc-card-start').value=s;
-            document.getElementById('doc-card-end').value=e;
-        }));
-        flatpickr('#doc-entry-daterange',mkOpts((s,e)=>{
-            document.getElementById('doc-entry-start').value=s;
-            document.getElementById('doc-entry-end').value=e;
-        }));
-    }
 }
 
 // ── 날짜 범위 컨트롤 ──────────────────────────────────────
@@ -1817,6 +1798,13 @@ function setDateRange(range){
 function syncCalInputs(){
     document.getElementById('att-start-date').value=calStart;
     document.getElementById('att-end-date').value=calEnd;
+    updateDocPeriod();
+}
+// 문서발급 기간 = 왼쪽 달력에서 고른 범위 (두 문서 폼 모두 같은 기간 표시)
+function updateDocPeriod(){
+    const s=document.getElementById('att-start-date')?.value||'',e=document.getElementById('att-end-date')?.value||s;
+    const txt=!s?'달력에서 기간을 선택하세요':(s===e?s+' (하루)':s+' ~ '+e);
+    document.querySelectorAll('.doc-period-val').forEach(el=>{el.textContent=txt;});
 }
 
 function renderMiniCal(){
@@ -4181,6 +4169,7 @@ function initDocTab(){
     });
     updateDocCardStudents();
     updateDocEntryStudents();
+    updateDocPeriod();
 }
 
 function selectDocType(type){
@@ -4552,7 +4541,6 @@ function renderDropoutPage(){
 
 // ── 직인 관리 ────────────────────────────────────────────────
 let sealImageBase64=null;
-let _flatpickrInited=false;
 
 async function loadSealImage(){
     const acId=directorData?.academyId;
@@ -5109,8 +5097,8 @@ tr.c57,tr.c48,tr.c36,tr.c28,tr.c77,tr.c39,tr.c58{height:auto!important;min-heigh
 async function previewDoc(type){
     if(type==='card'){
         const clsId=document.getElementById('doc-card-cls')?.value;
-        const startDate=document.getElementById('doc-card-start')?.value;
-        const endDate=document.getElementById('doc-card-end')?.value||startDate;
+        const startDate=document.getElementById('att-start-date')?.value;
+        const endDate=document.getElementById('att-end-date')?.value||startDate;
         const checkedIds=[...document.querySelectorAll('.doc-card-stu-chk:checked')].map(el=>el.value);
         if(!clsId||!checkedIds.length||!startDate){showToast('반, 학생, 날짜를 모두 선택해주세요','info');return;}
         const cls=classesList.find(c=>c.id===clsId);
@@ -5139,8 +5127,8 @@ async function previewDoc(type){
             return;
         }
         const clsId=document.getElementById('doc-entry-cls')?.value;
-        const startDate=document.getElementById('doc-entry-start')?.value;
-        const endDate=document.getElementById('doc-entry-end')?.value||startDate;
+        const startDate=document.getElementById('att-start-date')?.value;
+        const endDate=document.getElementById('att-end-date')?.value||startDate;
         const checkedIds=[...document.querySelectorAll('.doc-entry-stu-chk:checked')].map(el=>el.value);
         if(!clsId||!checkedIds.length||!startDate){showToast('반, 학생, 날짜를 모두 선택해주세요','info');return;}
         const cls=classesList.find(c=>c.id===clsId);
