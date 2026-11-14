@@ -280,6 +280,7 @@ body{font-family:'Pretendard',system-ui,sans-serif;background:var(--canvas);colo
 .fu-link{background:none;border:none;color:var(--muted);font-size:11px;text-decoration:underline;cursor:pointer;padding:0;}
 .fu-actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;}
 .fu-del{color:#B91C1C;border-color:#FCA5A5;}
+.fu-seat{font-size:13px;font-weight:800;padding:2px 9px;border-radius:8px;background:#EDE9FE;color:#6D28D9;}
 /* 문서발급 탭 */
 .doc-type-btns{display:flex;gap:12px;margin-bottom:18px;}
 .doc-type-btn{flex:1;padding:14px 8px 12px;border:2px solid transparent;border-radius:12px;cursor:pointer;transition:all .15s;text-align:center;display:flex;flex-direction:column;align-items:center;gap:8px;}
@@ -4197,7 +4198,7 @@ async function createClassFromVtab(){
 // 상담 후 학생에게 보내는 안내 링크 만들기 + 학생 진행 상황 보기.
 // 서버 함수(원장 인증)로만 읽고 쓴다 — Firestore를 직접 읽거나 쓰지 않는다. (billingCall 재사용)
 let followups=[];
-const FU_STEP_NAMES=['상담 완료','카드 준비','수강신청','서류 제출','결제·등록'];
+const FU_STEP_NAMES=['상담 완료','카드 준비','수강신청','서류준비','결제·등록'];
 const FU_BASE_KEY='fuBaseUrl';
 function fuBaseUrl(){try{return (localStorage.getItem(FU_BASE_KEY)||'').trim();}catch(e){return '';}}
 function saveFuBase(){
@@ -4229,6 +4230,26 @@ async function loadFollowups(){
         renderFollowups();
     }catch(e){el.innerHTML='<div class="empty-state">불러오기 실패</div>';}
 }
+// 자리 예약: 학생이 학원에 알린 뒤 고른 자리 — 24시간 안에 [확정 등록]을 누르지 않으면 자동으로 해지된다
+function fuLeft(ms){
+    const m=Math.max(0,Math.floor(ms/60000));
+    return Math.floor(m/60)+'시간 '+(m%60)+'분';
+}
+function fuSeatCell(f){
+    const id=escHtml(f.id);
+    if(!f.seatId)return '<span class="fu-dim">자리 미선택</span>';
+    const seat=`<span class="fu-seat">${escHtml(f.seatId)}</span>`;
+    if(f.seatState==='confirmed')
+        return `${seat}<span class="badge badge-green">확정 등록</span><button class="fu-link" onclick="setFuConfirm('${id}','seatConfirmed',false)">확정 취소</button><button class="fu-link" onclick="releaseFuSeat('${id}')">자리 해제</button>`;
+    if(f.seatState==='held')
+        return `${seat}<span class="badge badge-yellow">예약 중 · ${fuLeft(f.seatLeftMs)} 남음</span><button class="btn btn-outline btn-sm" onclick="setFuConfirm('${id}','seatConfirmed',true)">확정 등록</button><button class="fu-link" onclick="releaseFuSeat('${id}')">자리 해제</button>`;
+    return `${seat}<span class="badge badge-gray">예약 해지 (24시간 경과)</span><button class="fu-link" onclick="releaseFuSeat('${id}')">정리</button>`;
+}
+function releaseFuSeat(id){
+    const f=followups.find(x=>x.id===id);
+    if(!f||!confirm(`"${f.name}"님의 ${f.seatId} 자리를 해제할까요?`))return;
+    fuUpdate(id,{seatRelease:true},'자리를 해제했어요');
+}
 function fuConfirmCell(f,key,at,doneText,idleText){
     const id=escHtml(f.id);
     const left=doneText?`<span>${doneText}</span>`:`<span class="fu-dim">${idleText}</span>`;
@@ -4254,6 +4275,8 @@ function renderFollowups(){
   <div class="fu-steps">${steps}</div>
   <div class="fu-check"><b>카드 발급</b>${fuConfirmCell(f,'cardConfirmed',f.cardConfirmedAt,f.cardClaimedAt?'학생 완료 '+fuTime(f.cardClaimedAt):'','학생 미완료')}</div>
   <div class="fu-check"><b>수강신청</b>${fuConfirmCell(f,'applyConfirmed',f.applyConfirmedAt,f.cur>=3?'학생 체크함':'','학생 미체크')}</div>
+  <div class="fu-check"><b>학원에 알림</b>${f.notifiedAt?`<span>알림 ✓ ${fuTime(f.notifiedAt)}</span><span class="badge badge-green">연락 동의</span>`:'<span class="fu-dim">아직 안 알림</span>'}</div>
+  <div class="fu-check"><b>자리</b>${fuSeatCell(f)}</div>
   <div class="fu-actions">
     <button class="btn btn-primary btn-sm" onclick="copyFuLink('${id}')">링크 복사</button>
     ${f.helpUnseen?`<button class="btn btn-outline btn-sm" onclick="fuHelpSeen('${id}')">도움 요청 확인</button>`:''}

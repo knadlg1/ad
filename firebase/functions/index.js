@@ -1699,23 +1699,51 @@ exports.generateCertificatePdf = functions
     });
 
 // ── 예비 수강생(후속관리) ──────────────────────────────────────────────────────
-// followups/{token} — 서버 전용 컬렉션(firestore.rules에 없어 클라이언트 직접 접근은 전부 차단된다).
-// 원장 화면은 원장 인증(directorCall)으로, 학생 안내 페이지는 token(추측 불가 24자)으로만 읽고 쓴다.
+// followups/{token}, followupSeats/{scope}_{seat} — 서버 전용 컬렉션(firestore.rules에 없어 클라이언트 직접 접근은 전부 차단된다).
+// 원장 화면은 원장 인증(directorCall)으로, 학생 안내 페이지는 token(추측 불가 24자, 1인 전용 링크)으로만 읽고 쓴다.
 const FU_TOKEN_RE = /^[A-Za-z0-9_-]{20,64}$/;
-const FU_MAX_CUR = 5;      // 학생 페이지 진행 단계: 상담 완료·카드 준비·수강신청·서류 제출·결제 및 등록
-const FU_DOC_COUNT = 3;    // 서류 3종(올렸는지 여부만 저장, 사진은 저장하지 않는다)
+const FU_MAX_CUR = 5;      // 학생 페이지 진행 단계: 상담 완료·카드 준비·수강신청·서류준비·결제 및 등록
+const FU_DOC_COUNT = 3;    // 서류 3종(체크했는지 여부만 저장)
+const FU_SEAT_RE = /^[A-J](?:[1-9]|1[0-2])$/;      // 교실 자리 번호 (예: A1 ~ J12)
+const FU_SEAT_HOLD_MS = 24 * 60 * 60 * 1000;       // 예약한 자리를 잡아 두는 시간: 24시간 (학원이 확정하면 계속 유지)
 const fuMs = (t) => (t && typeof t.toMillis === 'function') ? t.toMillis() : 0;
 const fuTrim = (s, max) => (typeof s === 'string' ? s.trim().slice(0, max) : '');
+const fuErr = (code, message) => Object.assign(new Error(message || code), { code, fu: true });
 
-// 원장 화면용 한 건 (memo·원장 정보 포함)
-function fuForAdmin(id, x) {
+// 자리는 학원 단위로 나눠 쓴다 (학원 정보가 없으면 원장 계정 단위)
+const fuScope = (x) => String(x.academyId || x.directorId || '');
+const fuSeatRef = (scope, seat) => db.doc('followupSeats/' + scope + '_' + seat);
+const fuSeatActive = (s, now) => !!s && (!!s.confirmedAt || now - (s.at || 0) < FU_SEAT_HOLD_MS);
+
+// 학생 본인의 자리 (다른 사람 것이거나 24시간이 지났으면 없는 것으로 본다)
+function fuMySeat(x, id, seatSnap, now) {
+    if (!x.seatId || !seatSnap || !seatSnap.exists) return null;
+    const s = seatSnap.data();
+    if (s.token !== id || !fuSeatActive(s, now)) return null;
+    return { id: x.seatId, at: s.at, confirmed: !!s.confirmedAt };
+}
+
+// 원장 화면용 한 건 (memo·원장 정보 포함). seatMap: { 자리번호: 자리 문서 }
+function fuForAdmin(id, x, seatMap, now) {
     const helpAt = fuMs(x.helpAt), helpSeenAt = fuMs(x.helpSeenAt);
+    let seatState = '', seatLeftMs = 0, seatAt = 0;
+    if (x.seatId) {
+        const s = seatMap && seatMap[x.seatId];
+        if (s && s.token === id) {
+            seatAt = s.at || 0;
+            if (s.confirmedAt) seatState = 'confirmed';
+            else if (now - seatAt < FU_SEAT_HOLD_MS) { seatState = 'held'; seatLeftMs = FU_SEAT_HOLD_MS - (now - seatAt); }
+            else seatState = 'expired';
+        } else seatState = 'expired';
+    }
     return {
         id, name: x.name || '', memo: x.memo || '',
         cur: Number.isInteger(x.cur) ? x.cur : 1,
         docsDone: Array.isArray(x.docsDone) ? x.docsDone.map(Boolean) : [false, false, false],
         guideStep: Number.isInteger(x.guideStep) ? x.guideStep : 0,
         cardClaimedAt: fuMs(x.cardClaimedAt), cardConfirmedAt: fuMs(x.cardConfirmedAt), applyConfirmedAt: fuMs(x.applyConfirmedAt),
+        notifiedAt: fuMs(x.notifiedAt), consentAt: fuMs(x.consentAt),
+        seatId: x.seatId || '', seatAt, seatState, seatLeftMs,
         helpAt, helpUnseen: helpAt > 0 && helpAt > helpSeenAt,
         createdAt: fuMs(x.createdAt), firstSeenAt: fuMs(x.firstSeenAt), lastSeenAt: fuMs(x.lastSeenAt),
     };
@@ -1728,6 +1756,14 @@ async function fuOwned(call, id) {
     const snap = await ref.get();
     if (!snap.exists || snap.data().directorId !== call.id) return null;
     return { ref, data: snap.data() };
+}
+
+// 학생 링크(token)로 한 건 읽기 — 없으면 null
+async function fuByToken(token) {
+    if (typeof token !== 'string' || !FU_TOKEN_RE.test(token)) return null;
+    const ref = db.doc('followups/' + token);
+    const snap = await ref.get();
+    return snap.exists ? { ref, data: snap.data() } : null;
 }
 
 // 원장: 링크 만들기
@@ -1753,23 +1789,30 @@ exports.createFollowup = functions.https.onRequest(async (req, res) => {
     }
 });
 
-// 원장: 내 예비 수강생 목록(최신순)
+// 원장: 내 예비 수강생 목록(최신순) — 자리 예약 상태 포함
 exports.listFollowups = functions.https.onRequest(async (req, res) => {
     setCors(res);
     if (req.method === 'OPTIONS') { res.status(204).send(''); return; }
     try {
         const call = await directorCall(req, res);
         if (!call) return;
-        const snap = await db.collection('followups').where('directorId', '==', call.id).get();
-        const items = snap.docs.map(d => fuForAdmin(d.id, d.data())).sort((a, b) => b.createdAt - a.createdAt);
-        res.json({ status: 'success', items });
+        const now = Date.now();
+        const scope = fuScope({ academyId: call.data.academyId, directorId: call.id });
+        const [snap, seatSnap] = await Promise.all([
+            db.collection('followups').where('directorId', '==', call.id).get(),
+            db.collection('followupSeats').where('scope', '==', scope).get(),
+        ]);
+        const seatMap = {};
+        seatSnap.docs.forEach(d => { const s = d.data(); seatMap[s.seat] = s; });
+        const items = snap.docs.map(d => fuForAdmin(d.id, d.data(), seatMap, now)).sort((a, b) => b.createdAt - a.createdAt);
+        res.json({ status: 'success', items, now, holdMs: FU_SEAT_HOLD_MS });
     } catch (e) {
         console.error('listFollowups error:', e);
         res.json({ status: 'error', message: e.message });
     }
 });
 
-// 원장: 이름·메모 수정, 학원 확인(카드 발급·수강신청) 표시/해제, 도움 요청 확인
+// 원장: 이름·메모 수정, 학원 확인(카드 발급·수강신청) 표시/해제, 도움 요청 확인, 자리 확정 등록/해제
 exports.updateFollowup = functions.https.onRequest(async (req, res) => {
     setCors(res);
     if (req.method === 'OPTIONS') { res.status(204).send(''); return; }
@@ -1789,16 +1832,37 @@ exports.updateFollowup = functions.https.onRequest(async (req, res) => {
         if (typeof b.cardConfirmed === 'boolean') upd.cardConfirmedAt = b.cardConfirmed ? ts : null;
         if (typeof b.applyConfirmed === 'boolean') upd.applyConfirmedAt = b.applyConfirmed ? ts : null;
         if (b.helpSeen === true) upd.helpSeenAt = ts;
-        if (!Object.keys(upd).length) { res.json({ status: 'error', message: '바꿀 내용이 없습니다.' }); return; }
-        await owned.ref.update(upd);
+        const wantsSeat = typeof b.seatConfirmed === 'boolean' || b.seatRelease === true;
+        if (!Object.keys(upd).length && !wantsSeat) { res.json({ status: 'error', message: '바꿀 내용이 없습니다.' }); return; }
+        if (Object.keys(upd).length) await owned.ref.update(upd);
+        if (wantsSeat) {
+            const id = call.body.id;
+            await db.runTransaction(async (t) => {
+                const fSnap = await t.get(owned.ref);
+                const x = fSnap.data();
+                if (!x.seatId) throw fuErr('noseat', '선택한 자리가 없습니다.');
+                const sRef = fuSeatRef(fuScope(x), x.seatId);
+                const sSnap = await t.get(sRef);
+                const mine = sSnap.exists && sSnap.data().token === id;
+                if (b.seatRelease === true) {
+                    if (mine) t.delete(sRef);
+                    t.update(owned.ref, { seatId: '', seatAt: 0, seatConfirmedAt: null });
+                    return;
+                }
+                if (!mine || !fuSeatActive(sSnap.data(), Date.now())) throw fuErr('expired', '예약이 이미 해지되었습니다.');
+                t.update(sRef, { confirmedAt: b.seatConfirmed ? Date.now() : 0, at: b.seatConfirmed ? sSnap.data().at : Date.now() });
+                t.update(owned.ref, { seatConfirmedAt: b.seatConfirmed ? ts : null });
+            });
+        }
         res.json({ status: 'success' });
     } catch (e) {
+        if (e && e.fu) { res.json({ status: 'error', code: e.code, message: e.message }); return; }
         console.error('updateFollowup error:', e);
         res.json({ status: 'error', message: e.message });
     }
 });
 
-// 원장: 삭제
+// 원장: 삭제 (잡아 둔 자리도 함께 풀어 준다)
 exports.deleteFollowup = functions.https.onRequest(async (req, res) => {
     setCors(res);
     if (req.method === 'OPTIONS') { res.status(204).send(''); return; }
@@ -1807,6 +1871,12 @@ exports.deleteFollowup = functions.https.onRequest(async (req, res) => {
         if (!call) return;
         const owned = await fuOwned(call, call.body.id);
         if (!owned) { res.json({ status: 'error', message: '대상을 찾을 수 없습니다.' }); return; }
+        const x = owned.data;
+        if (x.seatId) {
+            const sRef = fuSeatRef(fuScope(x), x.seatId);
+            const sSnap = await sRef.get();
+            if (sSnap.exists && sSnap.data().token === call.body.id) await sRef.delete();
+        }
         await owned.ref.delete();
         res.json({ status: 'success' });
     } catch (e) {
@@ -1815,27 +1885,26 @@ exports.deleteFollowup = functions.https.onRequest(async (req, res) => {
     }
 });
 
-// 학생 안내 페이지: token으로 내 정보 불러오기 (이름·진행 상태만 내려준다 — 메모·원장 정보는 내리지 않음)
+// 학생 안내 페이지: token으로 내 정보 불러오기 (이름·진행 상태·내 자리만 내려준다 — 메모·원장 정보는 내리지 않음)
 exports.getFollowup = functions.https.onRequest(async (req, res) => {
     setCors(res);
     if (req.method === 'OPTIONS') { res.status(204).send(''); return; }
     try {
         const body = parseBody(req) || {};
-        const token = body.token;
-        if (typeof token !== 'string' || !FU_TOKEN_RE.test(token)) { res.json({ status: 'error', code: 'notfound', message: '링크를 확인해주세요.' }); return; }
-        const ref = db.doc('followups/' + token);
-        const snap = await ref.get();
-        if (!snap.exists) { res.json({ status: 'error', code: 'notfound', message: '링크를 확인해주세요.' }); return; }
-        const x = snap.data();
+        const f = await fuByToken(body.token);
+        if (!f) { res.json({ status: 'error', code: 'notfound', message: '링크를 확인해주세요.' }); return; }
+        const x = f.data, now = Date.now();
         const ts = admin.firestore.FieldValue.serverTimestamp();
         const upd = { lastSeenAt: ts };
         if (!x.firstSeenAt) upd.firstSeenAt = ts;
-        await ref.update(upd);
+        await f.ref.update(upd);
+        const seatSnap = x.seatId ? await fuSeatRef(fuScope(x), x.seatId).get() : null;
         res.json({
             status: 'success', name: x.name || '',
             cur: Number.isInteger(x.cur) ? x.cur : 1,
             docsDone: Array.isArray(x.docsDone) ? x.docsDone.map(Boolean) : [false, false, false],
             cardClaimed: !!x.cardClaimedAt, cardConfirmed: !!x.cardConfirmedAt, applyConfirmed: !!x.applyConfirmedAt,
+            notified: !!x.notifiedAt, seat: fuMySeat(x, body.token, seatSnap, now), now, holdMs: FU_SEAT_HOLD_MS,
         });
     } catch (e) {
         console.error('getFollowup error:', e);
@@ -1849,13 +1918,10 @@ exports.saveFollowup = functions.https.onRequest(async (req, res) => {
     if (req.method === 'OPTIONS') { res.status(204).send(''); return; }
     try {
         const body = parseBody(req) || {};
-        const token = body.token;
-        if (typeof token !== 'string' || !FU_TOKEN_RE.test(token)) { res.json({ status: 'error', code: 'notfound', message: '링크를 확인해주세요.' }); return; }
         if (JSON.stringify(body).length > 2000) { res.json({ status: 'error', message: '요청이 너무 큽니다.' }); return; }
-        const ref = db.doc('followups/' + token);
-        const snap = await ref.get();
-        if (!snap.exists) { res.json({ status: 'error', code: 'notfound', message: '링크를 확인해주세요.' }); return; }
-        const x = snap.data();
+        const f = await fuByToken(body.token);
+        if (!f) { res.json({ status: 'error', code: 'notfound', message: '링크를 확인해주세요.' }); return; }
+        const x = f.data;
         const ts = admin.firestore.FieldValue.serverTimestamp();
         const upd = { lastSeenAt: ts };
         if (Number.isInteger(body.cur) && body.cur >= 0 && body.cur <= FU_MAX_CUR) upd.cur = body.cur;
@@ -1863,10 +1929,101 @@ exports.saveFollowup = functions.https.onRequest(async (req, res) => {
         if (Number.isInteger(body.guideStep) && body.guideStep >= 0 && body.guideStep <= 30) upd.guideStep = Math.max(body.guideStep, Number.isInteger(x.guideStep) ? x.guideStep : 0);
         if (typeof body.cardClaimed === 'boolean') upd.cardClaimedAt = body.cardClaimed ? (x.cardClaimedAt || ts) : null;
         if (body.help === true) upd.helpAt = ts;
-        await ref.update(upd);
+        // "학원에 알리기": 학원의 연락을 받는 것에 동의하고 학원에 알렸다는 기록 (원장 화면에 도움 요청으로도 표시)
+        if (body.notify === true) { upd.notifiedAt = x.notifiedAt || ts; upd.consentAt = x.consentAt || ts; upd.helpAt = ts; }
+        await f.ref.update(upd);
         res.json({ status: 'success' });
     } catch (e) {
         console.error('saveFollowup error:', e);
+        res.json({ status: 'error', message: '잠시 후 다시 시도해주세요.' });
+    }
+});
+
+// 학생 안내 페이지: 같은 학원의 이미 예약된 자리 목록 + 내 자리 (누가 예약했는지는 알려주지 않는다)
+exports.getSeats = functions.https.onRequest(async (req, res) => {
+    setCors(res);
+    if (req.method === 'OPTIONS') { res.status(204).send(''); return; }
+    try {
+        const body = parseBody(req) || {};
+        const f = await fuByToken(body.token);
+        if (!f) { res.json({ status: 'error', code: 'notfound', message: '링크를 확인해주세요.' }); return; }
+        const x = f.data, now = Date.now(), scope = fuScope(x);
+        const snap = await db.collection('followupSeats').where('scope', '==', scope).get();
+        const taken = [];
+        let mine = null;
+        snap.docs.forEach(d => {
+            const s = d.data();
+            if (!fuSeatActive(s, now)) return;
+            if (s.token === body.token) mine = { id: s.seat, at: s.at, confirmed: !!s.confirmedAt };
+            else taken.push(s.seat);
+        });
+        res.json({ status: 'success', taken, mine, now, holdMs: FU_SEAT_HOLD_MS });
+    } catch (e) {
+        console.error('getSeats error:', e);
+        res.json({ status: 'error', message: '잠시 후 다시 시도해주세요.' });
+    }
+});
+
+// 학생 안내 페이지: 자리 예약 — 트랜잭션으로 같은 자리를 두 명이 잡지 못하게 한다. 한 사람이 자리 하나만 잡을 수 있고,
+// 새 자리를 잡으면 이전 자리는 풀린다. 학원이 확정한 자리는 학생이 바꿀 수 없다.
+exports.reserveSeat = functions.https.onRequest(async (req, res) => {
+    setCors(res);
+    if (req.method === 'OPTIONS') { res.status(204).send(''); return; }
+    try {
+        const body = parseBody(req) || {};
+        const token = body.token, seat = body.seat;
+        if (typeof seat !== 'string' || !FU_SEAT_RE.test(seat)) { res.json({ status: 'error', code: 'badseat', message: '자리 번호를 확인해주세요.' }); return; }
+        const f = await fuByToken(token);
+        if (!f) { res.json({ status: 'error', code: 'notfound', message: '링크를 확인해주세요.' }); return; }
+        const out = await db.runTransaction(async (t) => {
+            const fSnap = await t.get(f.ref);
+            if (!fSnap.exists) throw fuErr('notfound', '링크를 확인해주세요.');
+            const x = fSnap.data(), now = Date.now(), scope = fuScope(x);
+            if (!x.notifiedAt) throw fuErr('notnotified', '먼저 학원에 알려 주세요.');
+            const sRef = fuSeatRef(scope, seat);
+            const sSnap = await t.get(sRef);
+            const prevRef = (x.seatId && x.seatId !== seat) ? fuSeatRef(scope, x.seatId) : null;
+            const prevSnap = prevRef ? await t.get(prevRef) : null;
+            const s = sSnap.exists ? sSnap.data() : null;
+            if (s && s.token !== token && fuSeatActive(s, now)) throw fuErr('taken', '방금 다른 분이 예약한 자리예요.');
+            if (prevSnap && prevSnap.exists && prevSnap.data().token === token && prevSnap.data().confirmedAt) throw fuErr('confirmed', '학원에서 확정한 자리는 바꿀 수 없어요. 학원에 문의해 주세요.');
+            if (s && s.token === token && fuSeatActive(s, now)) return { id: seat, at: s.at, confirmed: !!s.confirmedAt, now };   // 이미 내 자리 — 시간을 새로 시작하지 않는다
+            if (prevSnap && prevSnap.exists && prevSnap.data().token === token) t.delete(prevRef);
+            t.set(sRef, { scope, seat, token, directorId: x.directorId, at: now, confirmedAt: 0 });
+            t.update(f.ref, { seatId: seat, seatAt: now, seatConfirmedAt: null, lastSeenAt: admin.firestore.FieldValue.serverTimestamp() });
+            return { id: seat, at: now, confirmed: false, now };
+        });
+        res.json({ status: 'success', seat: out, now: out.now, holdMs: FU_SEAT_HOLD_MS });
+    } catch (e) {
+        if (e && e.fu) { res.json({ status: 'error', code: e.code, message: e.message }); return; }
+        console.error('reserveSeat error:', e);
+        res.json({ status: 'error', message: '잠시 후 다시 시도해주세요.' });
+    }
+});
+
+// 학생 안내 페이지: 내 자리 예약 취소 (학원이 확정한 자리는 취소할 수 없다)
+exports.releaseSeat = functions.https.onRequest(async (req, res) => {
+    setCors(res);
+    if (req.method === 'OPTIONS') { res.status(204).send(''); return; }
+    try {
+        const body = parseBody(req) || {};
+        const f = await fuByToken(body.token);
+        if (!f) { res.json({ status: 'error', code: 'notfound', message: '링크를 확인해주세요.' }); return; }
+        await db.runTransaction(async (t) => {
+            const fSnap = await t.get(f.ref);
+            const x = fSnap.data();
+            if (!x.seatId) return;
+            const sRef = fuSeatRef(fuScope(x), x.seatId);
+            const sSnap = await t.get(sRef);
+            const mine = sSnap.exists && sSnap.data().token === body.token;
+            if (mine && sSnap.data().confirmedAt) throw fuErr('confirmed', '학원에서 확정한 자리는 취소할 수 없어요. 학원에 문의해 주세요.');
+            if (mine) t.delete(sRef);
+            t.update(f.ref, { seatId: '', seatAt: 0, seatConfirmedAt: null });
+        });
+        res.json({ status: 'success' });
+    } catch (e) {
+        if (e && e.fu) { res.json({ status: 'error', code: e.code, message: e.message }); return; }
+        console.error('releaseSeat error:', e);
         res.json({ status: 'error', message: '잠시 후 다시 시도해주세요.' });
     }
 });
