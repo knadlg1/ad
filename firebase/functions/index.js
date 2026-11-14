@@ -1697,3 +1697,176 @@ exports.generateCertificatePdf = functions
             res.json({ status: 'error', message: e.message });
         }
     });
+
+// ── 예비 수강생(후속관리) ──────────────────────────────────────────────────────
+// followups/{token} — 서버 전용 컬렉션(firestore.rules에 없어 클라이언트 직접 접근은 전부 차단된다).
+// 원장 화면은 원장 인증(directorCall)으로, 학생 안내 페이지는 token(추측 불가 24자)으로만 읽고 쓴다.
+const FU_TOKEN_RE = /^[A-Za-z0-9_-]{20,64}$/;
+const FU_MAX_CUR = 5;      // 학생 페이지 진행 단계: 상담 완료·카드 준비·수강신청·서류 제출·결제 및 등록
+const FU_DOC_COUNT = 3;    // 서류 3종(올렸는지 여부만 저장, 사진은 저장하지 않는다)
+const fuMs = (t) => (t && typeof t.toMillis === 'function') ? t.toMillis() : 0;
+const fuTrim = (s, max) => (typeof s === 'string' ? s.trim().slice(0, max) : '');
+
+// 원장 화면용 한 건 (memo·원장 정보 포함)
+function fuForAdmin(id, x) {
+    const helpAt = fuMs(x.helpAt), helpSeenAt = fuMs(x.helpSeenAt);
+    return {
+        id, name: x.name || '', memo: x.memo || '',
+        cur: Number.isInteger(x.cur) ? x.cur : 1,
+        docsDone: Array.isArray(x.docsDone) ? x.docsDone.map(Boolean) : [false, false, false],
+        guideStep: Number.isInteger(x.guideStep) ? x.guideStep : 0,
+        cardClaimedAt: fuMs(x.cardClaimedAt), cardConfirmedAt: fuMs(x.cardConfirmedAt), applyConfirmedAt: fuMs(x.applyConfirmedAt),
+        helpAt, helpUnseen: helpAt > 0 && helpAt > helpSeenAt,
+        createdAt: fuMs(x.createdAt), firstSeenAt: fuMs(x.firstSeenAt), lastSeenAt: fuMs(x.lastSeenAt),
+    };
+}
+
+// 내 학원(원장)의 문서만 다룰 수 있게 소유 확인
+async function fuOwned(call, id) {
+    if (typeof id !== 'string' || !FU_TOKEN_RE.test(id)) return null;
+    const ref = db.doc('followups/' + id);
+    const snap = await ref.get();
+    if (!snap.exists || snap.data().directorId !== call.id) return null;
+    return { ref, data: snap.data() };
+}
+
+// 원장: 링크 만들기
+exports.createFollowup = functions.https.onRequest(async (req, res) => {
+    setCors(res);
+    if (req.method === 'OPTIONS') { res.status(204).send(''); return; }
+    try {
+        const call = await directorCall(req, res);
+        if (!call) return;
+        const name = fuTrim(call.body.name, 30);
+        if (!name) { res.json({ status: 'error', message: '이름을 입력해주세요.' }); return; }
+        const id = crypto.randomBytes(18).toString('base64url');
+        await db.doc('followups/' + id).set({
+            directorId: call.id, academyId: call.data.academyId || '',
+            name, memo: fuTrim(call.body.memo, 100),
+            cur: 1, docsDone: [false, false, false], guideStep: 0,
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+        res.json({ status: 'success', id });
+    } catch (e) {
+        console.error('createFollowup error:', e);
+        res.json({ status: 'error', message: e.message });
+    }
+});
+
+// 원장: 내 예비 수강생 목록(최신순)
+exports.listFollowups = functions.https.onRequest(async (req, res) => {
+    setCors(res);
+    if (req.method === 'OPTIONS') { res.status(204).send(''); return; }
+    try {
+        const call = await directorCall(req, res);
+        if (!call) return;
+        const snap = await db.collection('followups').where('directorId', '==', call.id).get();
+        const items = snap.docs.map(d => fuForAdmin(d.id, d.data())).sort((a, b) => b.createdAt - a.createdAt);
+        res.json({ status: 'success', items });
+    } catch (e) {
+        console.error('listFollowups error:', e);
+        res.json({ status: 'error', message: e.message });
+    }
+});
+
+// 원장: 이름·메모 수정, 학원 확인(카드 발급·수강신청) 표시/해제, 도움 요청 확인
+exports.updateFollowup = functions.https.onRequest(async (req, res) => {
+    setCors(res);
+    if (req.method === 'OPTIONS') { res.status(204).send(''); return; }
+    try {
+        const call = await directorCall(req, res);
+        if (!call) return;
+        const owned = await fuOwned(call, call.body.id);
+        if (!owned) { res.json({ status: 'error', message: '대상을 찾을 수 없습니다.' }); return; }
+        const b = call.body, upd = {};
+        const ts = admin.firestore.FieldValue.serverTimestamp();
+        if (typeof b.name === 'string') {
+            const name = fuTrim(b.name, 30);
+            if (!name) { res.json({ status: 'error', message: '이름을 입력해주세요.' }); return; }
+            upd.name = name;
+        }
+        if (typeof b.memo === 'string') upd.memo = fuTrim(b.memo, 100);
+        if (typeof b.cardConfirmed === 'boolean') upd.cardConfirmedAt = b.cardConfirmed ? ts : null;
+        if (typeof b.applyConfirmed === 'boolean') upd.applyConfirmedAt = b.applyConfirmed ? ts : null;
+        if (b.helpSeen === true) upd.helpSeenAt = ts;
+        if (!Object.keys(upd).length) { res.json({ status: 'error', message: '바꿀 내용이 없습니다.' }); return; }
+        await owned.ref.update(upd);
+        res.json({ status: 'success' });
+    } catch (e) {
+        console.error('updateFollowup error:', e);
+        res.json({ status: 'error', message: e.message });
+    }
+});
+
+// 원장: 삭제
+exports.deleteFollowup = functions.https.onRequest(async (req, res) => {
+    setCors(res);
+    if (req.method === 'OPTIONS') { res.status(204).send(''); return; }
+    try {
+        const call = await directorCall(req, res);
+        if (!call) return;
+        const owned = await fuOwned(call, call.body.id);
+        if (!owned) { res.json({ status: 'error', message: '대상을 찾을 수 없습니다.' }); return; }
+        await owned.ref.delete();
+        res.json({ status: 'success' });
+    } catch (e) {
+        console.error('deleteFollowup error:', e);
+        res.json({ status: 'error', message: e.message });
+    }
+});
+
+// 학생 안내 페이지: token으로 내 정보 불러오기 (이름·진행 상태만 내려준다 — 메모·원장 정보는 내리지 않음)
+exports.getFollowup = functions.https.onRequest(async (req, res) => {
+    setCors(res);
+    if (req.method === 'OPTIONS') { res.status(204).send(''); return; }
+    try {
+        const body = parseBody(req) || {};
+        const token = body.token;
+        if (typeof token !== 'string' || !FU_TOKEN_RE.test(token)) { res.json({ status: 'error', code: 'notfound', message: '링크를 확인해주세요.' }); return; }
+        const ref = db.doc('followups/' + token);
+        const snap = await ref.get();
+        if (!snap.exists) { res.json({ status: 'error', code: 'notfound', message: '링크를 확인해주세요.' }); return; }
+        const x = snap.data();
+        const ts = admin.firestore.FieldValue.serverTimestamp();
+        const upd = { lastSeenAt: ts };
+        if (!x.firstSeenAt) upd.firstSeenAt = ts;
+        await ref.update(upd);
+        res.json({
+            status: 'success', name: x.name || '',
+            cur: Number.isInteger(x.cur) ? x.cur : 1,
+            docsDone: Array.isArray(x.docsDone) ? x.docsDone.map(Boolean) : [false, false, false],
+            cardClaimed: !!x.cardClaimedAt, cardConfirmed: !!x.cardConfirmedAt, applyConfirmed: !!x.applyConfirmedAt,
+        });
+    } catch (e) {
+        console.error('getFollowup error:', e);
+        res.json({ status: 'error', message: '잠시 후 다시 시도해주세요.' });
+    }
+});
+
+// 학생 안내 페이지: 진행 상태 저장 — 허용한 항목만 받는다(이름·학원 확인 등은 학생이 바꿀 수 없음)
+exports.saveFollowup = functions.https.onRequest(async (req, res) => {
+    setCors(res);
+    if (req.method === 'OPTIONS') { res.status(204).send(''); return; }
+    try {
+        const body = parseBody(req) || {};
+        const token = body.token;
+        if (typeof token !== 'string' || !FU_TOKEN_RE.test(token)) { res.json({ status: 'error', code: 'notfound', message: '링크를 확인해주세요.' }); return; }
+        if (JSON.stringify(body).length > 2000) { res.json({ status: 'error', message: '요청이 너무 큽니다.' }); return; }
+        const ref = db.doc('followups/' + token);
+        const snap = await ref.get();
+        if (!snap.exists) { res.json({ status: 'error', code: 'notfound', message: '링크를 확인해주세요.' }); return; }
+        const x = snap.data();
+        const ts = admin.firestore.FieldValue.serverTimestamp();
+        const upd = { lastSeenAt: ts };
+        if (Number.isInteger(body.cur) && body.cur >= 0 && body.cur <= FU_MAX_CUR) upd.cur = body.cur;
+        if (Array.isArray(body.docsDone) && body.docsDone.length === FU_DOC_COUNT) upd.docsDone = body.docsDone.map(v => v === true);
+        if (Number.isInteger(body.guideStep) && body.guideStep >= 0 && body.guideStep <= 30) upd.guideStep = Math.max(body.guideStep, Number.isInteger(x.guideStep) ? x.guideStep : 0);
+        if (typeof body.cardClaimed === 'boolean') upd.cardClaimedAt = body.cardClaimed ? (x.cardClaimedAt || ts) : null;
+        if (body.help === true) upd.helpAt = ts;
+        await ref.update(upd);
+        res.json({ status: 'success' });
+    } catch (e) {
+        console.error('saveFollowup error:', e);
+        res.json({ status: 'error', message: '잠시 후 다시 시도해주세요.' });
+    }
+});
