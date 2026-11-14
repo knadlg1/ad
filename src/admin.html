@@ -971,6 +971,7 @@ css inline edit/* 출결 인증 요청 */
 
                 <!-- 실습카드 폼 -->
                 <div class="doc-form-section active" id="doc-form-card">
+                  <div class="doc-period"><span class="doc-period-label">발급 기간</span><span class="doc-period-val"></span></div>
                   <div>
                     <div class="doc-sel-label">반 선택</div>
                     <select class="doc-select" id="doc-card-cls" onchange="updateDocCardStudents()">
@@ -981,12 +982,12 @@ css inline edit/* 출결 인증 요청 */
                     <div class="doc-sel-label">학생 선택</div>
                     <div class="doc-stu-list" id="doc-card-stu-list"><div class="doc-stu-empty">반을 먼저 선택하세요</div></div>
                   </div>
-                  <div class="doc-period"><span class="doc-period-label">발급 기간</span><span class="doc-period-val"></span></div>
                   <button class="doc-preview-btn" onclick="previewDoc('card')">미리보기</button>
                 </div>
 
                 <!-- 직권입력관리대장 폼 -->
                 <div class="doc-form-section" id="doc-form-entry">
+                  <div class="doc-period"><span class="doc-period-label">발급 기간</span><span class="doc-period-val"></span></div>
                   <div>
                     <div class="doc-sel-label">반 선택</div>
                     <select class="doc-select" id="doc-entry-cls" onchange="updateDocEntryStudents()">
@@ -997,7 +998,6 @@ css inline edit/* 출결 인증 요청 */
                     <div class="doc-sel-label">학생 선택</div>
                     <div class="doc-stu-list" id="doc-entry-stu-list"><div class="doc-stu-empty">반을 먼저 선택하세요</div></div>
                   </div>
-                  <div class="doc-period"><span class="doc-period-label">발급 기간</span><span class="doc-period-val"></span></div>
                   <button class="doc-preview-btn" onclick="previewDoc('entry')">미리보기</button>
                 </div>
               </div>
