@@ -269,7 +269,13 @@ body{font-family:'Pretendard',system-ui,sans-serif;background:var(--canvas);colo
 .fu-top{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:6px;}
 .fu-name{font-size:14px;font-weight:800;}
 .fu-memo{font-size:12px;color:var(--muted);}
-.fu-seen{margin-left:auto;font-size:11px;color:var(--muted);}
+.fu-seen{font-size:10px;color:#9CA3AF;margin:-2px 0 6px;}
+.fu-btns{margin-left:auto;display:flex;gap:3px;flex-shrink:0;}
+.fu-mini{font-family:inherit;font-size:10px;font-weight:700;line-height:1;padding:4px 7px;border-radius:10px;border:1px solid var(--border-strong);background:var(--surface);color:var(--muted);cursor:pointer;white-space:nowrap;}
+.fu-mini:hover{border-color:var(--brand);color:var(--brand);}
+.fu-mini-main{background:var(--brand);border-color:var(--brand);color:#fff;}
+.fu-mini-main:hover{opacity:.88;color:#fff;}
+.fu-mini-del:hover{border-color:#FCA5A5;color:#B91C1C;}
 .fu-g4{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin-bottom:6px;}
 .fu-g{display:flex;flex-direction:column;gap:2px;min-width:0;}
 .fu-gauge-seg{display:block;height:8px;border-radius:4px;background:#E5E7EB;}
@@ -280,12 +286,10 @@ body{font-family:'Pretendard',system-ui,sans-serif;background:var(--canvas);colo
 .fu-g-sub.done{color:#059669;}
 .fu-g-sub.cur{color:#7C3AED;font-weight:700;}
 .fu-badge-btn{border:none;cursor:pointer;font-family:inherit;}
-.fu-del-link{margin-left:auto;}
 .fu-check{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:12px;margin-bottom:5px;}
 .fu-check b{min-width:56px;font-size:12px;}
 .fu-dim{color:#9CA3AF;}
 .fu-link{background:none;border:none;color:var(--muted);font-size:11px;text-decoration:underline;cursor:pointer;padding:0;}
-.fu-actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;}
 .fu-del{color:#B91C1C;border-color:#FCA5A5;}
 .fu-seat{font-size:13px;font-weight:800;padding:2px 9px;border-radius:8px;background:#EDE9FE;color:#6D28D9;}
 /* 문서발급 탭 */
@@ -4283,15 +4287,15 @@ function renderFollowups(){
     ${f.memo?`<span class="fu-memo">${escHtml(f.memo)}</span>`:''}
     ${f.helpUnseen?`<button class="badge badge-red fu-badge-btn" title="누르면 확인 처리" onclick="fuHelpSeen('${id}')">도움 요청 ✓확인</button>`:''}
     ${f.notifiedAt?'<span class="badge badge-green">학원에 알림</span>':''}
-    <span class="fu-seen">${f.lastSeenAt?fuTime(f.lastSeenAt):'안 열어봄'}</span>
+    <span class="fu-btns">
+      <button class="fu-mini fu-mini-main" onclick="copyFuLink('${id}')">링크복사</button>
+      <button class="fu-mini" onclick="editFu('${id}')">수정</button>
+      <button class="fu-mini fu-mini-del" onclick="deleteFu('${id}')">삭제</button>
+    </span>
   </div>
+  <div class="fu-seen">${f.lastSeenAt?'마지막 접속 '+fuTime(f.lastSeenAt):'아직 안 열어봄'}</div>
   ${gauge}
   ${seatOn?`<div class="fu-check">${fuSeatCell(f)}</div>`:''}
-  <div class="fu-actions">
-    <button class="btn btn-primary btn-sm" onclick="copyFuLink('${id}')">링크 복사</button>
-    <button class="btn btn-outline btn-sm" onclick="editFu('${id}')">수정</button>
-    <button class="fu-link fu-del-link" onclick="deleteFu('${id}')">삭제</button>
-  </div>
 </div>`;
     }).join('');
 }
