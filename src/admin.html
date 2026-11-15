@@ -4207,6 +4207,12 @@ const FU_STEP_NAMES=['상담 완료','카드 준비','수강신청','서류준�
 // 학생 안내 페이지 (GitHub Pages: knadlg1/followup) — 링크 = 이 주소 + ?t=그 사람 전용 코드
 const FU_BASE_URL='https://knadlg1.github.io/followup/';
 function fuLink(id){return FU_BASE_URL+'?t='+encodeURIComponent(id);}
+// 복사되는 내용: 학원 이름과 이름이 본문에 들어간 안내 문장 + 링크 (한글은 링크 밖에 두어 문자·카톡에서 깨지지 않게)
+function fuMessage(id,name){
+    const academy=(directorData&&directorData.academyName)||'';
+    return `${academy?'['+academy+'] ':''}${name?name+'님 ':''}수강 등록 안내입니다.
+${fuLink(id)}`;
+}
 function fuTime(ms){
     if(!ms)return '-';
     const d=new Date(ms),p=n=>String(n).padStart(2,'0');
@@ -4289,7 +4295,8 @@ async function copyFuText(text){
     catch(e){window.prompt('아래 링크를 복사하세요',text);return false;}
 }
 async function copyFuLink(id){
-    if(await copyFuText(fuLink(id)))showToast('링크를 복사했어요','success');
+    const f=followups.find(x=>x.id===id);
+    if(await copyFuText(fuMessage(id,f?f.name:'')))showToast('안내 문구와 링크를 복사했어요','success');
 }
 async function createFollowup(){
     const nameEl=document.getElementById('fu-name'),memoEl=document.getElementById('fu-memo');
@@ -4301,7 +4308,7 @@ async function createFollowup(){
         if(j.status!=='success'){showToast(j.message||'만들기 실패','error');showLoader(false);return;}
         nameEl.value='';memoEl.value='';
         await loadFollowups();
-        if(await copyFuText(fuLink(j.id)))showToast('링크를 만들고 복사했어요','success');
+        if(await copyFuText(fuMessage(j.id,name)))showToast('링크를 만들고 안내 문구와 함께 복사했어요','success');
     }catch(e){showToast('만들기 실패: '+e.message,'error');}
     showLoader(false);
 }
