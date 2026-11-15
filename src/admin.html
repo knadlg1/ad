@@ -270,14 +270,17 @@ body{font-family:'Pretendard',system-ui,sans-serif;background:var(--canvas);colo
 .fu-name{font-size:14px;font-weight:800;}
 .fu-memo{font-size:12px;color:var(--muted);}
 .fu-seen{margin-left:auto;font-size:11px;color:var(--muted);}
-.fu-gauge{margin-bottom:8px;}
-.fu-gauge-bar{display:flex;gap:3px;}
-.fu-gauge-seg{flex:1;height:8px;border-radius:4px;background:#E5E7EB;}
+.fu-g4{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin-bottom:6px;}
+.fu-g{display:flex;flex-direction:column;gap:2px;min-width:0;}
+.fu-gauge-seg{display:block;height:8px;border-radius:4px;background:#E5E7EB;}
 .fu-gauge-seg.done{background:#10B981;}
 .fu-gauge-seg.cur{background:#A78BFA;}
-.fu-gauge-label{display:flex;align-items:baseline;gap:6px;margin-top:4px;font-size:12px;color:var(--muted);}
-.fu-gauge-label b{font-size:13px;color:var(--text);}
-.fu-gauge-label .fu-gauge-n{margin-left:auto;font-weight:700;}
+.fu-g-name{font-size:11px;font-weight:700;color:var(--text);white-space:nowrap;}
+.fu-g-sub{font-size:10px;color:#9CA3AF;white-space:nowrap;}
+.fu-g-sub.done{color:#059669;}
+.fu-g-sub.cur{color:#7C3AED;font-weight:700;}
+.fu-badge-btn{border:none;cursor:pointer;font-family:inherit;}
+.fu-del-link{margin-left:auto;}
 .fu-check{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:12px;margin-bottom:5px;}
 .fu-check b{min-width:56px;font-size:12px;}
 .fu-dim{color:#9CA3AF;}
@@ -4254,39 +4257,40 @@ function releaseFuSeat(id){
     if(!f||!confirm(`"${f.name}"님의 ${f.seatId} 자리를 해제할까요?`))return;
     fuUpdate(id,{seatRelease:true},'자리를 해제했어요');
 }
-function fuConfirmCell(f,key,at,doneText,idleText){
-    const id=escHtml(f.id);
-    const left=doneText?`<span>${doneText}</span>`:`<span class="fu-dim">${idleText}</span>`;
-    const right=at
-        ?`<span class="badge badge-green">학원 확인 ${fuTime(at)}</span><button class="fu-link" onclick="setFuConfirm('${id}','${key}',false)">취소</button>`
-        :`<button class="btn btn-outline btn-sm" onclick="setFuConfirm('${id}','${key}',true)">학원 확인</button>`;
-    return `${left}${right}`;
-}
 function renderFollowups(){
     const el=document.getElementById('fu-list');
     if(!el)return;
     if(!followups.length){el.innerHTML='<div class="empty-state">아직 만든 링크가 없습니다. 위에서 이름을 넣고 [링크 만들기]를 눌러주세요.</div>';return;}
     el.innerHTML=followups.map(f=>{
         const id=escHtml(f.id);
-        const cur=Math.min(Math.max(f.cur,0),FU_STEP_NAMES.length);
-        const gauge=`<div class="fu-gauge"><div class="fu-gauge-bar">${FU_STEP_NAMES.map((n,i)=>`<span class="fu-gauge-seg ${i<cur?'done':(i===cur?'cur':'')}" title="${n}"></span>`).join('')}</div><div class="fu-gauge-label">${cur>=FU_STEP_NAMES.length?'<b>모든 단계 완료</b>':`<b>${FU_STEP_NAMES[cur]}</b> 진행 중`}<span class="fu-gauge-n">${cur}/${FU_STEP_NAMES.length} 단계 완료</span></div></div>`;
+        // 학생이 직접 진행하는 4단계만 보여준다 (학원이 따로 할 일은 마지막 자리 확정뿐)
+        const docsN=(f.docsDone||[]).filter(Boolean).length;
+        const seatOn=!!f.seatId&&f.seatState!=='expired';
+        const stages=[
+            {n:'카드발급',done:f.cardClaimedAt>0||f.cur>=2,sub:''},
+            {n:'수강신청',done:f.cur>=3,sub:''},
+            {n:'서류준비',done:docsN>=3||f.cur>=4,sub:docsN&&docsN<3?docsN+'/3':''},
+            {n:'자리선택',done:seatOn,sub:seatOn?f.seatId+(f.seatState==='confirmed'?' 확정':' 예약중'):''}
+        ];
+        const curIdx=stages.findIndex(x=>!x.done);
+        const gauge='<div class="fu-g4">'+stages.map((x,i)=>{
+            const st=x.done?'done':(i===curIdx?'cur':'');
+            return `<div class="fu-g"><span class="fu-gauge-seg ${st}"></span><span class="fu-g-name">${x.n}</span><span class="fu-g-sub ${st}">${escHtml(x.sub||(x.done?'완료':(i===curIdx?'진행 중':'-')))}</span></div>`;
+        }).join('')+'</div>';
         return `<div class="fu-item">
   <div class="fu-top">
     <span class="fu-name">${escHtml(f.name)}</span>
     ${f.memo?`<span class="fu-memo">${escHtml(f.memo)}</span>`:''}
-    ${f.helpUnseen?'<span class="badge badge-red">도움 요청</span>':''}
-    <span class="fu-seen">${f.lastSeenAt?'마지막 접속 '+fuTime(f.lastSeenAt):'아직 안 열어봄'}</span>
+    ${f.helpUnseen?`<button class="badge badge-red fu-badge-btn" title="누르면 확인 처리" onclick="fuHelpSeen('${id}')">도움 요청 ✓확인</button>`:''}
+    ${f.notifiedAt?'<span class="badge badge-green">학원에 알림</span>':''}
+    <span class="fu-seen">${f.lastSeenAt?fuTime(f.lastSeenAt):'안 열어봄'}</span>
   </div>
   ${gauge}
-  <div class="fu-check"><b>카드 발급</b>${fuConfirmCell(f,'cardConfirmed',f.cardConfirmedAt,f.cardClaimedAt?'학생 완료 '+fuTime(f.cardClaimedAt):'','학생 미완료')}</div>
-  <div class="fu-check"><b>수강신청</b>${fuConfirmCell(f,'applyConfirmed',f.applyConfirmedAt,f.cur>=3?'학생 체크함':'','학생 미체크')}</div>
-  <div class="fu-check"><b>학원에 알림</b>${f.notifiedAt?`<span>알림 ✓ ${fuTime(f.notifiedAt)}</span><span class="badge badge-green">연락 동의</span>`:'<span class="fu-dim">아직 안 알림</span>'}</div>
-  <div class="fu-check"><b>자리</b>${fuSeatCell(f)}</div>
+  ${seatOn?`<div class="fu-check">${fuSeatCell(f)}</div>`:''}
   <div class="fu-actions">
     <button class="btn btn-primary btn-sm" onclick="copyFuLink('${id}')">링크 복사</button>
-    ${f.helpUnseen?`<button class="btn btn-outline btn-sm" onclick="fuHelpSeen('${id}')">도움 요청 확인</button>`:''}
-    <button class="btn btn-outline btn-sm" onclick="editFu('${id}')">이름·메모 수정</button>
-    <button class="btn btn-outline btn-sm fu-del" onclick="deleteFu('${id}')">삭제</button>
+    <button class="btn btn-outline btn-sm" onclick="editFu('${id}')">수정</button>
+    <button class="fu-link fu-del-link" onclick="deleteFu('${id}')">삭제</button>
   </div>
 </div>`;
     }).join('');
