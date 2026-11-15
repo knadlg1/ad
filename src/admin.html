@@ -270,10 +270,14 @@ body{font-family:'Pretendard',system-ui,sans-serif;background:var(--canvas);colo
 .fu-name{font-size:14px;font-weight:800;}
 .fu-memo{font-size:12px;color:var(--muted);}
 .fu-seen{margin-left:auto;font-size:11px;color:var(--muted);}
-.fu-steps{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px;}
-.fu-step{font-size:11px;font-weight:700;padding:3px 8px;border-radius:var(--pill);background:#F3F4F6;color:#9CA3AF;}
-.fu-step.done{background:#D1FAE5;color:#065F46;}
-.fu-step.cur{background:#EDE9FE;color:#6D28D9;}
+.fu-gauge{margin-bottom:8px;}
+.fu-gauge-bar{display:flex;gap:3px;}
+.fu-gauge-seg{flex:1;height:8px;border-radius:4px;background:#E5E7EB;}
+.fu-gauge-seg.done{background:#10B981;}
+.fu-gauge-seg.cur{background:#A78BFA;}
+.fu-gauge-label{display:flex;align-items:baseline;gap:6px;margin-top:4px;font-size:12px;color:var(--muted);}
+.fu-gauge-label b{font-size:13px;color:var(--text);}
+.fu-gauge-label .fu-gauge-n{margin-left:auto;font-weight:700;}
 .fu-check{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:12px;margin-bottom:5px;}
 .fu-check b{min-width:56px;font-size:12px;}
 .fu-dim{color:#9CA3AF;}
@@ -4264,7 +4268,8 @@ function renderFollowups(){
     if(!followups.length){el.innerHTML='<div class="empty-state">아직 만든 링크가 없습니다. 위에서 이름을 넣고 [링크 만들기]를 눌러주세요.</div>';return;}
     el.innerHTML=followups.map(f=>{
         const id=escHtml(f.id);
-        const steps=FU_STEP_NAMES.map((n,i)=>`<span class="fu-step ${i<f.cur?'done':(i===f.cur?'cur':'')}">${i<f.cur?'✓ ':''}${n}</span>`).join('');
+        const cur=Math.min(Math.max(f.cur,0),FU_STEP_NAMES.length);
+        const gauge=`<div class="fu-gauge"><div class="fu-gauge-bar">${FU_STEP_NAMES.map((n,i)=>`<span class="fu-gauge-seg ${i<cur?'done':(i===cur?'cur':'')}" title="${n}"></span>`).join('')}</div><div class="fu-gauge-label">${cur>=FU_STEP_NAMES.length?'<b>모든 단계 완료</b>':`<b>${FU_STEP_NAMES[cur]}</b> 진행 중`}<span class="fu-gauge-n">${cur}/${FU_STEP_NAMES.length} 단계 완료</span></div></div>`;
         return `<div class="fu-item">
   <div class="fu-top">
     <span class="fu-name">${escHtml(f.name)}</span>
@@ -4272,7 +4277,7 @@ function renderFollowups(){
     ${f.helpUnseen?'<span class="badge badge-red">도움 요청</span>':''}
     <span class="fu-seen">${f.lastSeenAt?'마지막 접속 '+fuTime(f.lastSeenAt):'아직 안 열어봄'}</span>
   </div>
-  <div class="fu-steps">${steps}</div>
+  ${gauge}
   <div class="fu-check"><b>카드 발급</b>${fuConfirmCell(f,'cardConfirmed',f.cardConfirmedAt,f.cardClaimedAt?'학생 완료 '+fuTime(f.cardClaimedAt):'','학생 미완료')}</div>
   <div class="fu-check"><b>수강신청</b>${fuConfirmCell(f,'applyConfirmed',f.applyConfirmedAt,f.cur>=3?'학생 체크함':'','학생 미체크')}</div>
   <div class="fu-check"><b>학원에 알림</b>${f.notifiedAt?`<span>알림 ✓ ${fuTime(f.notifiedAt)}</span><span class="badge badge-green">연락 동의</span>`:'<span class="fu-dim">아직 안 알림</span>'}</div>
