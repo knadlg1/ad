@@ -262,8 +262,6 @@ body{font-family:'Pretendard',system-ui,sans-serif;background:var(--canvas);colo
 .fu-new{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;flex-shrink:0;}
 .fu-in{flex:1;min-width:90px;padding:7px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;background:var(--surface);}
 .fu-in:focus{outline:none;border-color:var(--brand);}
-.fu-base{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted);margin-bottom:10px;flex-shrink:0;}
-.fu-base .fu-in{font-size:12px;padding:5px 8px;}
 .fu-list-head{display:flex;align-items:center;justify-content:space-between;margin:2px 0 8px;font-size:12px;font-weight:700;color:var(--muted);flex-shrink:0;}
 .fu-item{border:1px solid var(--border);border-radius:12px;padding:10px 12px;margin-bottom:8px;background:var(--surface);flex-shrink:0;}
 .fu-top{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:6px;}
@@ -1156,10 +1154,6 @@ css inline edit/* 출결 인증 요청 */
                 <input class="fu-in" id="fu-name" maxlength="30" placeholder="이름" onkeydown="if(event.key==='Enter')createFollowup()">
                 <input class="fu-in" id="fu-memo" maxlength="100" placeholder="메모 (선택)" onkeydown="if(event.key==='Enter')createFollowup()">
                 <button class="btn btn-primary btn-sm" onclick="createFollowup()">링크 만들기</button>
-              </div>
-              <div class="fu-base">
-                <span style="flex-shrink:0;">학생 페이지 주소</span>
-                <input class="fu-in" id="fu-base" placeholder="https://… (안내 페이지 주소, 한 번만 입력)" onchange="saveFuBase()">
               </div>
               <div class="fu-list-head"><span>만든 링크</span><button class="btn btn-outline btn-sm" onclick="loadFollowups()">새로고침</button></div>
               <div id="fu-list"><div class="empty-state">불러오는 중...</div></div>
@@ -4210,16 +4204,9 @@ async function createClassFromVtab(){
 // 서버 함수(원장 인증)로만 읽고 쓴다 — Firestore를 직접 읽거나 쓰지 않는다. (billingCall 재사용)
 let followups=[];
 const FU_STEP_NAMES=['상담 완료','카드 준비','수강신청','서류준비','결제·등록'];
-const FU_BASE_KEY='fuBaseUrl';
-function fuBaseUrl(){try{return (localStorage.getItem(FU_BASE_KEY)||'').trim();}catch(e){return '';}}
-function saveFuBase(){
-    const v=(document.getElementById('fu-base').value||'').trim();
-    try{localStorage.setItem(FU_BASE_KEY,v);}catch(e){}
-}
-function fuLink(id){
-    const b=fuBaseUrl();
-    return b?b+(b.includes('?')?'&':'?')+'t='+encodeURIComponent(id):'';
-}
+// 학생 안내 페이지 (GitHub Pages: knadlg1/followup) — 링크 = 이 주소 + ?t=그 사람 전용 코드
+const FU_BASE_URL='https://knadlg1.github.io/followup/';
+function fuLink(id){return FU_BASE_URL+'?t='+encodeURIComponent(id);}
 function fuTime(ms){
     if(!ms)return '-';
     const d=new Date(ms),p=n=>String(n).padStart(2,'0');
@@ -4227,8 +4214,6 @@ function fuTime(ms){
 }
 function initProspectTab(){
     if(!directorData)return;
-    const inp=document.getElementById('fu-base');
-    if(inp&&!inp.value)inp.value=fuBaseUrl();
     loadFollowups();
 }
 async function loadFollowups(){
@@ -4304,9 +4289,7 @@ async function copyFuText(text){
     catch(e){window.prompt('아래 링크를 복사하세요',text);return false;}
 }
 async function copyFuLink(id){
-    const link=fuLink(id);
-    if(!link){showToast('먼저 위의 "학생 페이지 주소"를 입력해주세요','error');const i=document.getElementById('fu-base');if(i)i.focus();return;}
-    if(await copyFuText(link))showToast('링크를 복사했어요','success');
+    if(await copyFuText(fuLink(id)))showToast('링크를 복사했어요','success');
 }
 async function createFollowup(){
     const nameEl=document.getElementById('fu-name'),memoEl=document.getElementById('fu-memo');
@@ -4318,9 +4301,7 @@ async function createFollowup(){
         if(j.status!=='success'){showToast(j.message||'만들기 실패','error');showLoader(false);return;}
         nameEl.value='';memoEl.value='';
         await loadFollowups();
-        const link=fuLink(j.id);
-        if(link){if(await copyFuText(link))showToast('링크를 만들고 복사했어요','success');}
-        else showToast('링크를 만들었어요. 학생 페이지 주소를 입력하면 복사할 수 있어요','success');
+        if(await copyFuText(fuLink(j.id)))showToast('링크를 만들고 복사했어요','success');
     }catch(e){showToast('만들기 실패: '+e.message,'error');}
     showLoader(false);
 }
