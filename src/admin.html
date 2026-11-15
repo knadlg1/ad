@@ -655,13 +655,20 @@ css inline edit/* 출결 인증 요청 */
 .hospmgmt-hosp-sel:focus{border-color:var(--brand);}
 
 /* ── 실습병원 탭: 한 줄 컴팩트 행 ── */
-.hosp-row{display:flex;align-items:center;justify-content:space-between;gap:8px;background:var(--canvas);border-radius:8px;margin-bottom:6px;padding:8px 12px;}
+.hosp-row{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px;background:var(--canvas);border-radius:8px;margin-bottom:6px;padding:8px 12px;}
 .hosp-main{flex:1;min-width:0;display:flex;align-items:baseline;gap:8px;}
 .hosp-name{font-size:14px;font-weight:700;white-space:nowrap;}
 .hosp-name-input{width:110px;padding:4px 8px;border:1.5px solid var(--brand);border-radius:6px;font-size:13px;font-weight:700;outline:none;background:#fff;}
 .hosp-coord{font-size:11px;color:var(--muted);white-space:nowrap;}
 .hosp-row.editing .hosp-coord{display:none;}
 .hosp-actions{display:flex;gap:5px;flex-shrink:0;}
+.hosp-mgrs{flex-basis:100%;display:flex;flex-direction:column;gap:5px;padding-top:7px;border-top:1px dashed var(--border-strong);}
+.hosp-mgr{display:flex;align-items:center;flex-wrap:wrap;gap:4px 8px;font-size:12px;}
+.hosp-mgr-name{font-weight:800;}
+.hosp-mgr-pos{color:var(--muted);}
+.hosp-mgr-phone{white-space:nowrap;}
+.hosp-mgr-sig{height:34px;max-width:110px;object-fit:contain;border:1px solid var(--border);border-radius:4px;background:#fff;}
+.hosp-mgr-nosig,.hosp-mgr-cnt,.hosp-mgr-none{font-size:11px;color:var(--muted);}
 .hbtn{min-width:64px;text-align:center;padding:6px 20px;border-radius:14px;font-size:12px;font-weight:700;border:1.5px solid transparent;cursor:pointer;white-space:nowrap;transition:transform .15s ease,box-shadow .15s ease,background .15s ease;}
 .hbtn:hover{transform:translateY(-2px);box-shadow:0 4px 10px rgba(0,0,0,.12);}
 .hbtn:active{transform:scale(.95);box-shadow:none;}
@@ -1124,7 +1131,6 @@ css inline edit/* 출결 인증 요청 */
             <button class="htab-btn" data-tab="cls" onclick="showVtab('cls')">반정보</button>
             <button class="htab-btn" data-tab="hospmgmt" onclick="showVtab('hospmgmt')">학생정보</button>
             <button class="htab-btn" data-tab="hosp" onclick="showVtab('hosp')">실습병원</button>
-            <button class="htab-btn" data-tab="mgr" onclick="showVtab('mgr')">담당자</button>
           </div>
           <!-- hidden count spans (kept for renderPending/renderMissingOut compat) -->
           <span id="pending-count" style="display:none;"></span>
@@ -1288,15 +1294,6 @@ css inline edit/* 출결 인증 요청 */
                 <div id="hosp-myreq-list"><div class="empty-state" style="padding:8px;">신청 내역 없음</div></div>
               </div>
 
-            </div>
-
-            <!-- 병원 담당자 탭 -->
-            <div class="htab-panel" id="vtab-mgr">
-              <div class="cls-section">
-                <div class="cls-section-title">병원별 담당자</div>
-                <div style="font-size:12px;color:var(--muted);margin-bottom:10px;">학생 QR로 가입한 병원 담당자의 이름·직위·연락처·서명입니다.</div>
-                <div id="mgr-list"><div class="empty-state" style="padding:8px;">불러오는 중...</div></div>
-              </div>
             </div>
 
           </div>
@@ -3252,6 +3249,7 @@ function renderHospMgmtList(){
           <button id="hospmgmt-rename-save-${i}" class="hbtn hbtn-save" style="display:none;" onclick="saveHospMgmtRename(${i})">저장</button>
           <button id="hospmgmt-rename-cancel-${i}" class="hbtn hbtn-cancel" style="display:none;" onclick="cancelHospMgmtRename(${i})">취소</button>
         </div>
+        <div class="hosp-mgrs">${hospManagersHtml(h.name)}</div>
       </div>`).join('');
 }
 
@@ -3312,6 +3310,7 @@ async function saveHospMgmtRename(i){
         showToast('병원 이름 변경 완료'+(updatedCount?` (학생 ${updatedCount}명 갱신)`:''),'success');
         await loadAcademyHospitals();
         renderHospMgmtList();
+        loadHospitalManagers(); // 이름이 바뀌었으니 담당자 연결(이름 기준)을 다시 불러옴
     }catch(e){showToast('저장 실패: '+e.message,'error');}
     showLoader(false);
 }
@@ -3912,33 +3911,35 @@ function showVtab(id){
     const panel=document.getElementById('vtab-'+id);
     if(panel)panel.classList.add('active');
     if(id==='docs'){initDocTab();initProspectTab();}
-    if(id==='hosp'){renderHospMgmtList();loadMyHospitalRequests();}
-    if(id==='mgr')loadHospitalManagers();
+    if(id==='hosp'){renderHospMgmtList();loadMyHospitalRequests();loadHospitalManagers();}
 }
 
+// 병원 이름 → 담당자 목록 (실습병원 탭의 병원 카드 옆에 함께 표시)
+let hospManagersByName=new Map(),hospManagersState='idle'; // idle | loading | ok | fail
 async function loadHospitalManagers(){
-    const el=document.getElementById('mgr-list');
-    if(!el)return;
-    el.innerHTML='<div class="empty-state" style="padding:8px;">불러오는 중...</div>';
+    hospManagersState='loading';renderHospMgmtList();
     try{
         const idToken=await window.auth.currentUser.getIdToken();
         const res=await fetch(`${CF_BASE_URL}/directorHospitalManagers`,{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${idToken}`},body:JSON.stringify({directorDocId:directorDocId,passwordHash:directorData?.passwordHash||''})});
         const j=await res.json();
-        if(j.status!=='success'){el.innerHTML=`<div class="empty-state" style="padding:8px;">${escHtml(j.message||'불러오기 실패')}</div>`;return;}
-        const hosps=(j.hospitals||[]).filter(h=>!h.isAcademy).sort((a,b)=>(b.managers.length>0)-(a.managers.length>0)||a.name.localeCompare(b.name,'ko'));
-        if(!hosps.length){el.innerHTML='<div class="empty-state" style="padding:8px;">등록된 병원 없음</div>';return;}
-        el.innerHTML=hosps.map(h=>{
-            const rows=h.managers.length?h.managers.map(m=>`<tr>
-                <td style="padding:6px 8px;font-weight:700;">${escHtml(m.name)}</td>
-                <td style="padding:6px 8px;">${escHtml(m.position)}</td>
-                <td style="padding:6px 8px;white-space:nowrap;">${escHtml(String(m.phone||'').replace(/(\d{3})(\d{3,4})(\d{4})/,'$1-$2-$3'))}</td>
-                <td style="padding:6px 8px;">${m.signature?`<img src="${sigSrc(m.signature)}" style="height:34px;max-width:110px;object-fit:contain;border:1px solid var(--border);border-radius:4px;background:#fff;">`:'-'}</td>
-                <td style="padding:6px 8px;color:var(--muted);font-size:11px;">인증 ${m.approveCount}회</td>
-            </tr>`).join(''):`<tr><td colspan="5" style="padding:8px;color:var(--muted);font-size:12px;">등록된 담당자 없음</td></tr>`;
-            return `<div style="margin-bottom:14px;"><div style="font-weight:800;font-size:13px;margin-bottom:4px;">${escHtml(h.name)} <span style="font-weight:500;color:var(--muted);font-size:11px;">담당자 ${h.managers.length}명</span></div>
-                <div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:12px;"><thead><tr style="color:var(--muted);text-align:left;"><th style="padding:4px 8px;">이름</th><th style="padding:4px 8px;">직위</th><th style="padding:4px 8px;">연락처</th><th style="padding:4px 8px;">서명</th><th></th></tr></thead><tbody>${rows}</tbody></table></div></div>`;
-        }).join('');
-    }catch(e){el.innerHTML='<div class="empty-state" style="padding:8px;">불러오기 실패</div>';}
+        if(j.status!=='success')throw new Error(j.message||'불러오기 실패');
+        hospManagersByName=new Map((j.hospitals||[]).filter(h=>!h.isAcademy).map(h=>[h.name,h.managers||[]]));
+        hospManagersState='ok';
+    }catch(e){hospManagersState='fail';}
+    renderHospMgmtList();
+}
+function hospManagersHtml(name){
+    if(hospManagersState==='loading'||hospManagersState==='idle')return '<div class="hosp-mgr-none">담당자 불러오는 중...</div>';
+    if(hospManagersState==='fail')return '<div class="hosp-mgr-none">담당자 불러오기 실패</div>';
+    const ms=hospManagersByName.get(name)||[];
+    if(!ms.length)return '<div class="hosp-mgr-none">등록된 담당자 없음</div>';
+    return ms.map(m=>`<div class="hosp-mgr">
+        <span class="hosp-mgr-name">${escHtml(m.name)}</span>
+        <span class="hosp-mgr-pos">${escHtml(m.position)}</span>
+        <span class="hosp-mgr-phone">${escHtml(String(m.phone||'').replace(/(d{3})(d{3,4})(d{4})/,'$1-$2-$3'))}</span>
+        ${m.signature?`<img class="hosp-mgr-sig" src="${sigSrc(m.signature)}" alt="서명">`:'<span class="hosp-mgr-nosig">서명 없음</span>'}
+        <span class="hosp-mgr-cnt">인증 ${m.approveCount||0}회</span>
+    </div>`).join('');
 }
 
 function updateApproveCount(){
