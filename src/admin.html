@@ -573,6 +573,7 @@ css inline edit/* 출결 인증 요청 */
 /* ── 실습현황 테이블 ── */
 .att-table-wrap{flex:1;overflow:auto;}/* legacy - replaced by att-table-section */
 .att-table{width:100%;border-collapse:collapse;font-size:14px;min-width:760px;}
+#att-table-single{min-width:880px;}
 .att-table thead th{position:sticky;top:0;background:var(--surface);border-bottom:2px solid var(--border);padding:8px 8px;text-align:center;font-size:13px;font-weight:700;color:var(--muted);letter-spacing:0.02em;white-space:nowrap;z-index:2;}
 .att-table tbody tr{border-bottom:1px solid var(--border);transition:background .1s;}
 .att-table tbody tr:hover{filter:brightness(0.96);}
@@ -595,6 +596,13 @@ css inline edit/* 출결 인증 요청 */
 .att-td-name{font-weight:700;font-size:15px;}
 .att-td-hosp{font-size:13px;color:var(--muted);max-width:100px;overflow:hidden;text-overflow:ellipsis;}
 .att-td-period{font-size:12px;color:var(--muted);}
+.att-td-sign{min-width:104px;line-height:1.35;}
+.sign-badge{display:inline-block;font-size:12px;font-weight:700;border-radius:999px;padding:1px 9px;}
+.sign-ok{background:#dcfce7;color:#15803d;}
+.sign-no{background:#fee2e2;color:#dc2626;}
+.sign-wait{background:#f1f5f9;color:#64748b;}
+.sign-cnt{display:block;font-size:11px;color:var(--muted);font-weight:600;margin-top:2px;}
+.sign-cnt b{font-weight:800;}
 .att-td-time{font-size:14px;color:var(--text);font-weight:600;font-variant-numeric:tabular-nums;}
 /* 진행 바 */
 .prog-cell{min-width:96px;}
@@ -1101,6 +1109,7 @@ css inline edit/* 출결 인증 요청 */
                       <th class="att-th-jabi"><select class="att-th-sel att-th-sel-sm att-jabi-filter-sel" onchange="onAttJabiFilterChange(this)" title="자비 학생 분류"><option value="">전체</option><option value="normal">일반</option><option value="jabi">자비</option></select></th>
                       <th><input type="text" class="att-th-search att-name-search-inp" placeholder="이름" oninput="onAttNameSearch(this)" title="이름 검색 — 글자 또는 초성(예: 이, ㅇㅅ)"></th>
                       <th><select class="att-th-sel att-hosp-filter-sel" onchange="onAttHospFilterChange(this)" title="실습병원 선택"><option value="">전체</option></select></th>
+                      <th title="선택한 날의 담당자 서명 여부 / 2026-11-23부터의 받은 날·안 받은 날">서명</th>
                       <th class="prog-cell">누적시간</th>
                       <th>출근</th>
                       <th>퇴근</th>
@@ -2089,6 +2098,8 @@ function onAttClsFilterChange(el){
 }
 
 // ── Render: 실습현황 ──────────────────────────────────────
+// 담당자 서명 집계(받은 날/안 받은 날) 시작일 — 이 날 이후 출퇴근 기록부터 센다
+const SIGN_COUNT_START='2026-11-23';
 function renderAttendance(){
     const gradClassIds=new Set(classesList.filter(c=>c.graduated).map(c=>c.id));
     const startDate=document.getElementById('att-start-date')?.value||todayKST();
@@ -2258,11 +2269,26 @@ function renderAttendance(){
                 else if(selRec&&selRec.inTime){statusHtml=`<span class="status-badge sb-working">${dayLbl}중</span>`;rowClass='att-tr-working';}
                 else{statusHtml='<span class="status-badge sb-none">-</span>';rowClass='att-tr-none';}
             }
+            // 담당자 서명: 선택한 날의 상태 + 2026-11-23 이후 받은 날/안 받은 날 수(체험 기록 제외, 출·퇴 둘 다 있는 날만 '안 받은 날')
+            let signDay='<span class="sign-badge sign-wait">-</span>';
+            if(selRec&&selRec.verifyRequired===true&&!selRec.trial){
+                if(selRec.verifiedAt)signDay='<span class="sign-badge sign-ok">서명 완료</span>';
+                else if(selRec.inTime&&selRec.outTime)signDay='<span class="sign-badge sign-no">미서명</span>';
+                else signDay='<span class="sign-badge sign-wait">퇴근 전</span>';
+            }
+            let signedCnt=0,unsignedCnt=0;
+            stuRecs.forEach(r=>{
+                if(r.verifyRequired!==true||r.trial||normDate(r.date)<SIGN_COUNT_START)return;
+                if(r.verifiedAt)signedCnt++;
+                else if(r.inTime&&r.outTime)unsignedCnt++;
+            });
+            const signCell=`${signDay}<span class="sign-cnt">받음 <b>${signedCnt}</b>일 · 미 <b${unsignedCnt?' style="color:#dc2626;"':''}>${unsignedCnt}</b>일</span>`;
             return `<tr class="${rowClass}">
                 <td class="att-td-cls">${escHtml(clsName)}</td>
                 <td class="att-td-jabi">${stu.jabi?'<span class="att-jabi-tag">자비</span>':''}</td>
                 <td class="att-td-name">${escHtml(stu.name||'-')}</td>
                 <td class="att-td-hosp">${escHtml(stu.hospital||'-')}</td>
+                <td class="att-td-sign">${signCell}</td>
                 <td class="prog-cell">${stu.jabi?jabiHoursHtml(jabiRes,true):accBar}</td>
                 <td class="att-td-time">${inT||'-'}</td>
                 <td class="att-td-time">${outT||'-'}</td>
