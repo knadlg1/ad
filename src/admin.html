@@ -4352,7 +4352,7 @@ function initDocTab(){
         const sel=document.getElementById(id);
         if(!sel)return;
         const cur=sel.value;
-        sel.innerHTML='<option value="">반을 선택하세요</option>'+classesList.map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
+        sel.innerHTML='<option value="">반을 선택하세요</option>'+classesList.filter(c=>!c.graduated).map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
         if(cur)sel.value=cur;
     });
     updateDocCardStudents();
