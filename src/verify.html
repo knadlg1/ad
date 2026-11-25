@@ -358,11 +358,13 @@ function esc(s) {
 }
 
 /* ===== 병원/학원 식별자 (카카오 리다이렉트 때 쿼리가 사라지므로 sessionStorage에 보관) ===== */
-var ctx = { h: qs.get('h') || '', a: qs.get('a') || '' };
+var ctx = { h: qs.get('h') || '', a: qs.get('a') || '', n: qs.get('n') || '' };
 if (ctx.h) ssSet('vf_h', ctx.h);
 if (ctx.a) ssSet('vf_a', ctx.a);
+if (ctx.n) ssSet('vf_n', ctx.n);
 ctx.h = ctx.h || ssGet('vf_h');
 ctx.a = ctx.a || ssGet('vf_a');
+ctx.n = ctx.n || ssGet('vf_n');
 if (MOCK) { ctx.h = ctx.h || 'mock-hosp'; ctx.a = ctx.a || 'mock-acad'; }
 
 /* ===== 화면 / 하단 바 / 토스트 ===== */
@@ -546,12 +548,14 @@ async function route() {
   show('loading');
   loadingText('담당자 정보 확인 중…');
   try {
-    state.info = await api('managerHospitalInfo', { academyId: ctx.a, hospitalId: ctx.h });
+    state.info = await api('managerHospitalInfo', { academyId: ctx.a, hospitalId: ctx.h, hospitalName: ctx.n });
   } catch (e) {
     if (e.code === 'unauthenticated') return signOutToLogin();
     return fatal(errMsg(e));
   }
   var info = state.info;
+  // 번호가 어긋나 이름으로 병원을 다시 찾았다면 이후 모든 요청이 바른 번호를 쓰게 맞춘다
+  if (info.hospitalId && info.hospitalId !== ctx.h) { ctx.h = info.hospitalId; ssSet('vf_h', ctx.h); }
   if (typeof info.registered === 'boolean') state.registered = info.registered;
   if (info.isAcademy) return show('academy');
   if (!state.registered) return enterRegister();

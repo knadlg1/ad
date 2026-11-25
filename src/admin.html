@@ -3145,7 +3145,11 @@ async function saveStudentEdit(){
         if(classId){
             await window.fsUpdateDoc(window.fsDoc(window.db,'classes',classId),{students:window.fsArrayUnion(String(kakaoId))});
         }
-        const update={classId:classId||null,verifyRequired:classVerifyFlag(classId),verifyStartDate:classVerifyStart(classId),practiceStart:start||null,practiceEnd:end||null,hospital:hospital||null,hospitalLat,hospitalLon};
+        const hospitalId=await resolveHospitalIdOrRefresh(hospital);
+        if(hospital&&!hospitalId){
+            throw new Error('이 병원의 신규 데이터가 아직 없습니다. 새로고침 후 다시 시도해주세요.');
+        }
+        const update={classId:classId||null,verifyRequired:classVerifyFlag(classId),verifyStartDate:classVerifyStart(classId),practiceStart:start||null,practiceEnd:end||null,hospital:hospital||null,hospitalLat,hospitalLon,hospitalId:hospitalId||null};
         await window.fsUpdateDoc(window.fsDoc(window.db,'students',String(kakaoId)),update);
         if(hospital&&studentsList.find(s=>s.kakaoId===kakaoId)?.hospital!==hospital){
             fetch(GAS_URL,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action:'updateStudentHospital',kakaoId,hospital})}).catch(()=>{});
