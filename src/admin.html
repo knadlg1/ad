@@ -262,6 +262,10 @@ body{font-family:'Pretendard',system-ui,sans-serif;background:var(--canvas);colo
 .fu-new{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;flex-shrink:0;}
 .fu-in{flex:1;min-width:90px;padding:7px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;background:var(--surface);}
 .fu-in:focus{outline:none;border-color:var(--brand);}
+select.fu-in{flex:0 0 auto;min-width:0;font-weight:700;cursor:pointer;}
+.fu-cls{border:1.5px solid var(--border);background:var(--surface);color:var(--text);border-radius:12px;padding:1px 8px;font-size:11px;font-weight:700;font-family:inherit;cursor:pointer;line-height:1.5;}
+.fu-cls.night{background:#EEF2FF;color:#4F46E5;border-color:#C7D2FE;}
+.fu-cls.day{background:#FEF3C7;color:#B45309;border-color:#FDE68A;}
 .fu-list-head{display:flex;align-items:center;justify-content:space-between;margin:2px 0 8px;font-size:12px;font-weight:700;color:var(--muted);flex-shrink:0;}
 .fu-item{border:1px solid var(--border);border-radius:12px;padding:10px 12px;margin-bottom:8px;background:var(--surface);flex-shrink:0;}
 .fu-top{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:6px;}
@@ -1161,6 +1165,7 @@ css inline edit/* 출결 인증 요청 */
               <div class="htab-panel-head">예비 수강생 — 상담 후 보내는 안내 링크</div>
               <div class="fu-new">
                 <input class="fu-in" id="fu-name" maxlength="30" placeholder="이름" onkeydown="if(event.key==='Enter')createFollowup()">
+                <select class="fu-in" id="fu-cls" title="안내 페이지에서 먼저 보여줄 시간표"><option value="day">주간반</option><option value="night">야간·주말반</option></select>
                 <input class="fu-in" id="fu-memo" maxlength="100" placeholder="메모 (선택)" onkeydown="if(event.key==='Enter')createFollowup()">
                 <button class="btn btn-primary btn-sm" onclick="createFollowup()">링크 만들기</button>
               </div>
@@ -4306,6 +4311,7 @@ function renderFollowups(){
   <div class="fu-top">
     <span class="fu-name">${escHtml(f.name)}</span>
     ${f.memo?`<span class="fu-memo">${escHtml(f.memo)}</span>`:''}
+    <button class="fu-cls ${f.cls==='night'?'night':'day'}" title="누르면 주간반/야간·주말반이 바뀝니다 (학생 안내 페이지에서 먼저 보이는 시간표)" onclick="toggleFuCls('${id}')">${f.cls==='night'?'야간·주말반':'주간반'}</button>
     ${f.helpUnseen?`<button class="badge badge-red fu-badge-btn" title="누르면 확인 처리" onclick="fuHelpSeen('${id}')">도움 요청 ✓확인</button>`:''}
     ${f.notifiedAt?'<span class="badge badge-green">학원에 알림</span>':''}
     <span class="fu-btns">
@@ -4334,7 +4340,8 @@ async function createFollowup(){
     if(!name){showToast('이름을 입력해주세요','error');nameEl.focus();return;}
     showLoader(true);
     try{
-        const j=await billingCall('createFollowup',{name,memo:(memoEl.value||'').trim()});
+        const clsEl=document.getElementById('fu-cls');
+        const j=await billingCall('createFollowup',{name,memo:(memoEl.value||'').trim(),cls:clsEl?clsEl.value:'day'});
         if(j.status!=='success'){showToast(j.message||'만들기 실패','error');showLoader(false);return;}
         nameEl.value='';memoEl.value='';
         await loadFollowups();
@@ -4350,6 +4357,12 @@ async function fuUpdate(id,extra,okMsg){
         else{if(okMsg)showToast(okMsg,'success');await loadFollowups();}
     }catch(e){showToast('저장 실패: '+e.message,'error');}
     showLoader(false);
+}
+function toggleFuCls(id){
+    const f=followups.find(x=>x.id===id);
+    if(!f)return;
+    const next=f.cls==='night'?'day':'night';
+    fuUpdate(id,{cls:next},next==='night'?'야간·주말반 시간표를 먼저 보여줘요':'주간반 시간표를 먼저 보여줘요');
 }
 function setFuConfirm(id,key,on){fuUpdate(id,{[key]:on});}
 function fuHelpSeen(id){fuUpdate(id,{helpSeen:true});}

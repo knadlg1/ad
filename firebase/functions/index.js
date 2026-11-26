@@ -1737,7 +1737,7 @@ function fuForAdmin(id, x, seatMap, now) {
         } else seatState = 'expired';
     }
     return {
-        id, name: x.name || '', memo: x.memo || '',
+        id, name: x.name || '', memo: x.memo || '', cls: fuCls(x.cls),
         cur: Number.isInteger(x.cur) ? x.cur : 1,
         docsDone: Array.isArray(x.docsDone) ? x.docsDone.map(Boolean) : [false, false, false],
         guideStep: Number.isInteger(x.guideStep) ? x.guideStep : 0,
@@ -1766,6 +1766,9 @@ async function fuByToken(token) {
     return snap.exists ? { ref, data: snap.data() } : null;
 }
 
+// 반 선택(안내 페이지가 그 반 시간표를 먼저 보여줌): 'day'=주간반, 'night'=야간·주말반
+function fuCls(v) { return v === 'night' ? 'night' : v === 'day' ? 'day' : ''; }
+
 // 원장: 링크 만들기
 exports.createFollowup = functions.https.onRequest(async (req, res) => {
     setCors(res);
@@ -1778,7 +1781,7 @@ exports.createFollowup = functions.https.onRequest(async (req, res) => {
         const id = crypto.randomBytes(18).toString('base64url');
         await db.doc('followups/' + id).set({
             directorId: call.id, academyId: call.data.academyId || '',
-            name, memo: fuTrim(call.body.memo, 100),
+            name, memo: fuTrim(call.body.memo, 100), cls: fuCls(call.body.cls) || 'day',
             cur: 1, docsDone: [false, false, false], guideStep: 0,
             createdAt: admin.firestore.FieldValue.serverTimestamp(),
         });
@@ -1829,6 +1832,7 @@ exports.updateFollowup = functions.https.onRequest(async (req, res) => {
             upd.name = name;
         }
         if (typeof b.memo === 'string') upd.memo = fuTrim(b.memo, 100);
+        if (fuCls(b.cls)) upd.cls = fuCls(b.cls);
         if (typeof b.cardConfirmed === 'boolean') upd.cardConfirmedAt = b.cardConfirmed ? ts : null;
         if (typeof b.applyConfirmed === 'boolean') upd.applyConfirmedAt = b.applyConfirmed ? ts : null;
         if (b.helpSeen === true) upd.helpSeenAt = ts;
@@ -1900,7 +1904,7 @@ exports.getFollowup = functions.https.onRequest(async (req, res) => {
         await f.ref.update(upd);
         const seatSnap = x.seatId ? await fuSeatRef(fuScope(x), x.seatId).get() : null;
         res.json({
-            status: 'success', name: x.name || '',
+            status: 'success', name: x.name || '', cls: fuCls(x.cls),
             cur: Number.isInteger(x.cur) ? x.cur : 1,
             docsDone: Array.isArray(x.docsDone) ? x.docsDone.map(Boolean) : [false, false, false],
             cardClaimed: !!x.cardClaimedAt, cardConfirmed: !!x.cardConfirmedAt, applyConfirmed: !!x.applyConfirmedAt,
